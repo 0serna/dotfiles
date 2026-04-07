@@ -5,11 +5,11 @@ Centralized configuration for [OpenCode](https://opencode.ai/docs). Automaticall
 ## Commands
 
 ```
-bun run setup       # Install configuration
-bun run check       # Lint and format check
-bun run format      # Format code
-bun run typecheck   # Type checking
-bun run test        # Test suite
+npm run setup       # Install configuration
+npm run check       # Lint and format check
+npm run format      # Format code
+npm run typecheck   # Type checking
+npm test            # Test suite
 ```
 
 ## Structure

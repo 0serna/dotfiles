@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export class ConfigInstaller {
   constructor(
@@ -62,6 +63,10 @@ async function main(): Promise<void> {
   process.exit(success ? 0 : 1);
 }
 
-if (import.meta.main) {
+const isMain =
+  process.argv[1] !== undefined &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
   main();
 }
