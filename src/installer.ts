@@ -101,7 +101,21 @@ export class ConfigInstaller {
       throw new Error(`Target must be absolute: ${target}`);
     }
 
-    return expandedTarget;
+    const normalizedTarget = path.resolve(expandedTarget);
+    const normalizedHome = path.resolve(this.homeDir);
+    if (normalizedTarget === normalizedHome) {
+      throw new Error(`Target resolves to the home directory root: ${target}`);
+    }
+
+    const normalizedRepo = path.resolve(this.repoDir);
+    if (
+      normalizedTarget === normalizedRepo ||
+      normalizedTarget.startsWith(`${normalizedRepo}${path.sep}`)
+    ) {
+      throw new Error(`Target resolves inside the repository: ${target}`);
+    }
+
+    return normalizedTarget;
   }
 
   private async linkEntry(entry: DotfileEntry): Promise<void> {

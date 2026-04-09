@@ -91,6 +91,23 @@ describe("ConfigInstaller", () => {
     expect(success).toBe(false);
   });
 
+  it.each(["~", "~/"])("rejects home root target %s", async (target) => {
+    const { repoDir, homeDir } = await createRepo(
+      { "dotfiles/opencode/opencode.jsonc": "config" },
+      [{ source: "dotfiles/opencode/opencode.jsonc", target }],
+    );
+
+    await fs.writeFile(path.join(homeDir, "keep.txt"), "keep");
+
+    const installer = new ConfigInstaller(repoDir, homeDir);
+    const success = await installer.install();
+
+    expect(success).toBe(false);
+    expect(await fs.readFile(path.join(homeDir, "keep.txt"), "utf-8")).toBe(
+      "keep",
+    );
+  });
+
   it("creates parent directories and expands home targets", async () => {
     const { repoDir, homeDir } = await createRepo(
       { "dotfiles/opencode/tui.jsonc": "theme" },
@@ -119,6 +136,89 @@ describe("ConfigInstaller", () => {
         "utf-8",
       ),
     ).toBe("theme");
+  });
+
+  it("rejects targets inside the repository", async () => {
+    const repoDir = path.join(tmpDir, "repo");
+    const homeDir = path.join(tmpDir, "home");
+    await fs.mkdir(repoDir, { recursive: true });
+    await fs.mkdir(homeDir, { recursive: true });
+
+    await fs.mkdir(path.join(repoDir, "dotfiles", "opencode"), {
+      recursive: true,
+    });
+    await fs.writeFile(
+      path.join(repoDir, "dotfiles", "opencode", "opencode.jsonc"),
+      "config",
+    );
+    await fs.writeFile(
+      path.join(repoDir, "dotfiles.json"),
+      JSON.stringify(
+        [
+          {
+            source: "dotfiles/opencode/opencode.jsonc",
+            target: path.join(repoDir, "repo-target", "config.jsonc"),
+          },
+        ],
+        null,
+        2,
+      ),
+    );
+
+    await fs.mkdir(path.join(repoDir, "repo-target"), { recursive: true });
+    await fs.writeFile(
+      path.join(repoDir, "repo-target", "config.jsonc"),
+      "old",
+    );
+
+    const installer = new ConfigInstaller(repoDir, homeDir);
+    const success = await installer.install();
+
+    expect(success).toBe(false);
+    expect(
+      await fs.readFile(
+        path.join(repoDir, "repo-target", "config.jsonc"),
+        "utf-8",
+      ),
+    ).toBe("old");
+  });
+
+  it("rejects literal dot-prefixed segments inside the repository", async () => {
+    const repoDir = path.join(tmpDir, "repo");
+    const homeDir = path.join(tmpDir, "home");
+    await fs.mkdir(repoDir, { recursive: true });
+    await fs.mkdir(homeDir, { recursive: true });
+
+    await fs.mkdir(path.join(repoDir, "dotfiles", "opencode"), {
+      recursive: true,
+    });
+    await fs.writeFile(
+      path.join(repoDir, "dotfiles", "opencode", "opencode.jsonc"),
+      "config",
+    );
+
+    const targetPath = path.join(repoDir, "..foo", "config.jsonc");
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, "old");
+    await fs.writeFile(
+      path.join(repoDir, "dotfiles.json"),
+      JSON.stringify(
+        [
+          {
+            source: "dotfiles/opencode/opencode.jsonc",
+            target: targetPath,
+          },
+        ],
+        null,
+        2,
+      ),
+    );
+
+    const installer = new ConfigInstaller(repoDir, homeDir);
+    const success = await installer.install();
+
+    expect(success).toBe(false);
+    expect(await fs.readFile(targetPath, "utf-8")).toBe("old");
   });
 
   it("replaces existing targets", async () => {
