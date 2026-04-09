@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "setup": "tsx src/installer.ts",
+    "link": "tsx src/installer.ts",
     "test": "vitest run",
     "check": "biome check .",
     "format": "biome check --write .",

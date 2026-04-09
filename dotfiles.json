@@ -1,0 +1,6 @@
+[
+  {
+    "source": "dotfiles/opencode",
+    "target": "~/.config/opencode"
+  }
+]

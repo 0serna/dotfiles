@@ -3,57 +3,128 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
+type DotfileEntry = {
+  source: string;
+  target: string;
+};
+
 export class ConfigInstaller {
   constructor(
     private repoDir = process.cwd(),
-    private targetDir = path.join(os.homedir(), ".config", "opencode"),
+    private homeDir = os.homedir(),
   ) {}
 
   async install(): Promise<boolean> {
-    const sourceDir = path.join(this.repoDir, "opencode");
-
     try {
-      await fs.stat(sourceDir);
-    } catch {
-      console.error(`Source directory not found: ${sourceDir}`);
+      const entries = await this.readManifest();
+      for (const entry of entries) {
+        await this.linkEntry(entry);
+      }
+      return true;
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
       return false;
     }
-
-    await fs.mkdir(this.targetDir, { recursive: true });
-
-    const entries = await fs.readdir(sourceDir, { withFileTypes: true });
-    for (const entry of entries) {
-      const source = path.resolve(sourceDir, entry.name);
-      const target = path.join(this.targetDir, entry.name);
-
-      await fs.rm(target, { recursive: true, force: true });
-      await fs.symlink(source, target);
-      const entryType = entry.isDirectory()
-        ? "dir"
-        : entry.isFile()
-          ? "file"
-          : "entry";
-      console.log(`Linked ${entryType}: ${entry.name}`);
-    }
-
-    await this.cleanupBrokenSymlinks();
-    return true;
   }
 
-  private async cleanupBrokenSymlinks(): Promise<void> {
-    const entries = await fs.readdir(this.targetDir, { withFileTypes: true });
+  private async readManifest(): Promise<DotfileEntry[]> {
+    const manifestPath = path.join(this.repoDir, "dotfiles.json");
 
-    for (const entry of entries) {
-      if (!entry.isSymbolicLink()) continue;
-
-      const linkPath = path.join(this.targetDir, entry.name);
-      try {
-        await fs.stat(linkPath);
-      } catch {
-        await fs.unlink(linkPath);
-        console.log(`Removed broken symlink: ${entry.name}`);
-      }
+    let manifestContent: string;
+    try {
+      manifestContent = await fs.readFile(manifestPath, "utf-8");
+    } catch {
+      throw new Error(`Manifest not found: ${manifestPath}`);
     }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(manifestContent) as unknown;
+    } catch {
+      throw new Error(`Invalid JSON in manifest: ${manifestPath}`);
+    }
+
+    if (!Array.isArray(parsed)) {
+      throw new Error("dotfiles.json must contain an array of entries");
+    }
+
+    return parsed.map((entry, index) => this.parseEntry(entry, index + 1));
+  }
+
+  private parseEntry(entry: unknown, index: number): DotfileEntry {
+    if (!entry || typeof entry !== "object") {
+      throw new Error(`Entry ${index} must be an object`);
+    }
+
+    const { source, target } = entry as Record<string, unknown>;
+    if (
+      typeof source !== "string" ||
+      source.trim() === "" ||
+      typeof target !== "string" ||
+      target.trim() === ""
+    ) {
+      throw new Error(
+        `Entry ${index} must include non-empty source and target`,
+      );
+    }
+
+    return { source, target };
+  }
+
+  private resolveSource(source: string): string {
+    if (path.isAbsolute(source)) {
+      throw new Error(`Source must be relative: ${source}`);
+    }
+
+    const repoRoot = path.resolve(this.repoDir);
+    const resolved = path.resolve(this.repoDir, source);
+
+    if (
+      resolved !== repoRoot &&
+      !resolved.startsWith(`${repoRoot}${path.sep}`)
+    ) {
+      throw new Error(`Source escapes repository: ${source}`);
+    }
+
+    return resolved;
+  }
+
+  private resolveTarget(target: string): string {
+    const expandedTarget =
+      target === "~"
+        ? this.homeDir
+        : target.startsWith("~/")
+          ? path.join(this.homeDir, target.slice(2))
+          : target;
+
+    if (!path.isAbsolute(expandedTarget)) {
+      throw new Error(`Target must be absolute: ${target}`);
+    }
+
+    return expandedTarget;
+  }
+
+  private async linkEntry(entry: DotfileEntry): Promise<void> {
+    const sourcePath = this.resolveSource(entry.source);
+    const targetPath = this.resolveTarget(entry.target);
+    const sourceStat = await fs.lstat(sourcePath).catch(() => {
+      throw new Error(`Source not found: ${entry.source}`);
+    });
+
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.rm(targetPath, { recursive: true, force: true });
+    await fs.symlink(
+      sourcePath,
+      targetPath,
+      sourceStat.isDirectory() ? "dir" : "file",
+    );
+
+    const entryType = sourceStat.isDirectory()
+      ? "dir"
+      : sourceStat.isFile()
+        ? "file"
+        : "entry";
+    console.log(`Linked ${entryType}: ${entry.source} -> ${entry.target}`);
   }
 }
 
