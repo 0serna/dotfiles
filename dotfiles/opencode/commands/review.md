@@ -51,7 +51,7 @@ Required verdict format per candidate:
 - Verdict: `CONFIRMED` | `DISCARDED`
 - Title
 - Evidence
-- Fix
+- Suggestion
 
 If evidence is weak/speculative, not tied to changed code, or the exact location cannot be verified, mark `DISCARDED`.
 
@@ -82,7 +82,7 @@ Return this exact format:
 
 **Where:** <path/to/file:line-range>
 **Evidence:** <evidence>
-**Fix:** <fix>
+**Suggestion:** <suggestion>
 
 ### 2. ...
 ```
