@@ -1,0 +1,1 @@
+When a task is complete, run the relevant verification commands before reporting back. Default checks for this repo are `npm run check`, `npm run typecheck`, and `npm test`; use `npm run format` if files need formatting. For install/linking changes, also validate with `npm run link` when appropriate.
