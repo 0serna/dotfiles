@@ -15,23 +15,6 @@
       "type": "remote",
       "url": "https://mcp.context7.com/mcp"
     },
-    "serena": {
-      "type": "local",
-      "command": [
-        "uvx",
-        "-p",
-        "3.13",
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server",
-        "--project-from-cwd",
-        "--context",
-        "ide",
-        "--open-web-dashboard",
-        "False"
-      ]
-    },
     "chrome-devtools": {
       "enabled": false,
       "type": "local",

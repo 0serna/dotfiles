@@ -1,1 +1,0 @@
-Generic dotfiles repository for agents and tools. The repository centers on a manifest-driven installer that links files under `dotfiles/` into system locations, currently targeting `~/.config/opencode` for OpenCode configuration, commands, rules, and skills.

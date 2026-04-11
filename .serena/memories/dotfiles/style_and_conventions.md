@@ -1,1 +1,0 @@
-TypeScript project using ESM (`type: module`) with strict compiler settings. Formatting and linting are handled by Biome with 2-space indentation and trailing commas enabled in JavaScript. Prefer small, minimal changes; keep code ASCII unless existing files require otherwise. `lint-staged` runs Biome on `*.ts`, `*.js`, `*.json`, and `*.jsonc`.

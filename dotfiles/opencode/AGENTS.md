@@ -11,7 +11,3 @@
 ## GitHub Research
 
 - MUST prefer GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata
-
-## Serena MCP
-
-- When Serena MCP tools are available, prefer them for code navigation, symbol search, and project-aware file operations before falling back to generic search or shell commands
