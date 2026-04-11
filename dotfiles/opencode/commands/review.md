@@ -1,5 +1,6 @@
 ---
 description: Code review changes or pull requests
+model: openai/gpt-5.4
 ---
 
 ## Input
