@@ -28,8 +28,8 @@
     }
   },
   "permission": {
-    "external_directory": "allow",
-    "read": "allow",
+    "*": "allow",
+    "doom_loop": "ask",
     "bash": {
       "*": "allow",
       "* --help": "allow",
