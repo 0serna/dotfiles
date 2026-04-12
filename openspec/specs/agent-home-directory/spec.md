@@ -1,3 +1,7 @@
+## Purpose
+
+Define how the repository manages the global agent home directory and shared skill definitions.
+
 ## Requirements
 
 ### Requirement: Repository manages the global agent home directory

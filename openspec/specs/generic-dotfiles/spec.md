@@ -1,3 +1,7 @@
+## Purpose
+
+Define the repository-wide manifest and safety rules for linking dotfiles into the user environment.
+
 ## Requirements
 
 ### Requirement: Manifest-driven dotfile linking

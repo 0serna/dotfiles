@@ -1,3 +1,7 @@
+## Purpose
+
+Define the Node.js-based tooling requirements for installing, verifying, and testing the repository.
+
 ## Requirements
 
 ### Requirement: npm-based developer commands
