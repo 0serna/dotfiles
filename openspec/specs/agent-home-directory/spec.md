@@ -22,9 +22,9 @@ The system SHALL include a `dotfiles/agents/skills` subtree containing the globa
 - **WHEN** `skills.sh` adds or updates a global skill after `~/.agents` has been linked to the repository
 - **THEN** the resulting file changes appear under `dotfiles/agents/skills` through the shared filesystem path
 
-### Requirement: OpenCode skills remain separate from global skills
-The system SHALL keep OpenCode-specific skills under `dotfiles/opencode/skills` and global `skills.sh` skills under `dotfiles/agents/skills`.
+### Requirement: Shared skills live in the managed global agent directory
+The system SHALL keep shared reusable skills under `dotfiles/agents/skills`, exposed through `~/.agents/skills`, so agent harnesses can consume the same skill definitions.
 
-#### Scenario: Preserve distinct skill scopes
+#### Scenario: Reuse the same shared skills across harnesses
 - **WHEN** the repository is inspected after setup
-- **THEN** OpenCode skills are managed through `~/.config/opencode/skills` and global skills are managed through `~/.agents/skills`
+- **THEN** reusable skills are managed through `~/.agents/skills` instead of a harness-specific skills directory

@@ -19,8 +19,11 @@ npm test            # Test suite
 ├── dotfiles.json               # Manifest
 ├── dotfiles/
 │   ├── agents/                 # Shared configurations for agents
-│   │   └── skills/             # Global skills managed by `skills.sh`
-│   └── opencode/               # OpenCode config, commands, rules, skills
+│   │   └── skills/             # Shared global skills
+│   ├── opencode/               # OpenCode config and commands
+│   └── pi/
+│       ├── agent/              # Global Pi agent files
+│       └── prompts/            # Global Pi prompt templates
 ├── src/
 │   └── dotfiles-installer.ts   # Linker script
 └── ...

@@ -24,6 +24,12 @@
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.git"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.git",
+      "!dotfiles/pi/agent/settings.json"
+    ]
   }
 }
