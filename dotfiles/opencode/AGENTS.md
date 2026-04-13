@@ -3,6 +3,7 @@
 - All communication addressed to the user MUST be in SPANISH.
 - Everything else (file content, code, comments, commit messages, documentation) MUST be in ENGLISH.
 - Keep your answers brief unless more detail is needed to avoid ambiguity or support a decision.
+- Use the `question` tool whenever presenting options or decisions to the user.
 
 ## OpenSpec Workflow
 
