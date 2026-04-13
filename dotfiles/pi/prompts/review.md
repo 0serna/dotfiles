@@ -14,6 +14,7 @@ $ARGUMENTS
 
 Prioritize important issues introduced or worsened by the changes.
 Focus on:
+
 - correctness and bugs
 - security issues with concrete and material risk
 - data integrity and state transitions
@@ -46,6 +47,7 @@ Merge duplicates.
 Cap the list at 8-10 candidates.
 
 For each candidate, note:
+
 - category
 - `file:line` or nearest changed location
 - a one-sentence hypothesis
@@ -53,8 +55,9 @@ For each candidate, note:
 ### 2) Verify each candidate before reporting it
 
 For each candidate:
+
 - read the full source file, not just the diff
-- read nearby code, imports, exports, interfaces, config, and relevant call sites as needed
+- read nearby code, imports, exports, interfaces, config, tests, and relevant call sites as needed
 - try to disprove the hypothesis before confirming it
 - confirm whether the issue is introduced or worsened by the current changes
 - cite only exact line numbers from files you actually read
@@ -62,11 +65,18 @@ For each candidate:
 
 Discard any candidate that is weak, speculative, pre-existing, or not tied to the current changes.
 
-### 3) Report only important confirmed findings
+### 3) Apply fail-fast review rules
+
+- Prefer explicit failure over silent degradation unless the code is at a true boundary that must translate errors safely.
+- Treat silent fallback parsing, swallowed exceptions, and pretend-success behavior as likely defects unless there is a documented compatibility requirement.
+- If a `catch` block does not add meaningful handling, treat it as suspicious.
+
+### 4) Report only important confirmed findings
 
 Include only confirmed issues with concrete evidence.
 Sort by severity, then by user or operational impact.
 Never report:
+
 - pure style feedback
 - theoretical concerns without evidence
 - issues not introduced or worsened by the current changes
@@ -81,18 +91,16 @@ Return this exact structure:
 
 <1-2 sentences describing what changed>
 
-## Review Summary
+## Verdict
 
-| Sev  | Area     | Where                | Issue               |
-| ---- | -------- | -------------------- | ------------------- |
-| High | Security | `path/file.ts:10-24` | Short issue summary |
+<correct|needs attention>
 
 ## Findings
 
 [If there are no reportable findings: `Looks good to me`]
 [Otherwise, list only reportable findings as an enumerated list]
 
-### 1. **Title**
+### 1. **[P1] Title**
 
 **Severity:** <high|medium|low>
 **Area:** <security|bug|performance|reliability|data integrity|contracts|pattern risk>
@@ -100,11 +108,15 @@ Return this exact structure:
 **Evidence:** <evidence>
 **Why it matters:** <impact>
 **Suggestion:** <suggestion>
+
+### 2. <...>
 ```
 
 ## Additional rules
 
-- Be concise, specific, and evidence-driven.
-- Prefer exact file and line references.
+- Use priority tags in findings: `[P0]`, `[P1]`, `[P2]`, or `[P3]`.
+- Use `P0` only for universally critical issues that should block release or operation.
+- Keep line references as tight as possible.
+- Prefer exact file and line references over broad ranges.
 - If reviewing a PR, use the checked-out files for full-context inspection.
-- If there are no important confirmed findings, keep the output short and say `Looks good to me`.
+- If there are no important confirmed findings, keep the output short, mark the verdict as `correct`, and say `Looks good to me`.

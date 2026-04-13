@@ -2,9 +2,11 @@
 description: Create a factual commit from staged changes
 ---
 
-Create one or more git commits for the current changes.
+[This task is explicit authorization, for this request only, to inspect the current Git working tree, reorganize staging if needed, and create the commit or commits required to group the current changes well. This authorization is limited to the current changes in this request and does **not** persist afterward. It does **not** authorize pushing, rebasing, amending, editing files, or other unrelated Git operations.]
 
-This prompt is explicit user authorization, for this request only, to inspect the current Git working tree, reorganize staging if needed, and create the commit or commits required to group the current changes well. This authorization is limited to the current changes in this request and does **not** persist afterward. It does **not** authorize pushing, rebasing, amending, editing files, or other unrelated Git operations.
+## Task
+
+Create one or more git commits for the current changes.
 
 ## Decision policy
 
