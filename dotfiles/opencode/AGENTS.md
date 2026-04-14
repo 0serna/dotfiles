@@ -12,16 +12,12 @@
 ## GitHub Research
 
 - MUST prefer GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
+- If necessary, clone repositories to temporary directories in /tmp to analyze them more efficiently.
 
 ## Background Processes
 
-- Use `nohup` for long-running commands so you can keep working, inspect logs later, and terminate the process by PID if needed.
+- Use `tmux` for long-running or background commands.
 
 ## Context7
 
-- Use `ctx7` for up-to-date docs when the user asks about libraries, frameworks, SDKs, APIs, CLIs, or cloud services.
-- Do not use it for refactoring, new scripts, business logic, code review, or general concepts.
-- Workflow: `library` first, then `docs`, then answer from the fetched docs.
-- Use the official package name, prefer exact matches, and keep queries specific.
-- Do not run more than 3 commands per question.
-- For versioned docs, use the `/org/project/version` ID returned by `library`.
+- Use `find-docs` skill for up-to-date docs when the user asks about libraries, frameworks, SDKs, APIs, CLIs, or cloud services.

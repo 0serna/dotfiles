@@ -4,15 +4,15 @@
   "plugin": ["oc-tps@latest"],
   "keybinds": {
     "app_exit": "ctrl+c",
-    "terminal_suspend": "none",
     "input_clear": "ctrl+d",
     "session_new": "ctrl+n",
     "model_cycle_favorite": "tab",
     "model_list": "shift+tab",
-    "model_cycle_recent": "none",
     "command_list": "f2",
     "messages_undo": "ctrl+u",
     "messages_next": "ctrl+right",
-    "messages_previous": "ctrl+left"
+    "messages_previous": "ctrl+left",
+    "terminal_suspend": "none",
+    "model_cycle_recent": "none"
   }
 }

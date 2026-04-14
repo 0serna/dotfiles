@@ -102,12 +102,6 @@ Return this exact format:
 
 <1-2 sentences describing what changed>
 
-## Review Summary
-
-| Sev  | Area     | Where                | Issue               |
-| ---- | -------- | -------------------- | ------------------- |
-| High | Security | `path/file.ts:10-24` | Short issue summary |
-
 ## Findings
 
 [If there are no reportable findings: `Looks good to me`]
