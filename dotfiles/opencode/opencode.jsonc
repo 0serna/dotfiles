@@ -33,8 +33,6 @@
       "* -v": "allow",
       // dependencies
       "* install *": "ask",
-      "* update *": "ask",
-      "* add *": "ask",
       // http
       "wget *": "ask",
       "curl *": "allow",
