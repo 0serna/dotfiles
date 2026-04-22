@@ -14,19 +14,19 @@ export async function linkEntry(
   const sourceStat = await fs.lstat(sourcePath).catch(() => {
     throw new Error(`Source not found: ${entry.source}`);
   });
+  const isDirectory = sourceStat.isDirectory();
+  const isFile = sourceStat.isFile();
 
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await fs.rm(targetPath, { recursive: true, force: true });
-  await fs.symlink(
-    sourcePath,
-    targetPath,
-    sourceStat.isDirectory() ? "dir" : "file",
-  );
+  await fs.symlink(sourcePath, targetPath, isDirectory ? "dir" : "file");
 
-  const entryType = sourceStat.isDirectory()
-    ? "dir"
-    : sourceStat.isFile()
-      ? "file"
-      : "entry";
+  let entryType = "entry";
+  if (isDirectory) {
+    entryType = "dir";
+  } else if (isFile) {
+    entryType = "file";
+  }
+
   console.log(`Linked ${entryType}: ${entry.source} -> ${entry.target}`);
 }

@@ -1,18 +1,31 @@
 import * as path from "node:path";
 
+function isPathInsideDirectory(
+  directoryPath: string,
+  candidatePath: string,
+): boolean {
+  const normalizedDirectory = path.resolve(directoryPath);
+  const normalizedCandidate = path.resolve(candidatePath);
+
+  return (
+    normalizedCandidate === normalizedDirectory ||
+    normalizedCandidate.startsWith(`${normalizedDirectory}${path.sep}`)
+  );
+}
+
 export function resolveSource(repoDir: string, source: string): string {
   if (path.isAbsolute(source)) {
     throw new Error(`Source must be relative: ${source}`);
   }
 
   const repoRoot = path.resolve(repoDir);
-  const resolved = path.resolve(repoDir, source);
+  const resolvedSource = path.resolve(repoDir, source);
 
-  if (resolved !== repoRoot && !resolved.startsWith(`${repoRoot}${path.sep}`)) {
+  if (!isPathInsideDirectory(repoRoot, resolvedSource)) {
     throw new Error(`Source escapes repository: ${source}`);
   }
 
-  return resolved;
+  return resolvedSource;
 }
 
 export function resolveTarget(
@@ -38,10 +51,7 @@ export function resolveTarget(
   }
 
   const normalizedRepo = path.resolve(repoDir);
-  if (
-    normalizedTarget === normalizedRepo ||
-    normalizedTarget.startsWith(`${normalizedRepo}${path.sep}`)
-  ) {
+  if (isPathInsideDirectory(normalizedRepo, normalizedTarget)) {
     throw new Error(`Target resolves inside the repository: ${target}`);
   }
 

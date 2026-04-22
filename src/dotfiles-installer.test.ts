@@ -7,12 +7,25 @@ import { DotfilesInstaller } from "./dotfiles-installer";
 
 let tmpDir: string;
 
-async function createRepo(files: Record<string, string>, manifest: unknown) {
+async function createWorkspace() {
   const repoDir = path.join(tmpDir, "repo");
   const homeDir = path.join(tmpDir, "home");
 
   await fs.mkdir(repoDir, { recursive: true });
   await fs.mkdir(homeDir, { recursive: true });
+
+  return { repoDir, homeDir };
+}
+
+async function writeManifest(repoDir: string, manifest: unknown) {
+  await fs.writeFile(
+    path.join(repoDir, "dotfiles.json"),
+    JSON.stringify(manifest, null, 2),
+  );
+}
+
+async function createRepo(files: Record<string, string>, manifest: unknown) {
+  const { repoDir, homeDir } = await createWorkspace();
 
   for (const [filePath, content] of Object.entries(files)) {
     const absolutePath = path.join(repoDir, filePath);
@@ -20,10 +33,7 @@ async function createRepo(files: Record<string, string>, manifest: unknown) {
     await fs.writeFile(absolutePath, content);
   }
 
-  await fs.writeFile(
-    path.join(repoDir, "dotfiles.json"),
-    JSON.stringify(manifest, null, 2),
-  );
+  await writeManifest(repoDir, manifest);
 
   return { repoDir, homeDir };
 }
@@ -139,10 +149,7 @@ describe("DotfilesInstaller", () => {
   });
 
   it("rejects targets inside the repository", async () => {
-    const repoDir = path.join(tmpDir, "repo");
-    const homeDir = path.join(tmpDir, "home");
-    await fs.mkdir(repoDir, { recursive: true });
-    await fs.mkdir(homeDir, { recursive: true });
+    const { repoDir, homeDir } = await createWorkspace();
 
     await fs.mkdir(path.join(repoDir, "dotfiles", "opencode"), {
       recursive: true,
@@ -151,19 +158,13 @@ describe("DotfilesInstaller", () => {
       path.join(repoDir, "dotfiles", "opencode", "opencode.jsonc"),
       "config",
     );
-    await fs.writeFile(
-      path.join(repoDir, "dotfiles.json"),
-      JSON.stringify(
-        [
-          {
-            source: "dotfiles/opencode/opencode.jsonc",
-            target: path.join(repoDir, "repo-target", "config.jsonc"),
-          },
-        ],
-        null,
-        2,
-      ),
-    );
+
+    await writeManifest(repoDir, [
+      {
+        source: "dotfiles/opencode/opencode.jsonc",
+        target: path.join(repoDir, "repo-target", "config.jsonc"),
+      },
+    ]);
 
     await fs.mkdir(path.join(repoDir, "repo-target"), { recursive: true });
     await fs.writeFile(
@@ -184,10 +185,7 @@ describe("DotfilesInstaller", () => {
   });
 
   it("rejects literal dot-prefixed segments inside the repository", async () => {
-    const repoDir = path.join(tmpDir, "repo");
-    const homeDir = path.join(tmpDir, "home");
-    await fs.mkdir(repoDir, { recursive: true });
-    await fs.mkdir(homeDir, { recursive: true });
+    const { repoDir, homeDir } = await createWorkspace();
 
     await fs.mkdir(path.join(repoDir, "dotfiles", "opencode"), {
       recursive: true,
@@ -200,19 +198,13 @@ describe("DotfilesInstaller", () => {
     const targetPath = path.join(repoDir, "..foo", "config.jsonc");
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
     await fs.writeFile(targetPath, "old");
-    await fs.writeFile(
-      path.join(repoDir, "dotfiles.json"),
-      JSON.stringify(
-        [
-          {
-            source: "dotfiles/opencode/opencode.jsonc",
-            target: targetPath,
-          },
-        ],
-        null,
-        2,
-      ),
-    );
+
+    await writeManifest(repoDir, [
+      {
+        source: "dotfiles/opencode/opencode.jsonc",
+        target: targetPath,
+      },
+    ]);
 
     const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
@@ -251,10 +243,7 @@ describe("DotfilesInstaller", () => {
   });
 
   it("fails when the manifest is missing", async () => {
-    const repoDir = path.join(tmpDir, "repo");
-    const homeDir = path.join(tmpDir, "home");
-    await fs.mkdir(repoDir, { recursive: true });
-    await fs.mkdir(homeDir, { recursive: true });
+    const { repoDir, homeDir } = await createWorkspace();
 
     const installer = new DotfilesInstaller(repoDir, homeDir);
     const success = await installer.install();
