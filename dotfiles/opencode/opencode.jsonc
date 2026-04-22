@@ -65,6 +65,7 @@
       "gh help *": "allow",
       "gh search *": "allow",
       "gh status *": "allow",
+      "gh release view *": "allow",
       "gh config get *": "allow",
       "gh config list *": "allow",
       "gh repo list *": "allow",
