@@ -8,17 +8,15 @@ description: Plan through structured questioning
 $ARGUMENTS
 ```
 
+- **No arguments provided**: Ask the user what plan or design they want to develop.
+- **Clear arguments** (a topic, feature, plan, or design): Use that as the starting subject.
+- **Unclear or ambiguous arguments**: Stop and ask for clarification before proceeding.
+
 ## Task
 
 Develop the user's plan or design by interviewing them about every aspect until you reach a shared understanding.
 
 Walk down each branch of the design tree, resolving dependencies between decisions one by one.
-
-## Scope Selection
-
-- **No arguments provided**: Ask the user what plan or design they want to develop.
-- **Arguments are clear** (a topic, feature, plan, or design): Use that as the starting subject.
-- **Arguments are unclear or ambiguous**: Stop and ask for clarification before proceeding.
 
 ## Workflow
 

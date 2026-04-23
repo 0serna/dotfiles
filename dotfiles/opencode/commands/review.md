@@ -8,6 +8,10 @@ description: Code review changes or pull requests
 $ARGUMENTS
 ```
 
+- **PR number or URL**: Check out and review that pull request.
+- **No arguments provided**: Review local changes against `HEAD`.
+- **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
+
 ## Task
 
 - Perform a focused, high-signal code review of local changes or a PR.
@@ -15,7 +19,7 @@ $ARGUMENTS
 - Focus on correctness, security issues with concrete and material risk, data integrity, reliability, performance, contracts, and pattern regressions with concrete risk.
 - Avoid style-only feedback and speculative concerns.
 
-## Prepare diff
+## Workflow
 
 1. Detect review target:
    - If arguments contain PR number/URL:
@@ -26,75 +30,33 @@ $ARGUMENTS
      - `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE"`
 2. Read `DIFF_FILE` with `Read` in batches (use offset/limit).
 3. If diff is empty, output `No changes to review` and STOP.
+4. From changed lines only, generate a small set of strong candidate issues.
+5. For each candidate, include category, `file:line`, and a one-sentence hypothesis.
+6. Prefer fewer, stronger candidates; merge duplicates and cap the list at 8-12 candidates.
+7. Run one `general` agent task per candidate to verify or discard it.
+8. Report only important confirmed findings with concrete evidence.
 
-## Review workflow
+## Rules
 
-### 1) Generate candidates (do not report yet)
+- Review through these lenses: correctness / bugs, security / auth / permissions / input validation / secrets, data integrity / state transitions / idempotency, performance / unbounded work / N+1 / blocking operations, reliability / retries / cleanup / timeouts / concurrency, contracts / schema / API / typing / backward compatibility, and pattern regressions only if they create concrete risk.
+- Require each verification agent to read the full source file, not only the diff.
+- Require each verification agent to read related tests/imports/exports/interfaces/config and nearby call sites as needed.
+- Require each verification agent to try to disprove the hypothesis before confirming it.
+- Require each verification agent to verify whether the issue is introduced or worsened by the current changes.
+- Require each verification agent to cite only exact line numbers from files it actually read.
+- Require each verification agent to provide concrete evidence and a realistic failure scenario.
+- For security findings, identify a plausible trust boundary, attacker path, or missing guard when it creates concrete risk.
+- For performance findings, identify the trigger and scaling behavior.
+- For pattern-risk findings, explain what established pattern was broken and why it creates concrete risk.
+- Require each verification verdict to include: `Verdict: CONFIRMED | DISCARDED`, category, severity, title, where, evidence, why it matters, and suggestion.
+- If evidence is weak/speculative, not tied to changed code, or the exact location cannot be verified, mark the candidate `DISCARDED`.
+- Include only `CONFIRMED` issues with concrete evidence in the final review.
+- Sort findings by severity, then by user or operational impact.
+- Never report pure style feedback, theoretical concerns without evidence, pre-existing issues not introduced or worsened by current changes, or vague pattern complaints without a concrete defect risk.
 
-From changed lines only, generate a small set of strong candidate issues under these lenses:
+## Output
 
-- correctness / bugs
-- security / auth / permissions / input validation / secrets
-- data integrity / state transitions / idempotency
-- performance / unbounded work / N+1 / blocking operations
-- reliability / retries / cleanup / timeouts / concurrency
-- contracts / schema / API / typing / backward compatibility
-- pattern regressions only if they create concrete risk
-
-For each candidate include:
-
-- Category
-- `file:line`
-- one-sentence hypothesis
-
-Prefer fewer, stronger candidates.
-Merge duplicates.
-Cap the list at 8-12 candidates.
-
-### 2) Verify each candidate with `general` agent
-
-Run one `general` agent task per candidate. Require it to:
-
-- read full source file (not only diff)
-- read related tests/imports/exports/interfaces/config and nearby call sites as needed
-- try to disprove the hypothesis before confirming it
-- verify whether the issue is introduced or worsened by the current changes
-- cite only exact line numbers from files it actually read
-- provide concrete evidence and realistic failure scenario
-
-Lens-specific checks:
-
-- Security: identify a plausible trust boundary, attacker path, or missing guard when it creates concrete risk
-- Performance: identify the trigger and scaling behavior
-- Pattern risk: explain what established pattern was broken and why it creates concrete risk
-
-Required verdict format per candidate:
-
-- Verdict: `CONFIRMED` | `DISCARDED`
-- Category
-- Severity
-- Title
-- Where
-- Evidence
-- Why it matters
-- Suggestion
-
-If evidence is weak/speculative, not tied to changed code, or the exact location cannot be verified, mark `DISCARDED`.
-
-### 3) Report only important confirmed findings
-
-Include only `CONFIRMED` issues with concrete evidence.
-Sort by severity, then by user or operational impact.
-Never report:
-
-- pure style feedback
-- theoretical concerns without evidence
-- pre-existing issues not introduced or worsened by current changes
-- vague pattern complaints without a concrete defect risk
-
-## Output Format
-
-Return this exact format:
+Return a concise review using this structure:
 
 ```markdown
 # Code Review

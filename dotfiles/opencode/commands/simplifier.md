@@ -8,26 +8,30 @@ description: Simplify code without changing behavior
 $ARGUMENTS
 ```
 
+- **No arguments provided**: Inspect current uncommitted changes (`git status`, `git diff`).
+- **Clear arguments** (files, paths, or a well-defined scope): Use that scope.
+- **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
+
 ## Task
 
 Refine code for clarity, consistency, and maintainability while preserving exact behavior.
 
-## Scope Selection
+## Workflow
 
-- **No arguments provided**: Inspect current uncommitted changes (`git status`, `git diff`).
-- **Arguments are clear** (files, paths, or a well-defined scope): Use that scope.
-- **Arguments are unclear or ambiguous**: Stop and ask the user for clarification before proceeding.
+1. Determine the target scope from **Arguments**.
+2. Read the relevant files fully before editing.
+3. Identify only high-confidence simplifications.
+4. Apply the smallest correct edits.
+5. Run the project's relevant verification commands after editing.
+6. Report what was simplified and any verification results.
 
-## Goals
+## Rules
 
-1. Preserve functionality exactly.
-2. Make code easier to read and maintain.
-3. Follow the project's local conventions and nearby code.
-4. Prefer explicit, straightforward code over compact or clever code.
-5. Keep the change set minimal.
-
-## Simplification Rules
-
+- Preserve functionality exactly.
+- Make code easier to read and maintain.
+- Follow the project's local conventions and nearby code.
+- Prefer explicit, straightforward code over compact or clever code.
+- Keep the change set minimal.
 - Reduce unnecessary nesting, branching, and indirection.
 - Remove redundant code, helpers, or comments when they do not improve understanding.
 - Consolidate related logic when it improves readability.
@@ -36,18 +40,6 @@ Refine code for clarity, consistency, and maintainability while preserving exact
 - Prefer names and control flow that are obvious to a future reader.
 - Do not change public behavior, interfaces, persistence formats, or side effects unless the user asked for that.
 - Do not reformat unrelated code.
-
-## Workflow
-
-1. Determine the target scope based on **Scope Selection** above.
-2. Read the relevant files fully before editing.
-3. Identify only high-confidence simplifications.
-4. Apply the smallest correct edits.
-5. Run the project's relevant verification commands after editing.
-6. Report what was simplified and any verification results.
-
-## Editing Guardrails
-
 - Read before writing; do not guess from filenames alone.
 - Do not revert or overwrite user changes unrelated to the simplification.
 - If a possible simplification would change behavior or project structure in a non-trivial way, stop and ask.
