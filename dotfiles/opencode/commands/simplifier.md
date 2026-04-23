@@ -2,7 +2,7 @@
 description: Simplify code without changing behavior
 ---
 
-## Input / Arguments
+## Arguments
 
 ```text
 $ARGUMENTS

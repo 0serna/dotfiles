@@ -2,7 +2,7 @@
 description: Code review changes or pull requests
 ---
 
-## Input
+## Arguments
 
 ```text
 $ARGUMENTS
@@ -18,11 +18,11 @@ $ARGUMENTS
 ## Prepare diff
 
 1. Detect review target:
-   - If input contains PR number/URL:
+   - If arguments contain PR number/URL:
      - `gh pr checkout <number>` (mandatory, so verification agents can inspect the checked-out files in full context)
      - `gh pr view <number> --json title,body`
      - `DIFF_FILE=$(mktemp) && gh pr diff <number> > "$DIFF_FILE"`
-   - If no input:
+   - If no arguments:
      - `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE"`
 2. Read `DIFF_FILE` with `Read` in batches (use offset/limit).
 3. If diff is empty, output `No changes to review` and STOP.
