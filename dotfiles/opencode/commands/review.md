@@ -23,9 +23,9 @@ $ARGUMENTS
 
 1. Detect review target:
    - If arguments contain PR number/URL:
-     - `gh pr checkout <number>` (mandatory, so verification agents can inspect the checked-out files in full context)
-     - `gh pr view <number> --json title,body`
-     - `DIFF_FILE=$(mktemp) && gh pr diff <number> > "$DIFF_FILE"`
+      - `gh pr checkout [number]` (mandatory, so verification agents can inspect the checked-out files in full context)
+      - `gh pr view [number] --json title,body`
+      - `DIFF_FILE=$(mktemp) && gh pr diff [number] > "$DIFF_FILE"`
    - If no arguments:
      - `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE"`
 2. Read `DIFF_FILE` with `Read` in batches (use offset/limit).
@@ -56,26 +56,21 @@ $ARGUMENTS
 
 ## Output
 
-Return a concise review using this structure:
+Return only the final review result.
+
+If there are no reportable findings, print exactly:
+
+```text
+Looks good to me
+```
+
+If there are reportable findings, print a compact numbered list using this structure:
 
 ```markdown
-# Code Review
+1. [severity][area] [title]
+   Where: [path/to/file:line-range]
+   Impact: [evidence and why it matters]
+   Fix: [suggestion]
 
-<1-2 sentences describing what changed>
-
-## Findings
-
-[If there are no reportable findings: `Looks good to me`]
-[Otherwise, list only reportable findings as an enumerated list]
-
-### 1. **Title**
-
-**Severity:** <high|medium|low>
-**Area:** <security|bug|performance|reliability|data integrity|contracts|pattern risk>
-**Where:** <path/to/file:line-range>
-**Evidence:** <evidence>
-**Why it matters:** <impact>
-**Suggestion:** <suggestion>
-
-### 2. ...
+2. ...
 ```
