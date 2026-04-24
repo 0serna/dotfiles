@@ -40,5 +40,5 @@
 ## 7. Commit and Cleanup
 
 - [x] 7.1 Review the diff to ensure no unintended changes
-- [ ] 7.2 Commit the tooling migration and mass reformat
-- [ ] 7.3 Verify `lint-staged` works on a test commit
+- [x] 7.2 Commit the tooling migration and mass reformat
+- [x] 7.3 Verify `lint-staged` works on a test commit
