@@ -25,16 +25,15 @@ $ARGUMENTS
    - If arguments contain PR number/URL:
       - `gh pr checkout [number]` (mandatory, so verification agents can inspect the checked-out files in full context)
       - `gh pr view [number] --json title,body`
-      - `DIFF_FILE=$(mktemp) && gh pr diff [number] > "$DIFF_FILE"`
+      - `gh pr diff [number]`
    - If no arguments:
-     - `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE"`
-2. Read `DIFF_FILE` with `Read` in batches (use offset/limit).
-3. If diff is empty, output `No changes to review` and STOP.
-4. From changed lines only, generate a small set of strong candidate issues.
-5. For each candidate, include category, `file:line`, and a one-sentence hypothesis.
-6. Prefer fewer, stronger candidates; merge duplicates and cap the list at 8-12 candidates.
-7. Run one `general` agent task per candidate to verify or discard it.
-8. Report only important confirmed findings with concrete evidence.
+     - `git diff HEAD`
+2. If diff is empty, output `No changes to review` and STOP.
+3. From changed lines only, generate a small set of strong candidate issues.
+4. For each candidate, include category, `file:line`, and a one-sentence hypothesis.
+5. Prefer fewer, stronger candidates; merge duplicates candidates.
+6. Run one `general` agent task per candidate to verify or discard it.
+7. Report only important confirmed findings with concrete evidence.
 
 ## Rules
 

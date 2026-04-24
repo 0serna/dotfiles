@@ -118,15 +118,17 @@
       "gh api * DELETE *": "ask"
     }
   },
+  "tool_output": {
+    "max_lines": 5000,
+    "max_bytes": 102400
+  },
   "lsp": false,
   "plugin": ["@slkiser/opencode-quota"],
   "experimental": {
     "quotaToast": {
       "enableToast": false,
       "showSessionTokens": false,
-      "enabledProviders": "auto",
-      "formatStyle": "classic",
-      "percentDisplayMode": "used"
+      "enabledProviders": "auto"
     }
   }
 }
