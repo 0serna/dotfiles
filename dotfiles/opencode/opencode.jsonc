@@ -18,6 +18,9 @@
     "build": {
       "disable": true,
     },
+    "explore": {
+      "disable": true,
+    },
   },
   "mcp": {
     "context7": {

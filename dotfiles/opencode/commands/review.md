@@ -63,16 +63,13 @@ If there are no reportable findings, print exactly:
 Looks good to me
 ```
 
-If there are reportable findings, print a compact numbered list using this structure:
+If there are reportable findings, print this structure per finding:
 
 ```markdown
-## [severity] [title]
+severity: [severity]
+path: [path/to/file:line-range]
+impact: [evidence and why it matters]
+suggestion: [suggestion]
 
-**Where**: [path/to/file:line-range]
-
-**Impact**: [evidence and why it matters]
-
-**Fix**: [suggestion]
-
-## [...]
+[...]
 ```
