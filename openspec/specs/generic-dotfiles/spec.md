@@ -1,7 +1,9 @@
 ## Purpose
 
 Define the repository-wide manifest and safety rules for linking dotfiles into the user environment.
+
 ## Requirements
+
 ### Requirement: Manifest-driven dotfile linking
 
 The system SHALL read a root `dotfiles.json` manifest and create symlinks for each declared entry.
@@ -81,4 +83,3 @@ The system SHALL stop at the first invalid manifest entry or linking error and r
 
 - **WHEN** the manifest contains an entry missing `source` or `target`
 - **THEN** the installer fails without processing later entries
-

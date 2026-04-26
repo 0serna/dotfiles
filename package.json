@@ -6,7 +6,7 @@
   "scripts": {
     "link": "tsx src/dotfiles-installer.ts",
     "test": "vitest run",
-    "check": "prettier --write . && eslint --fix . && tsc --noEmit && openspec validate --all --json",
+    "check": "prettier --check . && eslint . && tsc --noEmit && openspec validate --all --json",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -28,8 +28,8 @@
     "node": ">=22.12.0"
   },
   "lint-staged": {
-    "*.{ts,js,json,jsonc}": [
-      "prettier --write",
+    "*": "prettier --write --ignore-unknown",
+    "*.{ts,js}": [
       "eslint --fix"
     ]
   }
