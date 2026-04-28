@@ -5,9 +5,9 @@
 
 ## Project Management
 
-- Before exploring the repo, run `tingle` and read `.tinglemap.md`. Use it to find entry points and load-bearing utilities before opening individual files.
 - After finishing edits, always run the project's configured check commands when available, such as lint, format, or build.
 - NEVER generate documentation files unless the user explicitly requests them.
+- NEVER use stash, stage or commit without the user's explicit permission.
 
 ## Context Management
 
@@ -24,11 +24,6 @@
 - Use `ctx_insight` only when the user wants the local context analytics dashboard.
 - DO NOT use context management tools for small, direct file reads, simple file searches, or small edits; prefer `read`, `glob`, `grep`, and `apply_patch` for those.
 - DO NOT bring large raw outputs into the conversation when a context management tool can summarize, filter, index, or search them first.
-
-## Git
-
-- NEVER stage or unstage files without the user's explicit permission.
-- NEVER make commits without the user's explicit permission.
 
 ## GitHub
 

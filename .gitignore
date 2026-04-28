@@ -15,6 +15,3 @@ bun.lock
 # OS
 .DS_Store
 Thumbs.db
-
-# Generated repo map
-.tinglemap.md

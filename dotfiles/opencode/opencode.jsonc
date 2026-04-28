@@ -103,6 +103,7 @@
       "git remote -v": "allow",
       "git grep *": "allow",
       "git ls-files *": "allow",
+      "git ls-tree *": "allow",
       "git blame *": "allow",
       "git check-ignore *": "allow",
       // gh
