@@ -2,6 +2,7 @@
 node_modules/
 *.tsbuildinfo
 dist/
+.fallow/
 
 # Package managers
 bun.lock
