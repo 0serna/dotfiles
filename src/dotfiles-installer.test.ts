@@ -24,6 +24,30 @@ async function writeManifest(repoDir: string, manifest: unknown) {
   );
 }
 
+async function install(repoDir: string, homeDir: string) {
+  return new DotfilesInstaller(repoDir, homeDir).install();
+}
+
+async function expectSymlink(filePath: string) {
+  expect((await fs.lstat(filePath)).isSymbolicLink()).toBe(true);
+}
+
+async function expectDirectory(filePath: string) {
+  expect((await fs.lstat(filePath)).isDirectory()).toBe(true);
+}
+
+async function writeOpenCodeConfig(repoDir: string) {
+  const configPath = path.join(
+    repoDir,
+    "dotfiles",
+    "opencode",
+    "opencode.jsonc",
+  );
+
+  await fs.mkdir(path.dirname(configPath), { recursive: true });
+  await fs.writeFile(configPath, "config");
+}
+
 async function createRepo(files: Record<string, string>, manifest: unknown) {
   const { repoDir, homeDir } = await createWorkspace();
 
@@ -61,15 +85,10 @@ describe("DotfilesInstaller", () => {
       ],
     );
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    expect(
-      (
-        await fs.lstat(path.join(homeDir, ".config", "opencode"))
-      ).isSymbolicLink(),
-    ).toBe(true);
+    await expectSymlink(path.join(homeDir, ".config", "opencode"));
     expect(
       await fs.readFile(
         path.join(homeDir, ".config", "opencode", "opencode.jsonc"),
@@ -106,19 +125,12 @@ describe("DotfilesInstaller", () => {
     await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
     await fs.symlink(opencodeSource, opencodeTarget, "dir");
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    expect((await fs.lstat(opencodeTarget)).isDirectory()).toBe(true);
-    expect(
-      (
-        await fs.lstat(path.join(opencodeTarget, "opencode.jsonc"))
-      ).isSymbolicLink(),
-    ).toBe(true);
-    expect(
-      (await fs.lstat(path.join(opencodeTarget, "commands"))).isSymbolicLink(),
-    ).toBe(true);
+    await expectDirectory(opencodeTarget);
+    await expectSymlink(path.join(opencodeTarget, "opencode.jsonc"));
+    await expectSymlink(path.join(opencodeTarget, "commands"));
     expect(
       await fs.readFile(path.join(opencodeTarget, "opencode.jsonc"), "utf-8"),
     ).toBe("config");
@@ -146,16 +158,11 @@ describe("DotfilesInstaller", () => {
       "dir",
     );
 
-    const installer = new DotfilesInstaller(linkedRepoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(linkedRepoDir, homeDir);
 
     expect(success).toBe(true);
-    expect((await fs.lstat(opencodeTarget)).isDirectory()).toBe(true);
-    expect(
-      (
-        await fs.lstat(path.join(opencodeTarget, "opencode.jsonc"))
-      ).isSymbolicLink(),
-    ).toBe(true);
+    await expectDirectory(opencodeTarget);
+    await expectSymlink(path.join(opencodeTarget, "opencode.jsonc"));
   });
 
   it("preserves a symlinked ancestor while linking granular entries", async () => {
@@ -173,16 +180,11 @@ describe("DotfilesInstaller", () => {
     await fs.mkdir(configSource, { recursive: true });
     await fs.symlink(configSource, configTarget, "dir");
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    expect((await fs.lstat(configTarget)).isSymbolicLink()).toBe(true);
-    expect(
-      (
-        await fs.lstat(path.join(configSource, "opencode", "opencode.jsonc"))
-      ).isSymbolicLink(),
-    ).toBe(true);
+    await expectSymlink(configTarget);
+    await expectSymlink(path.join(configSource, "opencode", "opencode.jsonc"));
     expect(
       await fs.readFile(
         path.join(configTarget, "opencode", "opencode.jsonc"),
@@ -207,11 +209,10 @@ describe("DotfilesInstaller", () => {
     await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
     await fs.symlink(externalOpencode, opencodeTarget, "dir");
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
-    expect((await fs.lstat(opencodeTarget)).isSymbolicLink()).toBe(true);
+    await expectSymlink(opencodeTarget);
   });
 
   it("rejects sources that escape the repository", async () => {
@@ -225,8 +226,7 @@ describe("DotfilesInstaller", () => {
       ],
     );
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
   });
@@ -239,8 +239,7 @@ describe("DotfilesInstaller", () => {
 
     await fs.writeFile(path.join(homeDir, "keep.txt"), "keep");
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
     expect(await fs.readFile(path.join(homeDir, "keep.txt"), "utf-8")).toBe(
@@ -259,17 +258,12 @@ describe("DotfilesInstaller", () => {
       ],
     );
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    expect(
-      (
-        await fs.lstat(
-          path.join(homeDir, ".config", "opencode", "nested", "tui.jsonc"),
-        )
-      ).isSymbolicLink(),
-    ).toBe(true);
+    await expectSymlink(
+      path.join(homeDir, ".config", "opencode", "nested", "tui.jsonc"),
+    );
     expect(
       await fs.readFile(
         path.join(homeDir, ".config", "opencode", "nested", "tui.jsonc"),
@@ -281,13 +275,7 @@ describe("DotfilesInstaller", () => {
   it("rejects targets inside the repository", async () => {
     const { repoDir, homeDir } = await createWorkspace();
 
-    await fs.mkdir(path.join(repoDir, "dotfiles", "opencode"), {
-      recursive: true,
-    });
-    await fs.writeFile(
-      path.join(repoDir, "dotfiles", "opencode", "opencode.jsonc"),
-      "config",
-    );
+    await writeOpenCodeConfig(repoDir);
 
     await writeManifest(repoDir, [
       {
@@ -302,8 +290,7 @@ describe("DotfilesInstaller", () => {
       "old",
     );
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
     expect(
@@ -317,13 +304,7 @@ describe("DotfilesInstaller", () => {
   it("rejects literal dot-prefixed segments inside the repository", async () => {
     const { repoDir, homeDir } = await createWorkspace();
 
-    await fs.mkdir(path.join(repoDir, "dotfiles", "opencode"), {
-      recursive: true,
-    });
-    await fs.writeFile(
-      path.join(repoDir, "dotfiles", "opencode", "opencode.jsonc"),
-      "config",
-    );
+    await writeOpenCodeConfig(repoDir);
 
     const targetPath = path.join(repoDir, "..foo", "config.jsonc");
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
@@ -336,8 +317,7 @@ describe("DotfilesInstaller", () => {
       },
     ]);
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
     expect(await fs.readFile(targetPath, "utf-8")).toBe("old");
@@ -358,15 +338,10 @@ describe("DotfilesInstaller", () => {
     await fs.mkdir(targetPath, { recursive: true });
     await fs.writeFile(path.join(targetPath, "opencode.jsonc"), "old");
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    expect(
-      (
-        await fs.lstat(path.join(targetPath, "opencode.jsonc"))
-      ).isSymbolicLink(),
-    ).toBe(true);
+    await expectSymlink(path.join(targetPath, "opencode.jsonc"));
     expect(
       await fs.readFile(path.join(targetPath, "opencode.jsonc"), "utf-8"),
     ).toBe("new");
@@ -375,8 +350,7 @@ describe("DotfilesInstaller", () => {
   it("fails when the manifest is missing", async () => {
     const { repoDir, homeDir } = await createWorkspace();
 
-    const installer = new DotfilesInstaller(repoDir, homeDir);
-    const success = await installer.install();
+    const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
   });

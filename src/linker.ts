@@ -2,7 +2,11 @@ import { promises as fs } from "node:fs";
 import * as path from "node:path";
 
 import type { DotfileEntry } from "./manifest.ts";
-import { resolveSource, resolveTarget } from "./paths.ts";
+import {
+  isPathInsideDirectory,
+  resolveSource,
+  resolveTarget,
+} from "./paths.ts";
 
 export async function linkEntry(
   repoDir: string,
@@ -60,17 +64,4 @@ async function prepareTargetParent(
 
   await fs.rm(parentPath, { recursive: true, force: true });
   await fs.mkdir(parentPath, { recursive: true });
-}
-
-function isPathInsideDirectory(
-  directoryPath: string,
-  candidatePath: string,
-): boolean {
-  const normalizedDirectory = path.resolve(directoryPath);
-  const normalizedCandidate = path.resolve(candidatePath);
-
-  return (
-    normalizedCandidate === normalizedDirectory ||
-    normalizedCandidate.startsWith(`${normalizedDirectory}${path.sep}`)
-  );
 }

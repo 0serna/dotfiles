@@ -6,12 +6,11 @@
   "scripts": {
     "link": "tsx src/dotfiles-installer.ts",
     "test": "vitest run",
-    "check": "prettier --check . && eslint . && fallow && tsc --noEmit && openspec validate --all --json",
+    "check": "prettier --check . && eslint . && fallow --fail-on-issues && tsc --noEmit && openspec validate --all --json",
     "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@opencode-ai/plugin": "^1.0.184",
     "@types/node": "^24.5.2",
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",

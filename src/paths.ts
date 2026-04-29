@@ -1,6 +1,6 @@
 import * as path from "node:path";
 
-function isPathInsideDirectory(
+export function isPathInsideDirectory(
   directoryPath: string,
   candidatePath: string,
 ): boolean {
