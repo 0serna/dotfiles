@@ -7,6 +7,7 @@
     "link": "tsx src/dotfiles-installer.ts",
     "test": "vitest run",
     "check": "prettier --check . && eslint . && fallow --fail-on-issues && tsc --noEmit && openspec validate --all --json",
+    "format": "prettier --write .",
     "prepare": "husky"
   },
   "devDependencies": {

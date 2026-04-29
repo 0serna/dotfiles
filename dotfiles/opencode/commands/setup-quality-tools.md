@@ -8,7 +8,7 @@ No arguments expected.
 
 ## Task
 
-Configure or update quality tooling for a JavaScript/TypeScript repository with `package.json`: Prettier, ESLint, Fallow, Husky, lint-staged, and a unified `check` script.
+Configure or update JavaScript/TypeScript quality tooling in a repository with `package.json`: Prettier, ESLint, Fallow, Husky, lint-staged, and unified `check` and `format` scripts.
 
 ## Workflow
 
@@ -36,16 +36,13 @@ Configure or update quality tooling for a JavaScript/TypeScript repository with 
 9. Configure Fallow integration:
    - Ensure `.gitignore` ignores `.fallow/` for Fallow's local cache and generated state.
 10. Update `package.json` scripts:
-
-- Ensure `check` includes `prettier --check .`, `eslint .`, and `fallow`, preserving existing test, typecheck, build, or other verification steps unless the user approves removing them.
-- If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all --json`.
-- Ensure `prepare` runs `husky`, preserving any existing required behavior if possible.
-
+    - Ensure `check` includes `prettier --check .`, `eslint .`, and `fallow --fail-on-issues`, preserving existing test, typecheck, build, or other verification steps unless the user approves removing them.
+    - If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all --json`.
+    - Ensure `format` runs `prettier --write .`, preserving any existing required behavior if possible.
+    - Ensure `prepare` runs `husky`, preserving any existing required behavior if possible.
 11. Configure lint-staged:
-
-- Ensure all recognized files run `prettier --write --ignore-unknown`.
-- Ensure JavaScript and TypeScript files run `eslint --fix`.
-
+    - Ensure all recognized files run `prettier --write --ignore-unknown`.
+    - Ensure JavaScript and TypeScript files run `eslint --fix`.
 12. Configure Husky pre-commit:
     - Ensure `.husky/pre-commit` runs lint-staged with the detected package manager's executable runner.
     - Do not run `fallow` directly in pre-commit; Fallow belongs in `check`.
@@ -58,7 +55,7 @@ Configure or update quality tooling for a JavaScript/TypeScript repository with 
 - Keep changes minimal and specific to quality tooling.
 - Do not overwrite existing ESLint, Prettier, Husky, or lint-staged configuration without reading it first.
 - Preserve existing config choices unless they conflict with the requested tooling setup.
-- Do not remove existing `check` script behavior unless the user explicitly approves it.
+- Do not remove existing `check` or `format` script behavior unless the user explicitly approves it.
 - Stop and ask before migrating legacy ESLint config or replacing complex existing configuration.
 - Do not configure CI unless the user explicitly asks.
 - Do not add `openspec validate --all --json` unless the repository has an `openspec/` directory.
@@ -79,6 +76,7 @@ Return a concise summary with:
 - dependencies added or already present
 - configuration files created or updated
 - final `check` script
+- final `format` script
 - pre-commit behavior
 - verification command and result
 - any skipped changes, questions, or remaining risks
