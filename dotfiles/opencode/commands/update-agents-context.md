@@ -68,9 +68,10 @@ Maintain only these generated sections:
 - If no useful commands are detected, write `No useful repository commands detected.` under the section heading.
 
 8. Read the existing `AGENTS.md` if it exists.
-9. Create or replace only the generated `Project Structure` and `Repository Commands` sections:
+9. Create or replace only the generated `Project Structure` and `Repository Commands` sections as the first sections in `AGENTS.md`:
    - If a section exists, replace that full section.
-   - If a section does not exist, append it to the end of the file.
+   - If a section does not exist, insert it before all unrelated content.
+   - Ensure `Project Structure` appears before `Repository Commands`.
    - Preserve all unrelated content unchanged.
 10. If `AGENTS.md` does not exist, create it with only the generated sections.
 11. Run the repository's configured formatting or validation command when one is clearly available and relevant to Markdown or repository checks.
@@ -93,6 +94,7 @@ Maintain only these generated sections:
 - Do not invent commands. Only list commands backed by repository files.
 - Keep command descriptions short and factual.
 - Preserve unrelated `AGENTS.md` content exactly unless a minimal whitespace adjustment is needed around the generated sections.
+- Keep the generated `Project Structure` and `Repository Commands` sections at the top of `AGENTS.md`, before any unrelated sections.
 
 ## Output
 

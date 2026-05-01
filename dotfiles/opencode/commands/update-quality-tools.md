@@ -23,13 +23,16 @@ Configure or update JavaScript/TypeScript quality tooling in a repository with `
    - `.gitignore`
 4. Detect whether the repo uses TypeScript from `tsconfig.json`, TypeScript source files, or TypeScript dependencies.
 5. Detect whether the repo uses OpenSpec from an `openspec/` directory.
-6. Install missing dev dependencies with the detected package manager:
-   - Always ensure `prettier`, `eslint`, `@eslint/js`, `eslint-config-prettier`, `fallow`, `husky`, and `lint-staged` are present.
-   - If the repo uses TypeScript, also ensure `typescript-eslint` is present.
-7. Configure ESLint with flat config:
-   - If no ESLint config exists, create `eslint.config.js` using `@eslint/js` recommended config, `typescript-eslint` recommended config when TypeScript is used, and `eslint-config-prettier` last.
-   - If a flat config already exists, minimally update it only when the intended recommended configs are clearly absent.
+6. Configure ESLint with flat config, adapting to the repository:
+   - If a clear ESLint config already exists, preserve its style and dependencies; minimally update it only when the intended checks are clearly absent.
+   - If no ESLint config exists, create the smallest flat config that matches the repository's source types.
+   - For JavaScript repositories, use `@eslint/js` recommended config.
+   - For TypeScript repositories, use `typescript-eslint` recommended config; add `@eslint/js` only when the repo also has JavaScript files or the chosen TypeScript config explicitly depends on it.
+   - Add `eslint-config-prettier` last only when needed to prevent ESLint and Prettier rule conflicts.
    - If only legacy ESLint config exists or the existing config is complex, stop and ask the user before replacing or migrating it.
+7. Install only the dev dependencies required by the chosen configuration:
+   - Always ensure the workflow tools `prettier`, `eslint`, `fallow`, `husky`, and `lint-staged` are present.
+   - Ensure ESLint helper packages, such as `@eslint/js`, `typescript-eslint`, and `eslint-config-prettier`, only when the existing or intended ESLint config uses them.
 8. Configure Prettier defaults:
    - If no Prettier config exists, create a minimal config using Prettier defaults.
    - If Prettier config exists, leave it unchanged unless it prevents the requested integration.
