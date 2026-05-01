@@ -44,7 +44,7 @@ Configure or update JavaScript/TypeScript quality tooling in a repository with `
     - Ensure all recognized files run `prettier --write --ignore-unknown`.
     - Ensure JavaScript and TypeScript files run `eslint --fix`.
 12. Configure Husky pre-commit:
-    - Ensure `.husky/pre-commit` runs lint-staged with the detected package manager's executable runner.
+    - Ensure `.husky/pre-commit` runs the `check` script followed by lint-staged, both with the detected package manager's executable runner (e.g. `npm run check && npx lint-staged`).
     - Do not run `fallow` directly in pre-commit; Fallow belongs in `check`.
 13. Run the package manager install command if dependencies or lockfiles need updating.
 14. Run the repository's check command with the detected package manager.
@@ -77,6 +77,6 @@ Return a concise summary with:
 - configuration files created or updated
 - final `check` script
 - final `format` script
-- pre-commit behavior
+- pre-commit behavior (runs `check` then lint-staged)
 - verification command and result
 - any skipped changes, questions, or remaining risks
