@@ -6,15 +6,15 @@
       "mode": "primary",
       "color": "primary",
       "model": "openai/gpt-5.5",
+      "variant": "medium",
     },
     "light": {
       "mode": "primary",
       "color": "secondary",
-      "model": "opencode-go/mimo-v2.5-pro",
-    },
-    "explore": {
       "model": "opencode-go/deepseek-v4-flash",
+      "variant": "max",
     },
+    "explore": { "disable": true },
     "plan": { "disable": true },
     "build": { "disable": true },
   },
@@ -30,26 +30,8 @@
       "type": "local",
       "command": ["context-mode"],
     },
-    "chrome-devtools": {
-      "enabled": false,
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "chrome-devtools-mcp@latest",
-        "--headless=true",
-        "--isolated=true",
-      ],
-    },
   },
-  "plugin": ["@slkiser/opencode-quota", "context-mode"],
-  "experimental": {
-    "quotaToast": {
-      "enableToast": false,
-      "showSessionTokens": false,
-      "enabledProviders": "auto",
-    },
-  },
+  "plugin": ["@slkiser/opencode-quota@3.5.0", "context-mode@1.0.103"],
   "permission": {
     "*": "allow",
     "doom_loop": "ask",
@@ -131,10 +113,6 @@
       "gh api * PATCH *": "ask",
       "gh api * DELETE *": "ask",
     },
-  },
-  "tool_output": {
-    "max_lines": 5000,
-    "max_bytes": 102400,
   },
   "lsp": false,
   "snapshot": false,

@@ -32,6 +32,10 @@
     "target": "~/.config/opencode/tools"
   },
   {
+    "source": "dotfiles/opencode/opencode-quota/",
+    "target": "~/.config/opencode/opencode-quota/"
+  },
+  {
     "source": "dotfiles/agents",
     "target": "~/.agents"
   },
