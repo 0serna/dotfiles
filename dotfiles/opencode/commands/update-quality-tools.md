@@ -34,7 +34,9 @@ Configure or update JavaScript/TypeScript quality tooling in a repository with `
    - Always ensure the workflow tools `prettier`, `eslint`, `fallow`, `husky`, and `lint-staged` are present.
    - Ensure ESLint helper packages, such as `@eslint/js`, `typescript-eslint`, and `eslint-config-prettier`, only when the existing or intended ESLint config uses them.
 8. Configure Prettier defaults:
-   - If no Prettier config exists, create a minimal config using Prettier defaults.
+   - If no Prettier config exists and Prettier defaults are sufficient, do not create a Prettier config file.
+   - If no Prettier config exists and explicit repository-specific Prettier options are needed, create the smallest valid config with those options.
+   - Never create an empty `.prettierrc`, `prettier.config.*`, or `prettier` field in `package.json`.
    - If Prettier config exists, leave it unchanged unless it prevents the requested integration.
 9. Configure Fallow integration:
    - Ensure `.gitignore` ignores `.fallow/` for Fallow's local cache and generated state.
@@ -58,6 +60,7 @@ Configure or update JavaScript/TypeScript quality tooling in a repository with `
 - Keep changes minimal and specific to quality tooling.
 - Do not overwrite existing ESLint, Prettier, Husky, or lint-staged configuration without reading it first.
 - Preserve existing config choices unless they conflict with the requested tooling setup.
+- Do not create empty configuration files or empty config fields; omit config instead when tool defaults are intended.
 - Do not remove existing `check` or `format` script behavior unless the user explicitly approves it.
 - Stop and ask before migrating legacy ESLint config or replacing complex existing configuration.
 - Do not configure CI unless the user explicitly asks.

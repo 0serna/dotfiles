@@ -114,6 +114,6 @@
       "gh api * DELETE *": "ask",
     },
   },
-  "lsp": false,
+  "lsp": true,
   "snapshot": false,
 }
