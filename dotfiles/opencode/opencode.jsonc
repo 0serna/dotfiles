@@ -11,8 +11,7 @@
     "light": {
       "mode": "primary",
       "color": "secondary",
-      "model": "opencode-go/deepseek-v4-flash",
-      "variant": "max",
+      "model": "opencode-go/mimo-v2.5-pro",
     },
     "explore": { "disable": true },
     "plan": { "disable": true },
@@ -75,6 +74,7 @@
       "git ls-tree *": "allow",
       "git blame *": "allow",
       "git check-ignore *": "allow",
+      "git --no-pager *": "allow",
       // gh
       "gh *": "ask",
       "gh help *": "allow",
