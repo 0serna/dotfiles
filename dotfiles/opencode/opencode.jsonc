@@ -30,7 +30,7 @@
       "command": ["context-mode"],
     },
   },
-  "plugin": ["@slkiser/opencode-quota@3.5.0", "context-mode@1.0.103"],
+  "plugin": ["@slkiser/opencode-quota@3.6.2", "context-mode@1.0.107"],
   "permission": {
     "*": "allow",
     "doom_loop": "ask",
