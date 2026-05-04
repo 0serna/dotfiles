@@ -23,33 +23,18 @@ Update the repository's OpenSpec-generated opencode commands and skills to the l
    cp -r .opencode/skills/* dotfiles/agents/skills/
    ```
 
-6. Fix Claude Code nomenclature: replace tool references in OpenSpec-generated files only (`opsx-*` commands and `openspec-*` skills). Run from the repo root:
-
-   ```bash
-   find dotfiles/opencode/commands/opsx-*.md dotfiles/agents/skills/openspec-* -name '*.md' -exec sed -i \
-     -e 's/AskUserQuestion tool/question tool/g' \
-     -e 's/TodoWrite tool/todowrite tool/g' \
-     -e 's/Task tool/task tool/g' \
-     -e 's/Skill tool/skill tool/g' \
-     -e 's/Bash tool/bash tool/g' \
-     -e 's/Read tool/read tool/g' \
-     -e 's/Write tool/write tool/g' \
-     -e 's/Edit tool/edit tool/g' \
-     -e 's/Grep tool/grep tool/g' \
-     -e 's/Glob tool/glob tool/g' \
-     -e 's/WebFetch tool/webfetch tool/g' \
-     -e 's/NotebookEdit tool/use the appropriate tool for notebook editing/g' \
-     {} +
-   ```
-
-7. Verify the copy by listing both source and target directories — file counts should match. Also grep both target directories for any remaining PascalCase Claude Code tool names (`AskUserQuestion`, `TodoWrite`, `NotebookEdit`, etc.) to confirm the fix worked.
-8. Delete the `.opencode` directory created at the repo root when finished.
+6. Review Claude Code-specific tool references in generated files only (`opsx-*` commands and `openspec-*` skills). Leave casing-only differences, such as `Bash tool` versus `bash tool`, unchanged.
+7. Manually rewrite OpenCode-incompatible terms, such as `AskUserQuestion tool`. For `Task tool`, replace subagent delegation with direct instructions for the current agent to read, search, and edit as needed.
+8. Verify the copy by listing both source and target directories — file counts should match. Also grep both target directories for remaining Claude Code-specific tool references that need manual review (`AskUserQuestion`, `Task`, etc.).
+9. Delete the `.opencode` directory created at the repo root when finished.
 
 ## Rules
 
 - Run all commands from the repo root.
 - Replace generated command and skill files with the latest OpenSpec output.
-- Fix Claude Code tool nomenclature in all copied `.md` files before verification.
+- Review Claude Code-specific tool references in all copied `.md` files before verification.
+- Leave casing-only tool name differences unchanged.
+- Rewrite `Task tool` instructions to remove subagent delegation rather than replacing the term literally.
 - Do not leave the temporary `.opencode` directory behind.
 
 ## Output
@@ -58,5 +43,5 @@ Return a concise summary with:
 
 - OpenSpec update result
 - copied command and skill counts
-- nomenclature fix result (any remaining Claude Code terms found)
+- tool reference review result (any Claude Code-specific terms requiring manual handling)
 - cleanup result
