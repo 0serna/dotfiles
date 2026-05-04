@@ -23,31 +23,31 @@ $ARGUMENTS
 
 1. Detect review target:
    - If arguments contain PR number/URL:
-     - `gh pr checkout [number]` (mandatory, so verification agents can inspect the checked-out files in full context)
+     - `gh pr checkout [number]` (mandatory, so changed files can be inspected in full context)
      - `gh pr view [number] --json title,body`
      - `gh pr diff [number]`
    - If no arguments:
      - `git diff HEAD`
 2. If diff is empty, output `No changes to review` and STOP.
-3. From changed lines only, generate a small set of strong candidate issues.
-4. For each candidate, include category, `file:line`, and a one-sentence hypothesis.
-5. Prefer fewer, stronger candidates; merge duplicates candidates.
-6. Run one `general` agent task per candidate to verify or discard it.
+3. From changed lines only, generate a small set of strong candidate issues. For each candidate, note category, `file:line`, and a one-sentence hypothesis.
+4. Prefer fewer, stronger candidates; merge duplicate candidates.
+5. Verify each candidate directly in the current session using the available read/search/diff tools.
+6. During verification, read full files and relevant context, try to disprove the hypothesis, and keep only issues introduced or worsened by the current changes.
 7. Report only important confirmed findings with concrete evidence.
 
 ## Rules
 
 - Review through these lenses: correctness / bugs, security / auth / permissions / input validation / secrets, data integrity / state transitions / idempotency, performance / unbounded work / N+1 / blocking operations, reliability / retries / cleanup / timeouts / concurrency, contracts / schema / API / typing / backward compatibility, and pattern regressions only if they create concrete risk.
-- Require each verification agent to read the full source file, not only the diff.
-- Require each verification agent to read related tests/imports/exports/interfaces/config and nearby call sites as needed.
-- Require each verification agent to try to disprove the hypothesis before confirming it.
-- Require each verification agent to verify whether the issue is introduced or worsened by the current changes.
-- Require each verification agent to cite only exact line numbers from files it actually read.
-- Require each verification agent to provide concrete evidence and a realistic failure scenario.
+- Read the full source file for each candidate, not only the diff.
+- Read related tests/imports/exports/interfaces/config and nearby call sites as needed.
+- Try to disprove each hypothesis before confirming it.
+- Verify whether the issue is introduced or worsened by the current changes.
+- Cite only exact line numbers from files actually read.
+- Provide concrete evidence and a realistic failure scenario.
 - For security findings, identify a plausible trust boundary, attacker path, or missing guard when it creates concrete risk.
 - For performance findings, identify the trigger and scaling behavior.
 - For pattern-risk findings, explain what established pattern was broken and why it creates concrete risk.
-- Require each verification verdict to include: `Verdict: CONFIRMED | DISCARDED`, category, severity, title, where, evidence, why it matters, and suggestion.
+- For internal verification notes, use: `Verdict: CONFIRMED | DISCARDED`, category, severity, title, where, evidence, why it matters, and suggestion.
 - If evidence is weak/speculative, not tied to changed code, or the exact location cannot be verified, mark the candidate `DISCARDED`.
 - Include only `CONFIRMED` issues with concrete evidence in the final review.
 - Sort findings by severity, then by user or operational impact.
