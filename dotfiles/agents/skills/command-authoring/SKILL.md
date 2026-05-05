@@ -1,6 +1,6 @@
 ---
-name: opencode-commands
-description: Create, review, and maintain opencode command files using the shared command structure. Use when adding or updating opencode commands.
+name: command-authoring
+description: Create, review, and maintain command files using the shared command structure. Use when adding or updating custom slash commands.
 ---
 
 # OpenCode Commands
