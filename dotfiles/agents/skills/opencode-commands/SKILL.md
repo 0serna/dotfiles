@@ -1,9 +1,9 @@
 ---
-name: command-guidelines
+name: opencode-commands
 description: Create, review, and maintain opencode command files using the shared command structure. Use when adding or updating opencode commands.
 ---
 
-# Command Guidelines
+# OpenCode Commands
 
 Use this skill when creating, reviewing, or updating opencode command files.
 

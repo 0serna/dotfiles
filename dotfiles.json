@@ -16,10 +16,6 @@
     "target": "~/.config/opencode/commands"
   },
   {
-    "source": "dotfiles/opencode/skills",
-    "target": "~/.config/opencode/skills"
-  },
-  {
     "source": "dotfiles/opencode/agents",
     "target": "~/.config/opencode/agents"
   },
