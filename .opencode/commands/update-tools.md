@@ -1,5 +1,5 @@
 ---
-description: Update opencode plugins, MCPs, and skills
+description: Update OpenCode plugins, MCPs, and skills
 ---
 
 ## Arguments
