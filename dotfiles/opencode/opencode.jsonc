@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "opencode-go/deepseek-v4-flash",
   "agent": {
     "main": {
       "mode": "primary",
@@ -22,6 +23,8 @@
     },
   },
   "plugin": ["@slkiser/opencode-quota@3.6.2", "context-mode@1.0.111"],
+  "lsp": true,
+  "snapshot": false,
   "permission": {
     "*": "allow",
     "task": "deny",
@@ -75,6 +78,7 @@
       "gh release view *": "allow",
       "gh config get *": "allow",
       "gh config list *": "allow",
+      "gh repo clone *": "allow",
       "gh repo list *": "allow",
       "gh repo view *": "allow",
       "gh pr view *": "allow",
@@ -93,6 +97,4 @@
       "gh api * DELETE *": "ask",
     },
   },
-  "lsp": true,
-  "snapshot": false,
 }
