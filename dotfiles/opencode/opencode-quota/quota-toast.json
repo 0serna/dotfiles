@@ -1,4 +1,5 @@
 {
   "enableToast": false,
-  "showSessionTokens": false
+  "showSessionTokens": false,
+  "formatStyle": "allWindows"
 }
