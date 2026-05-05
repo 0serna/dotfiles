@@ -1,5 +1,6 @@
 ---
 description: Generate commit for staged changes
+subtask: true
 ---
 
 ## Arguments
