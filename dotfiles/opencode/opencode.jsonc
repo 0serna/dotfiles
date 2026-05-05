@@ -7,12 +7,13 @@
       "color": "primary",
       "model": "openai/gpt-5.5",
       "variant": "low",
+      // "model": "opencode-go/qwen3.6-plus",
     },
     "light": {
       "mode": "primary",
       "color": "secondary",
       "model": "opencode-go/deepseek-v4-flash",
-      "variant": "max",
+      "variant": "high",
     },
     "plan": { "disable": true },
     "build": { "disable": true },
@@ -30,7 +31,7 @@
       "command": ["context-mode"],
     },
   },
-  "plugin": ["@slkiser/opencode-quota@3.6.2", "context-mode@1.0.107"],
+  "plugin": ["@slkiser/opencode-quota@3.6.2", "context-mode@1.0.111"],
   "permission": {
     "*": "allow",
     "task": "deny",
