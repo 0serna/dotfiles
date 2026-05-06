@@ -17,12 +17,11 @@
         "CONTEXT7_API_KEY": "{env:CONTEXT7_API_KEY}",
       },
     },
-    "context-mode": {
-      "type": "local",
-      "command": ["context-mode"],
-    },
   },
-  "plugin": ["@slkiser/opencode-quota@3.6.2", "context-mode@1.0.111"],
+  "plugin": ["@slkiser/opencode-quota@3.6.2", "@tarquinen/opencode-dcp@3.1.9"],
+  "compaction": {
+    "prune": false,
+  },
   "lsp": true,
   "snapshot": false,
   "permission": {
@@ -44,6 +43,7 @@
       "brew *": "ask",
       "pip *": "ask",
       "pip3 *": "ask",
+      "npm list *": "allow",
       "npm * -g *": "ask",
       "npm * --global *": "ask",
       // http

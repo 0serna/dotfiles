@@ -66,10 +66,13 @@ Looks good to me
 If there are reportable findings, print this structure per finding:
 
 ```markdown
+---
+
 severity: [severity]
 path: [path/to/file:line-range]
-impact: [evidence and why it matters]
-suggestion: [suggestion]
+[evidence, why it matters and suggestion]
+
+---
 
 [...]
 ```

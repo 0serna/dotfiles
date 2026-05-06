@@ -28,6 +28,10 @@
     "target": "~/.config/opencode/tools"
   },
   {
+    "source": "dotfiles/opencode/dcp.jsonc",
+    "target": "~/.config/opencode/dcp.jsonc"
+  },
+  {
     "source": "dotfiles/opencode/opencode-quota/",
     "target": "~/.config/opencode/opencode-quota/"
   },
