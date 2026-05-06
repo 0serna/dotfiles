@@ -8,6 +8,10 @@
     {
       "files": ".fallowrc.jsonc",
       "options": { "trailingComma": "none" }
+    },
+    {
+      "files": "dotfiles/opencode/dcp.jsonc",
+      "options": { "trailingComma": "none" }
     }
   ]
 }

@@ -19,7 +19,7 @@
   },
   "plugin": ["@slkiser/opencode-quota@3.6.2", "@tarquinen/opencode-dcp@3.1.9"],
   "compaction": { "prune": false },
-  "lsp": true,
+  "lsp": false,
   "snapshot": false,
   "permission": {
     "*": "allow",
