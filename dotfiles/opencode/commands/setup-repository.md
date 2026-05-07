@@ -49,15 +49,15 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
     schema: spec-driven
 
     rules:
-    specs:
-      - Specify externally observable behavior and durable domain rules.
-      - Include exact values only when the value is part of the required contract.
-      - Do not couple specs to implementation constants, helper names, or volatile configured values.
-      - For configurable behavior, describe scenarios in terms of configured inputs rather than the current configuration contents.
+      specs:
+        - Specify externally observable behavior and durable domain rules.
+        - Include exact values only when the value is part of the required contract.
+        - Do not couple specs to implementation constants, helper names, or volatile configured values.
+        - For configurable behavior, describe scenarios in terms of configured inputs rather than the current configuration contents.
     ```
 
 13. Update `package.json` scripts:
-    - Ensure `check` runs checks in a sensible low-cost-to-high-cost order: `prettier --check .`, `eslint .`, typecheck steps, `fallow --production-health`, and finally `openspec validate --all` when applicable.
+    - Ensure `check` runs checks in a sensible low-cost-to-high-cost order: `eslint .`, typecheck, `fallow --production-health`, and finally `openspec validate --all` when applicable.
     - Preserve existing test, typecheck, build, or other verification steps unless the user approves removing them.
     - If the repo has an `openspec/` directory, ensure `check` includes `openspec validate --all` at the end.
     - Ensure `format` runs `prettier --write .`, preserving any existing required behavior if possible.
@@ -79,17 +79,17 @@ Prepare a JavaScript/TypeScript repository for effective agent work by configuri
     - Choose the depth based on the repository: stay shallow by default, but draw deeper levels when they reveal meaningful boundaries an agent should know before searching.
     - Use this format:
 
-````markdown
-## Project Structure
+    ````markdown
+    ## Project Structure
 
-```text
-.
-├── src/                  # source code
-├── tests/                # test suite
-├── scripts/              # local automation
-└── docs/                 # project documentation
-```
-````
+    ```text
+    .
+    ├── src/                  # source code
+    ├── tests/                # test suite
+    ├── scripts/              # local automation
+    └── docs/                 # project documentation
+    ```
+    ````
 
 - Adapt labels and descriptions to the actual repository.
 - Omit directories from the template that are not present or not important.
@@ -172,7 +172,6 @@ Return a concise summary with:
 - final `format` script
 - pre-commit behavior (runs lint-staged then `check`)
 - `AGENTS.md` path updated or created
-- `AGENTS.md` sections created or replaced
 - command sources inspected for `AGENTS.md`
 - verification commands and results, or why verification was skipped
 - any skipped changes, questions, assumptions, non-blocking uncertainties, or remaining risks

@@ -1,8 +1,8 @@
 schema: spec-driven
 
 rules:
-specs:
-  - Specify externally observable behavior and durable domain rules.
-  - Include exact values only when the value is part of the required contract.
-  - Do not couple specs to implementation constants, helper names, or volatile configured values.
-  - For configurable behavior, describe scenarios in terms of configured inputs rather than the current configuration contents.
+  specs:
+    - Specify externally observable behavior and durable domain rules.
+    - Include exact values only when the value is part of the required contract.
+    - Do not couple specs to implementation constants, helper names, or volatile configured values.
+    - For configurable behavior, describe scenarios in terms of configured inputs rather than the current configuration contents.
