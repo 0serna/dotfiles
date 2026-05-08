@@ -1,34 +1,43 @@
 ---
-description: Update OpenCode plugins, MCPs, skills, and global CLI tools
+description: Update OpenCode plugins, MCPs, skills, and CLI tools
 ---
 
-Update all pinned OpenCode plugins, MCP package references, and related global CLI tools to their latest compatible versions, keep local binary installations in sync, and report what changed.
+Update pinned OpenCode plugins, MCP package references, global skills, and related global CLI tools to their latest compatible versions. Keep local binary installations in sync and report what changed.
 
 ## Workflow
 
-1. Read `dotfiles/opencode/opencode.jsonc` and `dotfiles/opencode/tui.jsonc`.
-2. Extract pinned plugin entries from both `plugin` arrays. Each pinned entry follows the format `name@version`.
-3. Extract pinned MCP package references from both config files when they use npm package references, such as `name@version`, `npx name@version`, or local binary commands backed by a globally installed npm package.
-4. For each unique pinned npm package, run `npm view <name> version` to get the latest published version.
-5. Compare the latest version against the pinned version in the config files.
-6. If any plugin or MCP package has a newer version available, present a summary table showing package type, package name, current version, and latest version. Ask the user for confirmation before proceeding.
-7. Update each config file's pinned plugin and MCP package references with the new versions.
-8. For each updated package with a corresponding local binary, verify the installed global version with `npm list -g <name>`. If it is missing or doesn't match the target version, run `npm install -g <name>@<version>`.
-9. Check the global `playwriter` CLI: run `playwriter --version` to get the installed version and `npm view playwriter version` to get the latest. If a newer version is available, include it in the summary table and run `npm install -g playwriter@latest` to update.
-10. Check the `rtk` brew binary: run `rtk --version` to get the installed version and `brew info rtk --json=v2` to get the latest version. If a newer version is available, include it in the summary table and run `brew upgrade rtk` to update.
+1. Discover pinned config packages:
+   - Read `dotfiles/opencode/opencode.jsonc` and `dotfiles/opencode/tui.jsonc`.
+   - Extract pinned plugin entries from both `plugin` arrays. Each pinned entry follows the format `name@version`.
+   - Extract pinned MCP package references from both config files when they use npm package references, such as `name@version`, `npx name@version`, or local binary commands backed by a globally installed npm package.
+2. Check available versions:
+   - For each unique pinned npm package, run `npm view <name> version` to get the latest published version and compare it with the pinned version.
+   - For `playwriter`, run `playwriter --version` to get the installed version and `npm view playwriter version` to get the latest.
+   - For `rtk`, run `rtk --version` to get the installed version and `brew info rtk --json=v2` to get the latest.
+3. If any plugin, MCP package, or related global CLI tool has a newer version available, present a summary table showing package type, package name, current version, and latest version. Ask the user for confirmation before applying those updates.
+4. Apply confirmed updates, continuing with independent update groups when possible if one group fails:
+   - Update each config file's pinned plugin and MCP package references with the new versions.
+   - For each updated package with a corresponding local binary, verify the installed global version with `npm list -g <name>`. If it is missing or doesn't match the target version, run `npm install -g <name>@<version>`.
+   - If `playwriter` has a newer version available, run `npm install -g playwriter@latest`.
+   - If `rtk` has a newer version available, run `brew upgrade rtk`.
+5. Update globally installed skills by running `npx skills update -g -y`. Do this even when no other updates are available, and do not ask for extra confirmation when skills are the only update action.
+6. Run the repository's relevant verification command once after updates finish.
 
 ## Rules
 
 - Only update plugins and MCP package references with explicit `@version` pinning. Unpinned entries are skipped.
 - Only update global npm packages for MCP entries that use local binaries or otherwise require a locally installed executable.
 - Run all npm and verification commands from the repo root.
+- Do not roll back successful updates if a later independent update fails.
+- Report partial updates and failures explicitly.
 
 ## Output
 
-Return a concise summary with:
+Return a concise summary focused on what changed:
 
-- plugins and MCP packages checked, including their version status (up-to-date or updated)
-- global binary update result for each applicable package
-- playwriter CLI version status (up-to-date or updated)
-- rtk brew binary version status (up-to-date or updated)
+- updated plugins and MCP packages, showing `name: old version -> new version`
+- updated global binaries, showing `name: old version -> new version`
+- global skills update result
+- files changed
+- failures or skipped updates, if any
 - verification command and result
