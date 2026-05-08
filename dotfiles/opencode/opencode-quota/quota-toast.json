@@ -1,5 +1,6 @@
 {
   "enableToast": false,
   "showSessionTokens": false,
-  "formatStyle": "allWindows"
+  "formatStyle": "allWindows",
+  "minIntervalMs": 180000
 }
