@@ -57,11 +57,11 @@
     "target": "~/.pi/web-search.json"
   },
   {
-    "source": "dotfiles/pi/prompts",
+    "source": "dotfiles/pi/agent/prompts",
     "target": "~/.pi/agent/prompts"
   },
   {
-    "source": "dotfiles/pi/extensions",
+    "source": "dotfiles/pi/agent/extensions",
     "target": "~/.pi/agent/extensions"
   }
 ]
