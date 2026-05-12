@@ -53,10 +53,6 @@
     "target": "~/.pi/agent/AGENTS.md"
   },
   {
-    "source": "dotfiles/pi/web-search.json",
-    "target": "~/.pi/web-search.json"
-  },
-  {
     "source": "dotfiles/pi/agent/prompts",
     "target": "~/.pi/agent/prompts"
   },

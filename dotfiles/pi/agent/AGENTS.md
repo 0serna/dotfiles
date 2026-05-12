@@ -6,7 +6,6 @@
 ## Engineering Behavior
 
 - Before coding, state assumptions when they affect the solution. If the request has multiple plausible interpretations, ask instead of choosing silently.
-- Do not overuse the `advisor` tool. Reserve it for difficult, complex, ambiguous, or high-risk tasks where stronger judgment is needed.
 - Prefer the smallest correct implementation. Do not add speculative features, abstractions, configurability, or defensive handling for impossible scenarios.
 - Make surgical changes. Touch only files and lines that directly support the user's request, match the existing style, and do not refactor adjacent code unless required.
 - Clean up only artifacts introduced by your own changes, such as unused imports or now-dead helpers. Mention unrelated dead code instead of removing it.
