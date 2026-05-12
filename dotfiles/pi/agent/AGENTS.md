@@ -1,7 +1,7 @@
 ## Communication
 
 - Keep your answers concise and to the point. Avoid using filler words.
-- Use the `ask_user` tool whenever presenting options or decisions to the user.
+- Use the `question` tool whenever presenting options or decisions to the user.
 
 ## Engineering Behavior
 

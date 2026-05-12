@@ -18,15 +18,15 @@ $ARGUMENTS
 ## Workflow
 
 1. Establish the subject from **Arguments** and the current conversation.
-2. If there is no prior context or clear subject, use `ask_user` to ask what to grill on before proceeding.
+2. If there is no prior context or clear subject, use `question` to ask what to grill on before proceeding.
 3. Build a quick synthesis of what is settled, implied, and open.
-4. Walk down each branch of the decision tree — for each unresolved branch, explore the codebase if answerable there, otherwise use `ask_user` for one focused question and include your recommended answer.
+4. Walk down each branch of the decision tree — for each unresolved branch, explore the codebase if answerable there, otherwise use `question` for one focused question and include your recommended answer.
 5. Incorporate answers, resolve dependencies between decisions, and repeat until all important branches are resolved or accepted as assumptions.
 6. Present the final grounded understanding for acknowledgment.
 
 ## Rules
 
-- Use `ask_user` and ask one question at a time.
+- Use `question` and ask one question at a time.
 - Provide your recommended answer with every question.
 - If a question can be answered by exploring the codebase, explore instead of asking.
 - Do not create plans, specifications, tasks, proposals, or code changes.

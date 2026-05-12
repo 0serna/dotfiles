@@ -9,8 +9,8 @@
   "enableSkillCommands": false,
   "quietStartup": true,
   "packages": [
-    "npm:pi-ask-user",
     "npm:pi-web-access",
-    "npm:@juicesharp/rpiv-advisor"
+    "npm:@juicesharp/rpiv-advisor",
+    "npm:@rwese/pi-question"
   ]
 }
