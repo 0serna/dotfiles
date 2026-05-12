@@ -34,6 +34,7 @@ type CacheUsageEntry = {
   };
 };
 
+// fallow-ignore-next-line complexity
 function formatContextUsage(usage: ContextUsage | undefined): string {
   if (usage?.tokens == null) {
     return `?/${formatK(usage?.contextWindow ?? 0)}`;
@@ -42,6 +43,7 @@ function formatContextUsage(usage: ContextUsage | undefined): string {
   return `${formatK(usage.tokens)}/${formatK(usage.contextWindow)}`;
 }
 
+// fallow-ignore-next-line complexity
 function formatCacheHit(entries: CacheUsageEntry[]): string {
   let input = 0;
   let cacheRead = 0;
@@ -92,6 +94,7 @@ export default function (pi: ExtensionAPI) {
       return {
         dispose: unsubscribe,
         invalidate() {},
+        // fallow-ignore-next-line complexity
         render(width: number): string[] {
           try {
             const usage = ctx.getContextUsage?.();

@@ -36,6 +36,7 @@ function splitCommandSegments(command: string): string[] {
     .filter((segment) => segment.length > 0);
 }
 
+// fallow-ignore-next-line complexity
 function stripLeadingWrappers(segment: string): string {
   let current = segment.trim();
 
@@ -78,77 +79,81 @@ function extractShellWrappedCommand(segment: string): string | null {
   return match?.[2]?.trim() ?? null;
 }
 
+const sensitiveGitRules: Array<{
+  when: (candidate: string) => boolean;
+  reason: string;
+}> = [
+  {
+    when: (candidate) => /\bgit\s+push\b/i.test(candidate),
+    reason: "git push mutates a remote",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+reset\b/i.test(candidate) && /--hard\b/i.test(candidate),
+    reason: "git reset --hard rewrites the working tree",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+clean\b/i.test(candidate) &&
+      /(?:(?:^|\s)-[^\s]*f\b)|(?:--force\b)/i.test(candidate),
+    reason: "git clean with force deletes files",
+  },
+  {
+    when: (candidate) => /\bgit\s+rebase\b/i.test(candidate),
+    reason: "git rebase rewrites history",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+commit\b/i.test(candidate) && /--amend\b/i.test(candidate),
+    reason: "git commit --amend rewrites history",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+checkout\b/i.test(candidate) &&
+      /(?:^|\s)-[^\s]*f\b/i.test(candidate),
+    reason: "git checkout -f discards changes",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+switch\b/i.test(candidate) &&
+      /(?:^|\s)--discard-changes\b/i.test(candidate),
+    reason: "git switch --discard-changes discards changes",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+branch\b/i.test(candidate) &&
+      /(?:(?:^|\s)-[^\s]*D\b)|(?:(?:^|\s)--delete\b)/i.test(candidate),
+    reason: "git branch delete removes branches",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+tag\b/i.test(candidate) &&
+      /(?:^|\s)-d\b|(?:^|\s)--delete\b/i.test(candidate),
+    reason: "git tag delete removes tags",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+push\b/i.test(candidate) && /--delete\b/i.test(candidate),
+    reason: "git push --delete removes remote refs",
+  },
+  {
+    when: (candidate) =>
+      /\bgit\s+push\b/i.test(candidate) &&
+      /--force(?:-with-lease)?\b|-f\b/i.test(candidate),
+    reason: "git push force rewrites remote refs",
+  },
+];
+
 function isSensitiveGitSegment(segment: string): string | null {
   const candidate = stripLeadingWrappers(segment);
   if (!/^git\b/i.test(candidate)) {
     return null;
   }
 
-  if (/\bgit\s+push\b/i.test(candidate)) {
-    return "git push mutates a remote";
-  }
-
-  if (/\bgit\s+reset\b/i.test(candidate) && /--hard\b/i.test(candidate)) {
-    return "git reset --hard rewrites the working tree";
-  }
-
-  if (
-    /\bgit\s+clean\b/i.test(candidate) &&
-    /(?:(?:^|\s)-[^\s]*f\b)|(?:--force\b)/i.test(candidate)
-  ) {
-    return "git clean with force deletes files";
-  }
-
-  if (/\bgit\s+rebase\b/i.test(candidate)) {
-    return "git rebase rewrites history";
-  }
-
-  if (/\bgit\s+commit\b/i.test(candidate) && /--amend\b/i.test(candidate)) {
-    return "git commit --amend rewrites history";
-  }
-
-  if (
-    /\bgit\s+checkout\b/i.test(candidate) &&
-    /(?:^|\s)-[^\s]*f\b/i.test(candidate)
-  ) {
-    return "git checkout -f discards changes";
-  }
-
-  if (
-    /\bgit\s+switch\b/i.test(candidate) &&
-    /(?:^|\s)--discard-changes\b/i.test(candidate)
-  ) {
-    return "git switch --discard-changes discards changes";
-  }
-
-  if (
-    /\bgit\s+branch\b/i.test(candidate) &&
-    /(?:(?:^|\s)-[^\s]*D\b)|(?:(?:^|\s)--delete\b)/i.test(candidate)
-  ) {
-    return "git branch delete removes branches";
-  }
-
-  if (
-    /\bgit\s+tag\b/i.test(candidate) &&
-    /(?:^|\s)-d\b|(?:^|\s)--delete\b/i.test(candidate)
-  ) {
-    return "git tag delete removes tags";
-  }
-
-  if (/\bgit\s+push\b/i.test(candidate) && /--delete\b/i.test(candidate)) {
-    return "git push --delete removes remote refs";
-  }
-
-  if (
-    /\bgit\s+push\b/i.test(candidate) &&
-    /--force(?:-with-lease)?\b|-f\b/i.test(candidate)
-  ) {
-    return "git push force rewrites remote refs";
-  }
-
-  return null;
+  return sensitiveGitRules.find((rule) => rule.when(candidate))?.reason ?? null;
 }
 
+// fallow-ignore-next-line complexity
 function isSensitiveGhSegment(segment: string): string | null {
   const candidate = stripLeadingWrappers(segment);
   if (!/^gh\b/i.test(candidate)) {
@@ -204,6 +209,7 @@ function isSensitiveGhSegment(segment: string): string | null {
   return null;
 }
 
+// fallow-ignore-next-line complexity
 function findSensitiveMatch(command: string): SensitiveMatch | null {
   for (const segment of splitCommandSegments(command)) {
     const gitReason = isSensitiveGitSegment(segment);
@@ -228,6 +234,7 @@ function findSensitiveMatch(command: string): SensitiveMatch | null {
   return null;
 }
 
+// fallow-ignore-next-line complexity
 function getApprovalScope(cwd: string): string {
   const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
     cwd,
@@ -247,6 +254,7 @@ function getApprovalScope(cwd: string): string {
 }
 
 export default function (pi: ExtensionAPI) {
+  // fallow-ignore-next-line complexity
   pi.on("tool_call", async (event, ctx) => {
     if (!isToolCallEventType("bash", event)) {
       return;

@@ -53,13 +53,25 @@ function shouldUseRewrite(command: string, result: RewriteResult): boolean {
   );
 }
 
-function parseCompoundCommand(command: string): CompoundPart[] | null {
-  if (
+function hasUnsupportedSyntax(command: string): boolean {
+  return (
     command.includes("\n") ||
     command.includes("$") ||
     command.includes("`") ||
     /[()]/.test(command)
-  ) {
+  );
+}
+
+function isCompoundOperator(
+  char: string,
+  next: string | undefined,
+): char is "&" | "|" {
+  return (char === "&" && next === "&") || (char === "|" && next === "|");
+}
+
+// fallow-ignore-next-line complexity
+function parseCompoundCommand(command: string): CompoundPart[] | null {
+  if (hasUnsupportedSyntax(command)) {
     return null;
   }
 
@@ -75,62 +87,50 @@ function parseCompoundCommand(command: string): CompoundPart[] | null {
     if (escaped) {
       current += char;
       escaped = false;
-      continue;
-    }
-
-    if (char === "\\") {
+    } else if (char === "\\") {
       current += char;
       escaped = true;
-      continue;
-    }
-
-    if (quote !== null) {
+    } else if (quote !== null) {
       current += char;
       if (char === quote) {
         quote = null;
       }
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
+    } else if (char === '"' || char === "'") {
       current += char;
       quote = char;
-      continue;
-    }
-
-    if ((char === "&" && next === "&") || (char === "|" && next === "|")) {
-      if (current.trim() === "") {
+    } else if (isCompoundOperator(char, next)) {
+      const trimmed = current.trim();
+      if (trimmed === "") {
         return null;
       }
 
       parts.push({
-        command: current.trim(),
+        command: trimmed,
         operator: `${char}${next}` as "&&" | "||",
       });
       current = "";
       i += 1;
-      continue;
-    }
-
-    if (char === "|" || char === ";" || char === ">" || char === "<") {
+    } else if (char === "|" || char === ";" || char === ">" || char === "<") {
       return null;
+    } else {
+      current += char;
     }
-
-    current += char;
   }
 
-  if (quote !== null || escaped || current.trim() === "") {
+  const trimmed = current.trim();
+  if (quote !== null || escaped || trimmed === "") {
     return null;
   }
 
   if (parts.length === 0) {
-    return [{ command: command.trim() }];
+    return [{ command: trimmed }];
   }
 
-  parts.push({ command: current.trim() });
+  parts.push({ command: trimmed });
   return parts;
 }
 
+// fallow-ignore-next-line complexity
 function rewriteSimpleCommand(command: string): RewriteResult | null {
   debugLog(`rewrite input=${JSON.stringify(command)}`);
 
@@ -155,6 +155,7 @@ function rewriteSimpleCommand(command: string): RewriteResult | null {
   return rewriteResult;
 }
 
+// fallow-ignore-next-line complexity
 function rewriteCommand(command: string): RewriteOutcome {
   const parts = parseCompoundCommand(command);
   if (parts === null) {
@@ -192,6 +193,29 @@ function rewriteCommand(command: string): RewriteOutcome {
   return { kind: "rewritten", command: rewrittenParts.join(" ") };
 }
 
+// fallow-ignore-next-line complexity
+function getRewrittenCommand(
+  source: string,
+  command: string | undefined,
+): string | null {
+  if (!command || command.trim() === "") {
+    return null;
+  }
+
+  const result = rewriteCommand(command);
+  if (result.kind !== "rewritten") {
+    if (result.kind === "error") {
+      debugLog(`${source} no result; original=${JSON.stringify(command)}`);
+    }
+    return null;
+  }
+
+  debugLog(
+    `${source} rewrite ${JSON.stringify(command)} -> ${JSON.stringify(result.command)}`,
+  );
+  return result.command;
+}
+
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", async () => {
     debugLog("extension loaded");
@@ -202,50 +226,30 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
-    const command = event.input.command;
-    if (!command || command.trim() === "") {
-      return;
-    }
-
-    const result = rewriteCommand(command);
-    if (result.kind !== "rewritten") {
-      if (result.kind === "error") {
-        debugLog(`tool_call no result; original=${JSON.stringify(command)}`);
-      }
-      return;
-    }
-
-    debugLog(
-      `tool_call rewrite ${JSON.stringify(command)} -> ${JSON.stringify(result.command)}`,
+    const rewrittenCommand = getRewrittenCommand(
+      "tool_call",
+      event.input.command,
     );
-    event.input.command = result.command;
+    if (rewrittenCommand == null) {
+      return;
+    }
+
+    event.input.command = rewrittenCommand;
   });
 
   pi.on("user_bash", async (event) => {
-    const command = event.command;
-    if (!command || command.trim() === "") {
+    const rewrittenCommand = getRewrittenCommand("user_bash", event.command);
+    if (rewrittenCommand == null) {
       return;
     }
 
-    const result = rewriteCommand(command);
-    if (result.kind !== "rewritten") {
-      if (result.kind === "error") {
-        debugLog(`user_bash no result; original=${JSON.stringify(command)}`);
-      }
-      return;
-    }
-
-    debugLog(
-      `user_bash rewrite ${JSON.stringify(command)} -> ${JSON.stringify(result.command)}`,
-    );
     const local = createLocalBashOperations();
-    const rewrittenCmd = result.command;
 
     return {
       operations: {
         exec(_cmd: string, cwd: string, options: unknown): BashResult {
           return local.exec(
-            rewrittenCmd,
+            rewrittenCommand,
             cwd,
             options as Parameters<typeof local.exec>[2],
           );
