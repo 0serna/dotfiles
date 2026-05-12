@@ -4,9 +4,9 @@ import { Text } from "@earendil-works/pi-tui";
 import { appendFileSync } from "fs";
 import { Type } from "typebox";
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Logging
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 const LOG_FILE = "/tmp/pi-web-tools.log";
 
@@ -18,9 +18,9 @@ function log(msg: string): void {
   }
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Configuration
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
@@ -30,9 +30,9 @@ const DEFAULT_NUM_RESULTS = 5;
 
 type RecencyFilter = "day" | "week" | "month" | "year";
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Helpers
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 function getApiKeyOrThrow(): string {
   const key = process.env.EXA_API_KEY;
@@ -56,32 +56,85 @@ function recencyToStartDate(filter: RecencyFilter): string {
   return new Date(now - ms).toISOString().split("T")[0] as string;
 }
 
-/** Parse domainFilter strings: "+foo.com" → includeDomains, "-bar.com" → excludeDomains */
-// fallow-ignore-next-line complexity
-function parseDomainFilter(filter: string[]): {
-  includeDomains?: string[];
-  excludeDomains?: string[];
-} {
-  const include: string[] = [];
-  const exclude: string[] = [];
-  for (const entry of filter) {
-    if (entry.startsWith("-")) {
-      exclude.push(entry.slice(1));
-    } else {
-      include.push(entry);
-    }
-  }
-  const result: { includeDomains?: string[]; excludeDomains?: string[] } = {};
-  if (include.length > 0) result.includeDomains = include;
-  if (exclude.length > 0) result.excludeDomains = exclude;
-  return result;
+function parseDomainFilter(filter: string[]): Record<string, string[]> {
+  const include = filter.filter((e) => !e.startsWith("-"));
+  const exclude = filter
+    .filter((e) => e.startsWith("-"))
+    .map((e) => e.slice(1));
+  return Object.assign(
+    {},
+    include.length > 0 && { includeDomains: include },
+    exclude.length > 0 && { excludeDomains: exclude },
+  );
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Exa API Client
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
-// fallow-ignore-next-line complexity
+function addDomainFilter(
+  body: Record<string, unknown>,
+  domainFilter: string[] | undefined,
+): void {
+  if (domainFilter && domainFilter.length > 0) {
+    Object.assign(body, parseDomainFilter(domainFilter));
+  }
+}
+
+function buildSearchBody(
+  query: string,
+  opts: {
+    numResults?: number;
+    recencyFilter?: RecencyFilter;
+    domainFilter?: string[];
+  },
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    query,
+    type: "auto",
+    numResults: opts.numResults || DEFAULT_NUM_RESULTS,
+    contents: { highlights: true },
+  };
+  if (opts.recencyFilter) {
+    body.startPublishedDate = recencyToStartDate(opts.recencyFilter);
+  }
+  addDomainFilter(body, opts.domainFilter);
+  return body;
+}
+
+async function doExaFetch(
+  url: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const apiKey = getApiKeyOrThrow();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), EXA_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function parseExaResponse<T>(
+  response: Response,
+  label: string,
+): Promise<T | null> {
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "unknown error");
+    log(
+      `${label} fail status=${response.status} body="${errorText.slice(0, 200)}"`,
+    );
+    return null;
+  }
+  return (await response.json()) as T;
+}
+
 async function callExaSearch(
   query: string,
   opts: {
@@ -90,144 +143,116 @@ async function callExaSearch(
     domainFilter?: string[];
   },
 ): Promise<unknown> {
-  const apiKey = getApiKeyOrThrow();
-
-  const body: Record<string, unknown> = {
-    query,
-    type: "auto",
-    numResults: opts.numResults ?? DEFAULT_NUM_RESULTS,
-    contents: { highlights: true },
-  };
-
-  if (opts.recencyFilter) {
-    body.startPublishedDate = recencyToStartDate(opts.recencyFilter);
+  const body = buildSearchBody(query, opts);
+  const response = await doExaFetch(EXA_SEARCH_URL, body);
+  const data = await parseExaResponse<{
+    results?: Array<{
+      title?: string;
+      url?: string;
+      highlights?: string[];
+      text?: string;
+    }>;
+  }>(response, "exa_search");
+  if (!data) {
+    throw new Error(`Exa API error for query="${query}"`);
   }
+  return data;
+}
 
-  if (opts.domainFilter && opts.domainFilter.length > 0) {
-    const parsed = parseDomainFilter(opts.domainFilter);
-    Object.assign(body, parsed);
+function getFirstResult(
+  data: { results?: Array<{ text?: string }> } | null,
+): { text?: string } | null {
+  if (!data?.results?.length) return null;
+  return data.results[0];
+}
+
+function extractContentText(
+  data: { results?: Array<{ text?: string }> } | null,
+): string | null {
+  const result = getFirstResult(data);
+  if (result == null) return null;
+  const text = result.text;
+  if (text == null) return null;
+  if (text.trim().length <= 100) return null;
+  return text.trim();
+}
+
+async function callExaContents(url: string): Promise<string | null> {
+  const response = await doExaFetch(EXA_CONTENTS_URL, {
+    urls: [url],
+    text: true,
+  });
+  const data = await parseExaResponse<{
+    results?: Array<{ text?: string }>;
+  }>(response, "exa_contents");
+  const text = extractContentText(data);
+  if (!text) {
+    log(`exa_contents insufficient url="${url}"`);
   }
+  return text;
+}
 
+// ===========================================================================
+// HTTP Fallback Extraction
+// ===========================================================================
+
+async function doHttpFetch(
+  url: string,
+): Promise<{ html: string; contentType: string }> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), EXA_TIMEOUT_MS);
-
+  const timer = setTimeout(() => controller.abort(), HTTP_FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(EXA_SEARCH_URL, {
-      method: "POST",
+    const response = await fetch(url, {
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
+        "User-Agent":
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
-      body: JSON.stringify(body),
       signal: controller.signal,
     });
-
     if (!response.ok) {
-      const errorText = await response.text().catch(() => "unknown error");
       throw new Error(
-        `Exa API error (${response.status}): ${errorText.slice(0, 500)}`,
+        `HTTP ${response.status} ${response.statusText} for ${url}`,
       );
     }
-
-    const data = (await response.json()) as {
-      results?: Array<{
-        title?: string;
-        url?: string;
-        highlights?: string[];
-        text?: string;
-      }>;
-    };
-    return data;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      log(`exa_search timeout query="${query}"`);
-      throw new Error("Exa API request timed out", { cause: err });
-    }
-    const msg = err instanceof Error ? err.message : String(err);
-    log(`exa_search error query="${query}" msg="${msg}"`);
-    throw err;
+    const contentType = response.headers.get("content-type") ?? "";
+    const html = await response.text();
+    return { html, contentType };
   } finally {
     clearTimeout(timer);
   }
 }
 
-// fallow-ignore-next-line complexity
-async function callExaContents(url: string): Promise<string | null> {
-  const apiKey = getApiKeyOrThrow();
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), EXA_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(EXA_CONTENTS_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        urls: [url],
-        text: true,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      log(`exa_contents fail url="${url}" status=${response.status}`);
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      results?: Array<{ text?: string }>;
-    };
-    const first = data.results?.[0];
-    const text = first?.text?.trim();
-    if (!text || text.length <= 100) {
-      log(`exa_contents insufficient url="${url}" len=${text?.length ?? 0}`);
-      return null;
-    }
-    return text;
-  } catch {
-    log(`exa_contents error url="${url}"`);
-    return null;
-  } finally {
-    clearTimeout(timer);
+function assertHtmlContent(contentType: string, url: string): void {
+  const isHtml =
+    contentType.startsWith("text/html") ||
+    contentType.startsWith("application/xhtml+xml") ||
+    contentType.startsWith("text/plain");
+  if (!isHtml) {
+    throw new Error(
+      `Unsupported content type "${contentType}" for ${url}. Only HTML pages are supported.`,
+    );
   }
 }
 
-// ---------------------------------------------------------------------------
-// HTTP Fallback Extraction (lightweight, no external dependencies)
-// ---------------------------------------------------------------------------
+function stripTags(html: string, tags: string[]): string {
+  const pattern = new RegExp(
+    `<(${tags.join("|")})[^>]*>[\\s\\S]*?<\\/\\1>`,
+    "gi",
+  );
+  return html.replace(pattern, "");
+}
 
-/**
- * Extract readable text content from HTML using a lightweight approach.
- * Strips scripts/styles, pulls text from heading/paragraph/list/table/code
- * elements, and converts to a rough markdown format.
- */
-function htmlToMarkdown(html: string): string {
-  // Strip <script>, <style>, <noscript>, <svg>, <nav>, <footer>, <header>
-  let cleaned = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
-  cleaned = cleaned.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
-  cleaned = cleaned.replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "");
-  cleaned = cleaned.replace(/<svg[^>]*>[\s\S]*?<\/svg>/gi, "");
-  cleaned = cleaned.replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "");
-  cleaned = cleaned.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "");
-  cleaned = cleaned.replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "");
-
-  // Comments
-  cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, "");
-
-  // Convert block elements to newlines
-  cleaned = cleaned.replace(
+function replaceBlockElements(html: string): string {
+  return html.replace(
     /<\/?(?:h[1-6]|p|div|section|article|blockquote|li|tr|dt|dd|br|hr)[^>]*>/gi,
     "\n",
   );
+}
 
-  // Replace <br> inline
-  cleaned = cleaned.replace(/<br\s*\/?>/gi, "\n");
-
-  // Links: extract text and href (support both quoting styles)
-  cleaned = cleaned.replace(
+function replaceLinks(html: string): string {
+  return html.replace(
     /<a[^>]*href=(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi,
     (
       _match,
@@ -240,39 +265,56 @@ function htmlToMarkdown(html: string): string {
       return t ? `${t} (${href})` : href;
     },
   );
+}
 
-  // Images: extract alt text (support both quoting styles)
-  cleaned = cleaned.replace(
+function replaceImages(html: string): string {
+  return html.replace(
     /<img[^>]*alt=(?:"([^"]*)"|'([^']*)')[^>]*\/?>/gi,
     (_match, dqAlt: string | undefined, sqAlt: string | undefined) => {
       const alt = dqAlt ?? sqAlt;
       return alt ? `[Image: ${alt}]` : "";
     },
   );
+}
 
-  // Strip remaining HTML tags
-  cleaned = cleaned.replace(/<[^>]*>/g, "");
+function decodeEntities(html: string): string {
+  return html
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
 
-  // Decode common entities
-  cleaned = cleaned.replace(/&amp;/g, "&");
-  cleaned = cleaned.replace(/&lt;/g, "<");
-  cleaned = cleaned.replace(/&gt;/g, ">");
-  cleaned = cleaned.replace(/&quot;/g, '"');
-  cleaned = cleaned.replace(/&#39;/g, "'");
-  cleaned = cleaned.replace(/&nbsp;/g, " ");
-
-  // Collapse multiple blank lines
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-
-  // Trim each line
-  cleaned = cleaned
+function collapseLines(html: string): string {
+  return html
+    .replace(/\n{3,}/g, "\n\n")
     .split("\n")
     .map((l) => l.trim())
-    .join("\n");
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
 
-  // Collapse again after trimming
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-
+function htmlToMarkdown(html: string): string {
+  let cleaned = html;
+  cleaned = stripTags(cleaned, [
+    "script",
+    "style",
+    "noscript",
+    "svg",
+    "nav",
+    "footer",
+    "header",
+  ]);
+  cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, "");
+  cleaned = replaceBlockElements(cleaned);
+  cleaned = cleaned.replace(/<br\s*\/?>/gi, "\n");
+  cleaned = replaceLinks(cleaned);
+  cleaned = replaceImages(cleaned);
+  cleaned = cleaned.replace(/<[^>]*>/g, "");
+  cleaned = decodeEntities(cleaned);
+  cleaned = collapseLines(cleaned);
   return cleaned.trim();
 }
 
@@ -281,66 +323,27 @@ function extractTitle(html: string): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
-// fallow-ignore-next-line complexity
 async function extractViaHttp(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), HTTP_FETCH_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `HTTP ${response.status} ${response.statusText} for ${url}`,
-      );
-    }
-
-    const contentType = response.headers.get("content-type") ?? "";
-    const isHtml =
-      contentType.startsWith("text/html") ||
-      contentType.startsWith("application/xhtml+xml") ||
-      contentType.startsWith("text/plain");
-    if (!isHtml) {
-      throw new Error(
-        `Unsupported content type "${contentType}" for ${url}. Only HTML pages are supported.`,
-      );
-    }
-
-    const html = await response.text();
-    const title = extractTitle(html);
-    const body = htmlToMarkdown(html);
-
-    if (!body) {
-      throw new Error("Could not extract readable content from the page");
-    }
-
-    return title ? `# ${title}\n\n${body}` : body;
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "AbortError") {
-      throw new Error(`Request timed out for ${url}`, { cause: err });
-    }
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to fetch ${url}: unknown error`, { cause: err });
-  } finally {
-    clearTimeout(timer);
+  const { html, contentType } = await doHttpFetch(url);
+  assertHtmlContent(contentType, url);
+  const title = extractTitle(html);
+  const body = htmlToMarkdown(html);
+  if (!body) {
+    throw new Error("Could not extract readable content from the page");
   }
+  return title ? `# ${title}\n\n${body}` : body;
 }
 
-// ---------------------------------------------------------------------------
+// ===========================================================================
 // Tool: web_search
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 const RECENCY_VALUES = ["day", "week", "month", "year"] as const;
+
+function getResultCount(data: unknown): number {
+  const d = data as { results?: unknown[] } | null;
+  return d?.results?.length ?? 0;
+}
 
 function formatSearchResponse(data: {
   results?: Array<{
@@ -354,23 +357,86 @@ function formatSearchResponse(data: {
   if (results.length === 0) {
     return "No results found.";
   }
-
   const sources = results
     .map((r, i) => `${i + 1}. [${r.title ?? "Untitled"}](${r.url ?? ""})`)
     .join("\n");
-
   const bestText =
     results
       .map((r) => r.highlights?.[0] ?? "")
       .filter(Boolean)
       .join("\n\n") || "No summary text available.";
-
   return `${bestText}\n\n**Sources:**\n${sources}`;
 }
 
-// ---------------------------------------------------------------------------
+async function executeWebSearch(
+  _toolCallId: string,
+  params: Record<string, unknown>,
+): Promise<{
+  content: Array<{ type: "text"; text: string }>;
+  details: Record<string, unknown>;
+  isError?: boolean;
+}> {
+  const { query, numResults, recencyFilter, domainFilter } = params as {
+    query: string;
+    numResults?: number;
+    recencyFilter?: RecencyFilter;
+    domainFilter?: string[];
+  };
+  if (!query || query.trim() === "") {
+    return {
+      content: [
+        { type: "text" as const, text: "A query is required for web_search." },
+      ],
+      details: {},
+      isError: true,
+    };
+  }
+  const data = await callExaSearch(query.trim(), {
+    numResults,
+    recencyFilter,
+    domainFilter,
+  }).catch(() => null);
+  if (data == null) {
+    log(`web_search fail query="${query.trim()}"`);
+    return {
+      content: [{ type: "text" as const, text: "Search failed" }],
+      details: {},
+      isError: true,
+    };
+  }
+  return {
+    content: [{ type: "text" as const, text: formatSearchResponse(data) }],
+    details: { sourceCount: getResultCount(data) },
+  };
+}
+
+function renderWebSearchCall(
+  args: { query: string },
+  theme: { fg: (style: string, text: string) => string },
+): Text {
+  return new Text(
+    theme.fg("toolTitle", `web_search: `) + theme.fg("accent", args.query),
+    0,
+    0,
+  );
+}
+
+function renderWebSearchResult(
+  result: { details: { sourceCount?: number } },
+  _options: unknown,
+  theme: { fg: (style: string, text: string) => string },
+): Text {
+  const count = result.details.sourceCount;
+  if (count != null && count > 0) {
+    const label = count === 1 ? "source" : "sources";
+    return new Text(theme.fg("success", `${count} ${label}`), 0, 0);
+  }
+  return new Text(theme.fg("warning", "search error"), 0, 0);
+}
+
+// ===========================================================================
 // Tool: web_fetch
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 function isValidHttpUrl(s: string): boolean {
   try {
@@ -381,12 +447,89 @@ function isValidHttpUrl(s: string): boolean {
   }
 }
 
-// ---------------------------------------------------------------------------
+async function tryFetchContent(url: string): Promise<{
+  content: string;
+  fallback: boolean;
+}> {
+  const exaContent = await callExaContents(url).catch(() => null);
+  if (exaContent) return { content: exaContent, fallback: false };
+  log(`web_fetch fallback url="${url}"`);
+  const httpContent = await extractViaHttp(url);
+  return { content: httpContent, fallback: true };
+}
+
+async function executeWebFetch(
+  _toolCallId: string,
+  params: Record<string, unknown>,
+): Promise<{
+  content: Array<{ type: "text"; text: string }>;
+  details: Record<string, unknown>;
+  isError?: boolean;
+}> {
+  const { url } = params as { url: string };
+  if (!url || !isValidHttpUrl(url)) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Invalid URL: "${url}". Provide a valid http:// or https:// URL.`,
+        },
+      ],
+      details: {},
+      isError: true,
+    };
+  }
+  const result = await tryFetchContent(url).catch((err: unknown) => {
+    const message =
+      err instanceof Error ? err.message : "Unknown error during fetch";
+    log(`web_fetch fail url="${url}" msg="${message}"`);
+    return null;
+  });
+  if (result == null) {
+    return {
+      content: [{ type: "text" as const, text: "Failed to fetch content" }],
+      details: {},
+      isError: true,
+    };
+  }
+  return {
+    content: [{ type: "text" as const, text: result.content }],
+    details: { bytes: result.content.length, fallback: result.fallback },
+  };
+}
+
+function renderWebFetchCall(
+  args: { url: string },
+  theme: { fg: (style: string, text: string) => string },
+): Text {
+  return new Text(
+    theme.fg("toolTitle", `web_fetch: `) + theme.fg("accent", args.url),
+    0,
+    0,
+  );
+}
+
+function renderWebFetchResult(
+  result: { details: { bytes?: number; fallback?: boolean } },
+  _options: unknown,
+  theme: { fg: (style: string, text: string) => string },
+): Text {
+  const { bytes, fallback } = result.details;
+  if (bytes != null && bytes > 0) {
+    const kb = (bytes / 1024).toFixed(1);
+    const label = fallback
+      ? `${kb}KB extracted (fallback)`
+      : `${kb}KB extracted`;
+    return new Text(theme.fg("success", label), 0, 0);
+  }
+  return new Text(theme.fg("warning", "fetch error"), 0, 0);
+}
+
+// ===========================================================================
 // Extension Entry Point
-// ---------------------------------------------------------------------------
+// ===========================================================================
 
 export default function (pi: ExtensionAPI) {
-  // ---- web_search ----
   pi.registerTool({
     name: "web_search",
     label: "Web Search",
@@ -418,76 +561,11 @@ export default function (pi: ExtensionAPI) {
         }),
       ),
     }),
-    // fallow-ignore-next-line complexity
-    async execute(_toolCallId, params) {
-      const { query, numResults, recencyFilter, domainFilter } = params as {
-        query: string;
-        numResults?: number;
-        recencyFilter?: RecencyFilter;
-        domainFilter?: string[];
-      };
-
-      if (!query || query.trim() === "") {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "A query is required for web_search.",
-            },
-          ],
-          details: {},
-          isError: true,
-        };
-      }
-
-      try {
-        const data = await callExaSearch(query.trim(), {
-          numResults,
-          recencyFilter,
-          domainFilter,
-        });
-        const results = (data as { results?: unknown[] })?.results ?? [];
-        const answer = formatSearchResponse(
-          data as Parameters<typeof formatSearchResponse>[0],
-        );
-        return {
-          content: [{ type: "text" as const, text: answer }],
-          details: { sourceCount: results.length },
-        };
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Unknown error during search";
-        log(`web_search fail query="${query.trim()}" msg="${message}"`);
-        return {
-          content: [
-            { type: "text" as const, text: `Search failed: ${message}` },
-          ],
-          details: {},
-          isError: true,
-        };
-      }
-    },
-
-    renderCall(args, theme) {
-      return new Text(
-        theme.fg("toolTitle", `web_search: `) + theme.fg("accent", args.query),
-        0,
-        0,
-      );
-    },
-
-    // fallow-ignore-next-line complexity
-    renderResult(result, _options, theme) {
-      const count = (result.details as { sourceCount?: number })?.sourceCount;
-      if (count != null && count > 0) {
-        const label = count === 1 ? "source" : "sources";
-        return new Text(theme.fg("success", `${count} ${label}`), 0, 0);
-      }
-      return new Text(theme.fg("warning", "search error"), 0, 0);
-    },
+    execute: executeWebSearch,
+    renderCall: renderWebSearchCall,
+    renderResult: renderWebSearchResult,
   });
 
-  // ---- web_fetch ----
   pi.registerTool({
     name: "web_fetch",
     label: "Web Fetch",
@@ -502,82 +580,8 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       url: Type.String({ description: "URL to fetch" }),
     }),
-    // fallow-ignore-next-line complexity
-    async execute(_toolCallId, params) {
-      const { url } = params as { url: string };
-
-      if (!url || !isValidHttpUrl(url)) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Invalid URL: "${url ?? ""}". Provide a valid http:// or https:// URL.`,
-            },
-          ],
-          details: {},
-          isError: true,
-        };
-      }
-
-      // Attempt Exa first
-      let content: string | null = null;
-      let usedFallback = false;
-      try {
-        content = await callExaContents(url);
-      } catch {
-        // fall through to HTTP fallback
-      }
-
-      // Fall back to HTTP extraction
-      if (!content) {
-        usedFallback = true;
-        log(`web_fetch fallback url="${url}"`);
-        try {
-          content = await extractViaHttp(url);
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Unknown error during fetch";
-          log(`web_fetch fail url="${url}" msg="${message}"`);
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Failed to fetch content: ${message}`,
-              },
-            ],
-            details: {},
-            isError: true,
-          };
-        }
-      }
-
-      return {
-        content: [{ type: "text" as const, text: content }],
-        details: { bytes: content.length, fallback: usedFallback },
-      };
-    },
-
-    renderCall(args, theme) {
-      return new Text(
-        theme.fg("toolTitle", `web_fetch: `) + theme.fg("accent", args.url),
-        0,
-        0,
-      );
-    },
-
-    renderResult(result, _options, theme) {
-      const { bytes, fallback } = result.details as {
-        bytes?: number;
-        fallback?: boolean;
-      };
-      if (bytes != null && bytes > 0) {
-        const kb = (bytes / 1024).toFixed(1);
-        const label = fallback
-          ? `${kb}KB extracted (fallback)`
-          : `${kb}KB extracted`;
-        return new Text(theme.fg("success", label), 0, 0);
-      }
-      return new Text(theme.fg("warning", "fetch error"), 0, 0);
-    },
+    execute: executeWebFetch,
+    renderCall: renderWebFetchCall,
+    renderResult: renderWebFetchResult,
   });
 }

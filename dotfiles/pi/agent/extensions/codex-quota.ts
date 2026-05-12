@@ -4,8 +4,6 @@ import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-// fallow-ignore-file complexity
-
 type OpenAIOAuthEntry = {
   type?: string;
   access?: string;
@@ -48,6 +46,8 @@ type CodexQuotaStatus = {
   remainingCredits?: number;
 };
 
+type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
+
 const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const REQUEST_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
@@ -61,13 +61,24 @@ const OPENAI_AUTH_SOURCE_KEYS = [
   "opencode",
 ] as const;
 
+// ---------------------------------------------------------------------------
+// Module-level state
+// ---------------------------------------------------------------------------
+
+let lastStatus: CodexQuotaStatus | null = null;
+let lastCtx: ExtensionContext | null = null;
+let poller: ReturnType<typeof setInterval> | null = null;
+
+// ---------------------------------------------------------------------------
+// Logging & helpers
+// ---------------------------------------------------------------------------
+
 function logEvent(eventName: string, details: Record<string, unknown>): void {
   const line = [
     new Date().toISOString(),
     eventName,
     JSON.stringify(details),
   ].join(" ");
-
   try {
     appendFileSync(LOG_FILE, `${line}\n`);
   } catch {
@@ -105,17 +116,14 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-// fallow-ignore-next-line complexity
 async function findCodexAuthPath(): Promise<string | null> {
   const home = homedir();
   const candidates = [join(home, ".local/share/opencode/auth.json")];
-
   for (const candidate of candidates) {
     if (await pathExists(candidate)) {
       return candidate;
     }
   }
-
   return null;
 }
 
@@ -123,112 +131,87 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-// fallow-ignore-next-line complexity
 function toRemainingPercent(
   window: CodexUsageWindow | undefined,
 ): number | undefined {
-  const remaining = window?.remaining_percent;
-  if (typeof remaining === "number") {
-    return clampPercent(remaining);
+  if (window == null) return undefined;
+  if (typeof window.remaining_percent === "number") {
+    return clampPercent(window.remaining_percent);
   }
-  const used = window?.used_percent;
-  if (typeof used === "number") {
-    return clampPercent(100 - used);
+  if (typeof window.used_percent === "number") {
+    return clampPercent(100 - window.used_percent);
   }
   return undefined;
 }
 
-// fallow-ignore-next-line complexity
 function parseCredits(
   balance: number | string | undefined,
   unlimited: boolean | undefined,
 ): number | undefined {
-  if (unlimited) {
-    return undefined;
-  }
-
-  const value = typeof balance === "number" ? balance : Number(balance ?? "");
-  if (!Number.isFinite(value)) {
-    return undefined;
-  }
-
-  return Math.max(0, Math.floor(value));
+  if (unlimited) return undefined;
+  const value = typeof balance === "number" ? balance : Number(balance);
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : undefined;
 }
 
-type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
+// ---------------------------------------------------------------------------
+// Auth loading
+// ---------------------------------------------------------------------------
 
-function formatCodexQuotaSegment(
-  label: string,
-  value: number,
-  threshold: number,
-  ctx: ExtensionContext,
-  suffix = "%",
-): string {
-  const segment = `${label} ${value}${suffix}`;
-  return value < threshold
-    ? ctx.ui.theme.fg("mdHeading", segment)
-    : ctx.ui.theme.fg("dim", segment);
+function isValidAuthEntry(
+  entry: OpenAIOAuthEntry | undefined,
+): entry is OpenAIOAuthEntry & { access: string } {
+  if (!entry) return false;
+  if (entry.type !== "oauth") return false;
+  if (typeof entry.access !== "string") return false;
+  return true;
 }
 
-// fallow-ignore-next-line complexity
-function formatCodexQuotaStatus(
-  status: CodexQuotaStatus,
-  ctx: ExtensionContext,
-): string | null {
-  const parts: string[] = [];
-  if (status.remaining5h != null)
-    parts.push(formatCodexQuotaSegment("5h", status.remaining5h, 25, ctx));
-  if (status.remaining7d != null)
-    parts.push(formatCodexQuotaSegment("7d", status.remaining7d, 25, ctx));
-  if (status.remainingCredits != null)
-    parts.push(
-      formatCodexQuotaSegment("cr", status.remainingCredits, 100, ctx, ""),
-    );
-  return parts.length ? parts.join(ctx.ui.theme.fg("dim", " · ")) : null;
-}
-
-// fallow-ignore-next-line complexity
 function getOpenAIAuthEntry(
   auth: CodexAuthFile,
 ): { sourceKey: string; entry: OpenAIOAuthEntry; accessToken: string } | null {
-  for (const sourceKey of OPENAI_AUTH_SOURCE_KEYS) {
-    const entry = auth[sourceKey];
-    if (!entry || entry.type !== "oauth") {
-      continue;
-    }
-
-    const accessToken =
-      typeof entry.access === "string" ? entry.access.trim() : "";
-    if (accessToken) {
-      return { sourceKey, entry, accessToken };
-    }
+  for (const sk of OPENAI_AUTH_SOURCE_KEYS) {
+    const entry = auth[sk];
+    if (!isValidAuthEntry(entry)) continue;
+    return { sourceKey: sk, entry, accessToken: entry.access.trim() };
   }
-
   return null;
 }
 
-// fallow-ignore-next-line complexity size
-async function fetchCodexQuotaStatus(): Promise<CodexQuotaStatus | null> {
+async function loadCodexAuth(): Promise<{
+  resolvedAuth: {
+    sourceKey: string;
+    entry: OpenAIOAuthEntry;
+    accessToken: string;
+  };
+} | null> {
   const authPath = await findCodexAuthPath();
   if (!authPath) {
     logEvent("auth_missing", {});
     return null;
   }
-
   const auth = JSON.parse(await readFile(authPath, "utf8")) as CodexAuthFile;
   const resolvedAuth = getOpenAIAuthEntry(auth);
-
   logEvent("auth_loaded", {
     authPath,
     keys: Object.keys(auth),
     sourceKey: resolvedAuth?.sourceKey,
   });
-
   if (!resolvedAuth) {
     logEvent("auth_unusable", { authPath });
     return null;
   }
+  return { resolvedAuth };
+}
 
+// ---------------------------------------------------------------------------
+// API call
+// ---------------------------------------------------------------------------
+
+async function callCodexUsageApi(resolvedAuth: {
+  sourceKey: string;
+  entry: OpenAIOAuthEntry;
+  accessToken: string;
+}): Promise<CodexUsageResponse | null> {
   const response = await fetch(CODEX_USAGE_URL, {
     headers: {
       Accept: "application/json",
@@ -242,150 +225,212 @@ async function fetchCodexQuotaStatus(): Promise<CodexQuotaStatus | null> {
     },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
-
   if (!response.ok) {
-    logEvent("fetch_failed", { status: response.status, authPath });
+    logEvent("fetch_failed", { status: response.status });
     return null;
   }
+  return (await response.json()) as CodexUsageResponse;
+}
 
-  const usage = (await response.json()) as CodexUsageResponse;
-  const rateLimit = usage.rate_limit ?? usage.rate_limits;
+// ---------------------------------------------------------------------------
+// Status formatting
+// ---------------------------------------------------------------------------
 
-  const status = {
-    remaining5h: toRemainingPercent(rateLimit?.primary_window),
-    remaining7d: toRemainingPercent(rateLimit?.secondary_window),
-    remainingCredits: parseCredits(
-      usage.credits?.has_credits ? usage.credits.balance : undefined,
-      usage.credits?.unlimited,
+const QUOTA_SEGMENTS: Array<{
+  key: keyof CodexQuotaStatus;
+  label: string;
+  threshold: number;
+  suffix: string;
+}> = [
+  { key: "remaining5h", label: "5h", threshold: 25, suffix: "%" },
+  { key: "remaining7d", label: "7d", threshold: 25, suffix: "%" },
+  { key: "remainingCredits", label: "cr", threshold: 100, suffix: "" },
+];
+
+function formatCodexQuotaSegment(
+  label: string,
+  value: number,
+  threshold: number,
+  ctx: ExtensionContext,
+  suffix: string,
+): string {
+  const segment = `${label} ${value}${suffix}`;
+  return value < threshold
+    ? ctx.ui.theme.fg("mdHeading", segment)
+    : ctx.ui.theme.fg("dim", segment);
+}
+
+function formatCodexQuotaStatus(
+  status: CodexQuotaStatus,
+  ctx: ExtensionContext,
+): string | null {
+  const parts = QUOTA_SEGMENTS.filter((s) => status[s.key] != null).map((s) =>
+    formatCodexQuotaSegment(
+      s.label,
+      status[s.key]!,
+      s.threshold,
+      ctx,
+      s.suffix,
     ),
-  };
+  );
+  return parts.length ? parts.join(ctx.ui.theme.fg("dim", " · ")) : null;
+}
 
+// ---------------------------------------------------------------------------
+// Fetch orchestration
+// ---------------------------------------------------------------------------
+
+function getCreditsFromResponse(
+  credits: CodexUsageResponse["credits"] | undefined,
+): number | undefined {
+  if (!credits?.has_credits) return undefined;
+  return parseCredits(credits.balance, credits.unlimited);
+}
+
+function buildStatusFromUsage(usage: CodexUsageResponse): CodexQuotaStatus {
+  const rateLimit = usage.rate_limit ?? usage.rate_limits;
+  return {
+    remaining5h: rateLimit
+      ? toRemainingPercent(rateLimit.primary_window)
+      : undefined,
+    remaining7d: rateLimit
+      ? toRemainingPercent(rateLimit.secondary_window)
+      : undefined,
+    remainingCredits: getCreditsFromResponse(usage.credits),
+  };
+}
+
+async function fetchCodexQuotaStatus(): Promise<CodexQuotaStatus | null> {
+  const authResult = await loadCodexAuth();
+  if (!authResult) return null;
+  const { resolvedAuth } = authResult;
+  const usage = await callCodexUsageApi(resolvedAuth);
+  if (!usage) return null;
+  const status = buildStatusFromUsage(usage);
   logEvent("fetch_succeeded", {
     sourceKey: resolvedAuth.sourceKey,
     has5h: status.remaining5h != null,
     has7d: status.remaining7d != null,
     hasCredits: status.remainingCredits != null,
   });
-
   return status;
 }
 
-// fallow-ignore-next-line size
+// ---------------------------------------------------------------------------
+// Status publish helpers
+// ---------------------------------------------------------------------------
+
+function getStatusText(ctx: ExtensionContext): string | undefined {
+  if (!lastStatus) return undefined;
+  return formatCodexQuotaStatus(lastStatus, ctx) ?? undefined;
+}
+
+function setStatusSafely(
+  ctx: ExtensionContext,
+  reason: string,
+  statusText: string | undefined,
+): void {
+  try {
+    ctx.ui.setStatus(STATUS_KEY, statusText);
+  } catch (error) {
+    logEvent("status_publish_error", {
+      reason,
+      message: getErrorMessage(error),
+    });
+  }
+}
+
+function publishStatus(ctx: ExtensionContext, reason: string): void {
+  if (!lastStatus) {
+    logEvent("status_skipped", { reason });
+    return;
+  }
+  const statusText = getStatusText(ctx);
+  logEvent("status_published", { reason, status: statusText });
+  setStatusSafely(ctx, reason, statusText);
+}
+
+function publishLatest(reason: string): void {
+  if (lastCtx) publishStatus(lastCtx, reason);
+}
+
+function applyStatus(status: CodexQuotaStatus | null): void {
+  if (!status) return;
+  lastStatus = status;
+  writeCache(status);
+  publishLatest("fetch_refreshed");
+}
+
+// ---------------------------------------------------------------------------
+// Polling
+// ---------------------------------------------------------------------------
+
+async function refreshStatus(reason: string): Promise<void> {
+  try {
+    const status = await fetchCodexQuotaStatus();
+    logEvent("status_resolved", { reason, status });
+    applyStatus(status);
+  } catch (error) {
+    logEvent("status_error", {
+      reason,
+      message: getErrorMessage(error),
+    });
+  }
+}
+
+function ensurePoller(): void {
+  if (poller) return;
+  poller = setInterval(() => {
+    void refreshStatus("poll");
+  }, POLL_INTERVAL_MS);
+  poller.unref?.();
+}
+
+// ---------------------------------------------------------------------------
+// Event handlers
+// ---------------------------------------------------------------------------
+
+function handleSessionStart(_event: unknown, ctx: ExtensionContext): void {
+  lastCtx = ctx;
+  logEvent("extension_loaded", {
+    cwd: ctx.cwd,
+    model: ctx.model?.id ?? null,
+  });
+  void readCache().then((cached) => {
+    if (cached) {
+      lastStatus = cached;
+      publishStatus(ctx, "session_start_cached");
+    }
+  });
+  void refreshStatus("session_start");
+  ensurePoller();
+}
+
+function handleTurnStart(_event: unknown, ctx: ExtensionContext): void {
+  lastCtx = ctx;
+  publishStatus(ctx, "turn_start");
+}
+
+function handleTurnEnd(_event: unknown, ctx: ExtensionContext): void {
+  lastCtx = ctx;
+  publishStatus(ctx, "turn_end");
+}
+
+function handleSessionShutdown(): void {
+  if (poller) {
+    clearInterval(poller);
+    poller = null;
+  }
+  lastCtx = null;
+}
+
+// ---------------------------------------------------------------------------
+// Extension entry point
+// ---------------------------------------------------------------------------
+
 export default function (pi: ExtensionAPI) {
-  let lastStatus: CodexQuotaStatus | null = null;
-  let lastCtx: ExtensionContext | null = null;
-  let poller: ReturnType<typeof setInterval> | null = null;
-
-  function getStatusText(ctx: ExtensionContext): string | undefined {
-    if (!lastStatus) {
-      return undefined;
-    }
-
-    return formatCodexQuotaStatus(lastStatus, ctx) ?? undefined;
-  }
-
-  function setStatusSafely(
-    ctx: ExtensionContext,
-    reason: string,
-    statusText: string | undefined,
-  ): void {
-    try {
-      ctx.ui.setStatus(STATUS_KEY, statusText);
-    } catch (error) {
-      logEvent("status_publish_error", {
-        reason,
-        message: getErrorMessage(error),
-      });
-    }
-  }
-
-  function publishStatus(ctx: ExtensionContext, reason: string): void {
-    if (!lastStatus) {
-      logEvent("status_skipped", { reason });
-      return;
-    }
-
-    const statusText = getStatusText(ctx);
-    logEvent("status_published", { reason, status: statusText });
-    setStatusSafely(ctx, reason, statusText);
-  }
-
-  function publishLatest(reason: string): void {
-    if (lastCtx) publishStatus(lastCtx, reason);
-  }
-
-  function applyStatus(status: CodexQuotaStatus | null): void {
-    if (status) {
-      lastStatus = status;
-      writeCache(status);
-      publishLatest("fetch_refreshed");
-    }
-    // On fetch failure: keep lastStatus as-is (don't clear it)
-  }
-
-  const refreshStatus = async (reason: string): Promise<void> => {
-    try {
-      const status = await fetchCodexQuotaStatus();
-      logEvent("status_resolved", {
-        reason,
-        status,
-      });
-      applyStatus(status);
-    } catch (error) {
-      logEvent("status_error", {
-        reason,
-        message: getErrorMessage(error),
-      });
-      // Keep existing lastStatus on error
-    }
-  };
-
-  function ensurePoller(): void {
-    if (poller) {
-      return;
-    }
-
-    poller = setInterval(() => {
-      void refreshStatus("poll");
-    }, POLL_INTERVAL_MS);
-    poller.unref?.();
-  }
-
-  pi.on("session_start", (_event, ctx) => {
-    lastCtx = ctx;
-
-    logEvent("extension_loaded", {
-      cwd: ctx.cwd,
-      model: ctx.model?.id ?? null,
-    });
-
-    // Show cached data immediately while fetch is in flight
-    void readCache().then((cached) => {
-      if (cached) {
-        lastStatus = cached;
-        publishStatus(ctx, "session_start_cached");
-      }
-    });
-
-    void refreshStatus("session_start");
-    ensurePoller();
-  });
-
-  pi.on("turn_start", (_event, ctx) => {
-    lastCtx = ctx;
-    publishStatus(ctx, "turn_start");
-  });
-
-  pi.on("turn_end", (_event, ctx) => {
-    lastCtx = ctx;
-    publishStatus(ctx, "turn_end");
-  });
-
-  pi.on("session_shutdown", () => {
-    if (poller) {
-      clearInterval(poller);
-      poller = null;
-    }
-    lastCtx = null;
-  });
+  pi.on("session_start", handleSessionStart);
+  pi.on("turn_start", handleTurnStart);
+  pi.on("turn_end", handleTurnEnd);
+  pi.on("session_shutdown", handleSessionShutdown);
 }
