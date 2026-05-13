@@ -205,7 +205,7 @@ function renderFrame(
   const lines: string[] = [];
   lines.push(theme.fg("accent", "─".repeat(width)));
   const wrappedQuestion = wrapTextWithAnsi(
-    theme.fg("text", ` ${question}`),
+    theme.fg("text", `${question}`),
     width,
   );
   for (const wLine of wrappedQuestion) {
