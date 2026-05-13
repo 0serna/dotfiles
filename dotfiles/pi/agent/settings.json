@@ -8,5 +8,5 @@
   "doubleEscapeAction": "tree",
   "enableSkillCommands": false,
   "quietStartup": true,
-  "packages": ["npm:@juicesharp/rpiv-advisor", "npm:@rwese/pi-question"]
+  "packages": ["npm:@juicesharp/rpiv-advisor"]
 }
