@@ -281,7 +281,7 @@ const QUOTA_SEGMENTS: SegmentConfig[] = [
   {
     key: "remainingCredits",
     suffix: "",
-    label: "C",
+    label: "c",
   },
 ];
 
@@ -296,6 +296,14 @@ function getSegmentLabel(
   return segment.label ?? "?";
 }
 
+function buildSegmentString(
+  label: string,
+  value: number,
+  suffix: string,
+): string {
+  return suffix ? `${value}${suffix} ${label}` : `${label} ${value}${suffix}`;
+}
+
 function formatCodexQuotaSegment(
   segment: SegmentConfig,
   status: CodexQuotaStatus,
@@ -304,7 +312,7 @@ function formatCodexQuotaSegment(
   const value = status[segment.key];
   if (value == null) return null;
   const label = getSegmentLabel(segment, status);
-  const segmentStr = `${label} ${value}${segment.suffix}`;
+  const segmentStr = buildSegmentString(label, value, segment.suffix);
   if (segment.warnThreshold != null && value < segment.warnThreshold) {
     return ctx.ui.theme.fg("mdHeading", segmentStr);
   }

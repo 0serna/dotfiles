@@ -1,5 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+const CONTEXT_USAGE_WARNING_TOKENS = 150_000;
+
 function formatK(value: number): string {
   if (value < 1000) {
     return `${value}`;
@@ -13,10 +15,8 @@ function formatPercent(value: number | null | undefined): string {
     return "?%";
   }
 
-  return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+  return `${Math.round(value)}%`;
 }
-
-const CONTEXT_USAGE_WARNING_TOKENS = 100_000;
 
 type ContextUsage = {
   tokens: number | null;
@@ -37,16 +37,12 @@ type CacheUsageEntry = {
 
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
 
-function formatContextUsage(usage: ContextUsage | undefined): string {
-  if (usage == null) {
-    return `?/${formatK(0)}`;
+function formatCurrentUsage(usage: ContextUsage | undefined): string {
+  if (usage == null || usage.tokens == null) {
+    return formatK(0);
   }
 
-  if (usage.tokens == null) {
-    return `?/${formatK(usage.contextWindow)}`;
-  }
-
-  return `${formatK(usage.tokens)}/${formatK(usage.contextWindow)}`;
+  return formatK(usage.tokens);
 }
 
 function isAssistantWithUsage(
@@ -74,10 +70,10 @@ function formatCacheHit(entries: CacheUsageEntry[]): string {
 
   const denominator = input + cacheRead;
   if (denominator === 0) {
-    return "KV ?%";
+    return "kv ?%";
   }
 
-  return `KV ${formatPercent((cacheRead / denominator) * 100)}`;
+  return `kv ${formatPercent((cacheRead / denominator) * 100)}`;
 }
 
 function computeAndPublishStatus(ctx: ExtensionContext): void {
@@ -86,7 +82,7 @@ function computeAndPublishStatus(ctx: ExtensionContext): void {
     ctx.sessionManager.getBranch() as CacheUsageEntry[],
   );
 
-  const contextText = formatContextUsage(usage);
+  const contextText = `ctx ${formatCurrentUsage(usage)}`;
   const styledContext =
     (usage?.tokens ?? 0) > CONTEXT_USAGE_WARNING_TOKENS
       ? ctx.ui.theme.fg("mdHeading", contextText)

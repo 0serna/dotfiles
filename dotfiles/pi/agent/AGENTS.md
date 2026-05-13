@@ -27,3 +27,8 @@
 - **Explore** (openspec-explore): Use `advisor` before declaring done or crystallizing findings.
 - **Propose** (openspec-propose): Use `advisor` after creating all artifacts to validate completeness and quality.
 - **Apply** (openspec-apply-change): Use `advisor` when encountering blockers or design issues, and before declaring done to validate all tasks.
+
+## Code Quality
+
+- **Do not suppress Fallow.** When Fallow reports a complexity issue, refactor the code. Do not use `// fallow-ignore` to hide technical debt.
+- **Ask when unclear.** If you are unsure how to resolve a Fallow warning, ask the user rather than suppressing it.
