@@ -64,7 +64,7 @@ If there are reportable findings, print this structure per finding:
 ```markdown
 severity: [severity]
 path: [path/to/file:line-range]
-[evidence, why it matters and suggestion]
+suggestion: [suggestion]
 
 ---
 

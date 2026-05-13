@@ -6,14 +6,14 @@ Create a concise, factual commit message from the staged changes and run the com
 
 ## Workflow
 
-1. Run `git diff --cached` to get the staged changes. If empty, print `No staged changes to commit` and stop.
-2. Read the diff output to inspect the changes. If large, read in batches.
-3. Generate a message using only facts visible in the diff.
-4. Run `git commit` with the generated message.
+1. Run `git diff --cached && git log -10 --oneline` to get the staged changes and recent commit style, then read the outputs. If the diff is large, read in batches.
+2. Generate a message using only facts visible in the diff.
+3. Run `git commit -m "[generated message]" && git log -1` to commit and confirm in one command.
 
 ## Rules
 
 - Do not use the `advisor` tool for this task; inspect the staged diff, choose the commit message, and run the commit independently.
+- If there are no staged changes (`git diff --cached` is empty), print `No staged changes to commit` and stop.
 - On failure, do not retry, amend, or run corrective commands unless the user asks.
 - Format commit messages as `[type]([scope]): [description]` plus an optional body.
 - Use one of these types: `feat|fix|refactor|docs|style|test|ci|build|chore|perf`.
