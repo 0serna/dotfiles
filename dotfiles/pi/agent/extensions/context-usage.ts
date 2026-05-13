@@ -5,10 +5,10 @@ const CACHE_HIT_WARNING_PERCENT = 60;
 
 function formatK(value: number): string {
   if (value < 1000) {
-    return `${value}`;
+    return value.toFixed(1);
   }
 
-  return `${(value / 1000).toFixed(1).replace(/\.0$/, "")}k`;
+  return `${(value / 1000).toFixed(1)}k`;
 }
 
 function formatPercent(value: number | null | undefined): string {
