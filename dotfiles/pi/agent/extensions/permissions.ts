@@ -12,11 +12,23 @@ import {
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 
+import {
+  Key,
+  matchesKey,
+  truncateToWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
+
 type SensitiveMatch = {
   segment: string;
 };
 
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
+
+type ChoiceResult =
+  | { type: "allow-once" }
+  | { type: "allow-session" }
+  | { type: "block" };
 
 interface CmdInfo {
   command: string;
@@ -329,29 +341,120 @@ function isSessionApproved(approvalKey: string): boolean {
   return sessionApprovals.has(approvalKey);
 }
 
+// ===========================================================================
+// UI interaction
+// ===========================================================================
+
 async function promptAndHandleChoice(
   ctx: ExtensionContext,
-  sensitiveMatch: SensitiveMatch,
+  _sensitiveMatch: SensitiveMatch,
   command: string,
   approvalKey: string,
   scope: string,
 ): Promise<{ block: true; reason: string } | undefined> {
-  const choice = await ctx.ui.select(`Allow sensitive command\n\n${command}`, [
-    "Allow once",
-    "Allow for this session",
-    "Block",
-  ]);
+  log(`prompt_shown cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
+
+  const choice = await ctx.ui.custom<ChoiceResult>((tui, theme, _kb, done) => {
+    const state = { optionIndex: 0 };
+    let cachedLines: string[] | undefined;
+
+    return {
+      render,
+      invalidate: () => {
+        cachedLines = undefined;
+      },
+      handleInput,
+    };
+
+    function refresh() {
+      cachedLines = undefined;
+      tui.requestRender();
+    }
+
+    function buildRenderLines(width: number): string[] {
+      const optionLabels = ["Allow once", "Allow for this session", "Block"];
+      const lines: string[] = [];
+      lines.push(theme.fg("accent", "─".repeat(width)));
+      lines.push(theme.fg("text", "Sensitive command"));
+      for (const wLine of wrapTextWithAnsi(theme.fg("muted", command), width)) {
+        lines.push(wLine);
+      }
+      lines.push("");
+      for (let i = 0; i < optionLabels.length; i++) {
+        const prefix =
+          i === state.optionIndex
+            ? theme.fg("accent", `> ${i + 1}. ${optionLabels[i]}`)
+            : `  ${i + 1}. ${optionLabels[i]}`;
+        lines.push(truncateToWidth(prefix, width));
+      }
+      lines.push("");
+      lines.push(
+        truncateToWidth(
+          theme.fg("dim", " ↑↓ navigate • Enter to confirm • Esc to cancel"),
+          width,
+        ),
+      );
+      lines.push(theme.fg("accent", "─".repeat(width)));
+      return lines;
+    }
+
+    function render(width: number): string[] {
+      if (cachedLines) return cachedLines;
+      cachedLines = buildRenderLines(width);
+      return cachedLines;
+    }
+
+    function handleNavigation(data: string): boolean {
+      if (matchesKey(data, Key.up)) {
+        state.optionIndex = Math.max(0, state.optionIndex - 1);
+        return true;
+      }
+      if (matchesKey(data, Key.down)) {
+        state.optionIndex = Math.min(2, state.optionIndex + 1);
+        return true;
+      }
+      return false;
+    }
+
+    function commitChoice(): void {
+      if (state.optionIndex === 0) done({ type: "allow-once" });
+      else if (state.optionIndex === 1) done({ type: "allow-session" });
+      else done({ type: "block" });
+    }
+
+    function handleAction(data: string): boolean {
+      if (matchesKey(data, Key.enter)) {
+        commitChoice();
+        return true;
+      }
+      if (matchesKey(data, Key.escape)) {
+        done({ type: "block" });
+        return true;
+      }
+      return false;
+    }
+
+    function handleInput(data: string) {
+      if (handleNavigation(data)) {
+        refresh();
+        return;
+      }
+      handleAction(data);
+    }
+  });
+
   log(
-    `user_choice cwd="${ctx.cwd}" scope="${scope}" choice="${choice ?? "dismissed"}" command="${command}"`,
+    `user_choice cwd="${ctx.cwd}" scope="${scope}" choice="${choice.type}" command="${command}"`,
   );
-  if (choice === "Allow for this session") {
+
+  if (choice.type === "allow-session") {
     sessionApprovals.add(approvalKey);
     log(
       `session_approval_stored cwd="${ctx.cwd}" scope="${scope}" command="${command}"`,
     );
     return;
   }
-  if (choice === "Allow once") {
+  if (choice.type === "allow-once") {
     return;
   }
   log(`blocked_by_user cwd="${ctx.cwd}" scope="${scope}" command="${command}"`);
