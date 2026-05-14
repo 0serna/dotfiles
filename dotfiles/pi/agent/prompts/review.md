@@ -80,5 +80,11 @@ suggestion: [suggestion]
 
 ---
 
-[next finding]
+severity: [severity]
+path: [path/to/file:line-range]
+suggestion: [suggestion]
+
+---
+
+...
 ```
