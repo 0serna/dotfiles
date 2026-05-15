@@ -10,8 +10,7 @@ Interview me about a plan, design, or decision space until the important branche
 $ARGUMENTS
 ```
 
-- **No arguments provided with prior context**: Use the current conversation and available context as the subject.
-- **No arguments provided and no prior context**: Ask the user what plan, design, or topic they want to be grilled on before proceeding.
+- **No arguments provided**: Use the current conversation and available context as the subject.
 - **Clear arguments** (a topic, feature, problem, plan, decision, or prior exploration): Use that as the subject.
 - **Unclear or ambiguous arguments**: Stop and ask the user what should be grilled on before proceeding.
 
