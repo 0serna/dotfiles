@@ -10,18 +10,19 @@ Simplify the requested code or the current diff by making high-confidence clarit
 $ARGUMENTS
 ```
 
-- **No arguments provided**: Inspect current changes `git diff HEAD --stat`.
+- **No arguments provided**: Inspect current changes by saving the full diff to a temp file and reading it in batches.
 - **Clear arguments** (files, paths, or a well-defined scope): Use that scope.
 - **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
 
 ## Workflow
 
 1. Determine the target scope from **Arguments**.
-2. Read the relevant files fully before editing.
-3. Identify only high-confidence simplifications.
-4. Apply the smallest correct edits.
-5. Run the project's relevant verification commands after editing.
-6. Report what was simplified and any verification results.
+2. If no arguments were provided, run `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE" && echo "Diff file: $DIFF_FILE"`. Read the temp file using the `read` tool with `offset=1, limit=2000`. Continue with `offset=2001`, `offset=4001`, and so on until the file is fully consumed. If the first read returns empty, there are no changes to simplify.
+3. Read the relevant files fully before editing.
+4. Identify only high-confidence simplifications.
+5. Apply the smallest correct edits.
+6. Run the project's relevant verification commands after editing.
+7. Report what was simplified and any verification results.
 
 ## Rules
 

@@ -20,20 +20,13 @@ $ARGUMENTS
    - If arguments contain PR number/URL:
      - `gh pr checkout [number]` (mandatory, so changed files can be inspected in full context)
      - `gh pr view [number] --json title,body`
-     - `gh pr diff [number]`
+     - `DIFF_FILE=$(mktemp) && gh pr diff [number] > "$DIFF_FILE" && echo "Diff file: $DIFF_FILE"`
    - If no arguments:
-     - `git diff HEAD --stat`
+     - `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE" && echo "Diff file: $DIFF_FILE"`
 
-2. **If a PR was detected:**
-   a. If the diff is empty, output `No changes to review` and STOP.
-   b. Read the diff output to inspect the changes. If the diff is large, read in batches.
-   c. Follow the common verification workflow.
+2. Read the temp file using the `read` tool with `offset=1, limit=2000`. Continue with `offset=2001`, `offset=4001`, and so on until the file is fully consumed. If the first read returns empty, output `No changes to review` and STOP.
 
-3. **If local changes were detected:**
-   a. If the stat output is empty, output `No changes to review` and STOP.
-   b. From the stat output, select files for closer inspection.
-   c. For each selected file, inspect changes with `git diff HEAD -- <file>`.
-   d. Follow the common verification workflow.
+3. Follow the common verification workflow.
 
 ### Common verification workflow
 

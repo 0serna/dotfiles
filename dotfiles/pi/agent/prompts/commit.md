@@ -6,14 +6,14 @@ Create a concise, factual commit message from the staged changes and run the com
 
 ## Workflow
 
-1. Run `git diff --cached --stat && git log -10 --oneline` to see the changed files summary and recent commit style.
-2. Decide which files are relevant to inspect (use your judgment — skip lockfiles, builds, generated files, binaries, or anything that doesn't help the commit message). For each selected file, read its diff with `git diff --cached -- <path>`. Read only what you need to understand the changes.
+1. Run `DIFF_FILE=$(mktemp) && git diff --cached > "$DIFF_FILE" && echo "Diff file: $DIFF_FILE" && git log -10 --oneline` to save the full staged diff to a temp file and show recent commit style.
+2. Read the temp file using the `read` tool with `offset=1, limit=2000`. Continue with `offset=2001`, `offset=4001`, and so on until the file is fully consumed. If the first read returns empty, there are no staged changes.
 3. Generate a message using only facts visible in the diff, then run `git commit -m "[generated message]" && git log -1` to commit and confirm in one command.
 
 ## Rules
 
 - Do not use the `advisor` tool for this task; inspect the staged diff, choose the commit message, and run the commit independently.
-- If there are no staged changes (`git diff --cached` is empty), print `No staged changes to commit` and stop.
+- If the diff file is empty (first read returns no content), print `No staged changes to commit` and stop.
 - On failure, do not retry or amend unless the user asks.
 - Format commit messages as `[type]([scope]): [description]` plus an optional body.
 - Use one of these types: `feat|fix|refactor|docs|style|test|ci|build|chore|perf`.
