@@ -10,22 +10,23 @@ Simplify the requested code or the current diff by making high-confidence clarit
 $ARGUMENTS
 ```
 
-- **No arguments provided**: Inspect current changes by saving the full diff to a temp file and reading it in batches.
+- **No arguments provided**: Inspect current changes.
 - **Clear arguments** (files, paths, or a well-defined scope): Use that scope.
 - **Unclear or ambiguous arguments**: Stop and ask the user for clarification before proceeding.
 
 ## Workflow
 
-1. Determine the target scope from **Arguments**.
-2. If no arguments were provided, run `DIFF_FILE=$(mktemp) && git diff HEAD > "$DIFF_FILE" && echo "Diff file: $DIFF_FILE"`. Read the temp file using the `read` tool with `offset=1, limit=2000`. Continue with `offset=2001`, `offset=4001`, and so on until the file is fully consumed. If the first read returns empty, there are no changes to simplify.
-3. Read the relevant files fully before editing.
-4. Identify only high-confidence simplifications.
-5. Apply the smallest correct edits.
-6. Run the project's relevant verification commands after editing.
-7. Report what was simplified and any verification results.
+1. Determine scope:
+   - No arguments: simplify current working tree changes
+   - Arguments: simplify the requested scope/files
+2. Identify only high-confidence simplifications.
+3. Apply the smallest correct edits.
+4. Run the project's relevant verification commands.
+5. Report what was simplified.
 
 ## Rules
 
+- Only apply simplifications but do not commit or add to staging.
 - Preserve functionality exactly.
 - Make code easier to read and maintain.
 - Follow the project's local conventions and nearby code.
@@ -42,13 +43,12 @@ $ARGUMENTS
 - Read before writing; do not guess from filenames alone.
 - Do not revert or overwrite user changes unrelated to the simplification.
 - If a possible simplification would change behavior or project structure in a non-trivial way, stop and ask.
-- Keep comments rare and only where they improve comprehension.
+- Keep comments rare; use them only where they improve comprehension.
 
 ## Output
 
 Return a concise summary with:
 
-- scope simplified
 - key simplifications made
 - verification run and results
 - any follow-up risk or uncertainty, if applicable
