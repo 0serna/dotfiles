@@ -7,9 +7,9 @@ import { log } from "./shared/logger.js";
 
 const CONSECUTIVE_FAILURE_THRESHOLD = 2;
 const BLOCKAGE_MESSAGE =
-  "It looks like you're having trouble. Use `advisor` for help.";
+  "You've had repeated failures. Call `advisor` for guidance.";
 const KEYWORDS = ["opsx-propose", "opsx-apply"];
-const FOLLOWUP_MESSAGE = "Validate the work done so far with `advisor`";
+const FOLLOWUP_MESSAGE = "Call `advisor` to review the work before finishing.";
 
 // ---------------------------------------------------------------------------
 // Normalization helpers
