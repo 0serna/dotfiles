@@ -1,6 +1,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const PROMPT_ROUTES = {
+  "/simplify": {
+    model: "opencode-go/deepseek-v4-flash",
+    thinkingLevel: "high",
+  },
+  "/review": {
+    model: "opencode-go/deepseek-v4-flash",
+    thinkingLevel: "high",
+  },
   "/commit": {
     model: "opencode-go/deepseek-v4-flash",
     thinkingLevel: "high",
