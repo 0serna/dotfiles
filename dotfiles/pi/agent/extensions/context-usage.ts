@@ -1,7 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-const CONTEXT_USAGE_WARNING_TOKENS = 125_000;
-const CACHE_HIT_WARNING_PERCENT = 60;
+const CONTEXT_USAGE_WARNING_TOKENS = 100_000;
+const CACHE_HIT_WARNING_PERCENT = 80;
 
 function formatK(value: number): string {
   if (value < 1000) {
