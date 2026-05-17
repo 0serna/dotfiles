@@ -18,7 +18,7 @@ cd "$(git rev-parse --show-toplevel)"
 git update-index --no-skip-worktree "$FILE"
 
 git add "$FILE"
-git commit -m "$MESSAGE"
+git commit -m "$MESSAGE" -- "$FILE"
 
 # Re-apply skip-worktree
 git update-index --skip-worktree "$FILE"
