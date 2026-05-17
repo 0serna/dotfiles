@@ -56,7 +56,7 @@ type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
 
 const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const REQUEST_TIMEOUT_MS = 5000;
-const POLL_INTERVAL_MS = 5 * 60 * 1000;
+const POLL_INTERVAL_MS = 3 * 60 * 1000;
 const STATUS_KEY = "codex-quota";
 const CACHE_FILE = "/tmp/pi-codex-quota-cache.json";
 const OPENAI_AUTH_SOURCE_KEYS = [
