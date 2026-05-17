@@ -1,12 +1,11 @@
 {
-  "lastChangelogVersion": "0.74.0",
-  "defaultProvider": "opencode-go",
-  "defaultThinkingLevel": "high",
-  "defaultModel": "deepseek-v4-flash",
-  "enabledModels": ["opencode-go/deepseek-v4-flash", "openai-codex/gpt-5.4"],
+  "lastChangelogVersion": "0.74.1",
+  "defaultProvider": "openai-codex",
+  "defaultThinkingLevel": "off",
+  "defaultModel": "gpt-5.5",
+  "enabledModels": ["opencode-go/deepseek-v4-flash", "openai-codex/gpt-5.5"],
   "hideThinkingBlock": true,
   "doubleEscapeAction": "tree",
   "enableSkillCommands": false,
-  "quietStartup": true,
-  "packages": ["npm:@juicesharp/rpiv-advisor"]
+  "quietStartup": true
 }

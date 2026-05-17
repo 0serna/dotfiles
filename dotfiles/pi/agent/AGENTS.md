@@ -29,4 +29,4 @@
 - Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes — linters, type checker, static analysis, and tests. A failing check is not done.
 - Do not suppress tools. When a quality tool (Fallow, linter, type checker, test runner) reports an issue, fix the underlying problem. Do not use suppression comments (`// fallow-ignore`, `// eslint-disable-next-line`, `// @ts-ignore`, `// @ts-expect-error`, etc.) to deflect or silence warnings.
 - Update tests alongside code. When adding or modifying behavior, update existing tests and add new ones as needed to maintain coverage.
-- Ask when unclear. If you are unsure how to resolve a quality tool warning, call the `advisor` or ask the user rather than suppressing or working around it.
+- Ask when unclear. If you are unsure how to resolve a quality tool warning, ask the user rather than suppressing or working around it.

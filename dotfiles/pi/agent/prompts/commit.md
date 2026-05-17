@@ -13,7 +13,6 @@ Create a concise, factual commit message from the staged changes and run the com
 
 - If no staged changes, print `No staged changes to commit` and stop.
 - **Be fast**; this task is not a long-running process.
-- Do not use the `advisor` tool for this task.
 - On failure, do not retry or amend unless the user asks.
 - Commit format:
   - Follow the conventional commits `[type]([scope]): [description]` plus an optional body.
