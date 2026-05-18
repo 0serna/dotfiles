@@ -1,24 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFileSync } from "node:fs";
-import { access, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { readFile } from "node:fs/promises";
 import { log } from "./shared/logger.js";
-
-type OpenAIOAuthEntry = {
-  type?: string;
-  access?: string;
-  refresh?: string;
-  expires?: number;
-  accountId?: string;
-};
-
-type CodexAuthFile = {
-  openai?: OpenAIOAuthEntry;
-  codex?: OpenAIOAuthEntry;
-  chatgpt?: OpenAIOAuthEntry;
-  opencode?: OpenAIOAuthEntry;
-};
 
 type CodexUsageWindow = {
   used_percent?: number;
@@ -59,12 +42,8 @@ const REQUEST_TIMEOUT_MS = 5000;
 const POLL_INTERVAL_MS = 3 * 60 * 1000;
 const STATUS_KEY = "codex-quota";
 const CACHE_FILE = "/tmp/pi-codex-quota-cache.json";
-const OPENAI_AUTH_SOURCE_KEYS = [
-  "openai",
-  "codex",
-  "chatgpt",
-  "opencode",
-] as const;
+const CODEX_PROVIDER_ID = "openai-codex";
+const AUTH_MISSING_STATUS = "codex auth missing";
 
 // ---------------------------------------------------------------------------
 // Module-level state
@@ -99,26 +78,6 @@ function writeCache(status: CodexQuotaStatus): void {
   }
 }
 
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function findCodexAuthPath(): Promise<string | null> {
-  const home = homedir();
-  const candidates = [join(home, ".local/share/opencode/auth.json")];
-  for (const candidate of candidates) {
-    if (await pathExists(candidate)) {
-      return candidate;
-    }
-  }
-  return null;
-}
-
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -149,71 +108,38 @@ function parseCredits(
 // Auth loading
 // ---------------------------------------------------------------------------
 
-function isValidAuthEntry(
-  entry: OpenAIOAuthEntry | undefined,
-): entry is OpenAIOAuthEntry & { access: string } {
-  if (!entry) return false;
-  if (entry.type !== "oauth") return false;
-  if (typeof entry.access !== "string") return false;
-  return true;
-}
-
-function getOpenAIAuthEntry(
-  auth: CodexAuthFile,
-): { sourceKey: string; entry: OpenAIOAuthEntry; accessToken: string } | null {
-  for (const sk of OPENAI_AUTH_SOURCE_KEYS) {
-    const entry = auth[sk];
-    if (!isValidAuthEntry(entry)) continue;
-    return { sourceKey: sk, entry, accessToken: entry.access.trim() };
-  }
-  return null;
-}
-
-async function loadCodexAuth(): Promise<{
-  resolvedAuth: {
-    sourceKey: string;
-    entry: OpenAIOAuthEntry;
-    accessToken: string;
-  };
-} | null> {
-  const authPath = await findCodexAuthPath();
-  if (!authPath) {
-    log("codex-quota", "auth_missing", {});
+async function loadCodexAccessToken(
+  ctx: ExtensionContext,
+): Promise<string | null> {
+  try {
+    const accessToken =
+      await ctx.modelRegistry.authStorage.getApiKey(CODEX_PROVIDER_ID);
+    if (!accessToken?.trim()) {
+      log("codex-quota", "auth_missing", { provider: CODEX_PROVIDER_ID });
+      return null;
+    }
+    log("codex-quota", "auth_loaded", { provider: CODEX_PROVIDER_ID });
+    return accessToken.trim();
+  } catch (error) {
+    log("codex-quota", "auth_error", {
+      provider: CODEX_PROVIDER_ID,
+      message: getErrorMessage(error),
+    });
     return null;
   }
-  const auth = JSON.parse(await readFile(authPath, "utf8")) as CodexAuthFile;
-  const resolvedAuth = getOpenAIAuthEntry(auth);
-  log("codex-quota", "auth_loaded", {
-    authPath,
-    keys: Object.keys(auth),
-    sourceKey: resolvedAuth?.sourceKey,
-  });
-  if (!resolvedAuth) {
-    log("codex-quota", "auth_unusable", { authPath });
-    return null;
-  }
-  return { resolvedAuth };
 }
 
 // ---------------------------------------------------------------------------
 // API call
 // ---------------------------------------------------------------------------
 
-async function callCodexUsageApi(resolvedAuth: {
-  sourceKey: string;
-  entry: OpenAIOAuthEntry;
-  accessToken: string;
-}): Promise<CodexUsageResponse | null> {
+async function callCodexUsageApi(
+  accessToken: string,
+): Promise<CodexUsageResponse | null> {
   const response = await fetch(CODEX_USAGE_URL, {
     headers: {
       Accept: "application/json",
-      Authorization: `Bearer ${resolvedAuth.accessToken}`,
-      ...(resolvedAuth.entry.accountId
-        ? { "ChatGPT-Account-Id": resolvedAuth.entry.accountId }
-        : {}),
-      Origin: "https://chatgpt.com",
-      Referer: "https://chatgpt.com/",
-      "User-Agent": "pi-codex-footer",
+      Authorization: `Bearer ${accessToken}`,
     },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
@@ -346,15 +272,21 @@ function buildStatusFromUsage(usage: CodexUsageResponse): CodexQuotaStatus {
   };
 }
 
-async function fetchCodexQuotaStatus(): Promise<CodexQuotaStatus | null> {
-  const authResult = await loadCodexAuth();
-  if (!authResult) return null;
-  const { resolvedAuth } = authResult;
-  const usage = await callCodexUsageApi(resolvedAuth);
+async function fetchCodexQuotaStatus(
+  ctx: ExtensionContext,
+): Promise<CodexQuotaStatus | null> {
+  const accessToken = await loadCodexAccessToken(ctx);
+  if (!accessToken) {
+    setStatusSafely(ctx, "auth_missing", AUTH_MISSING_STATUS);
+    return null;
+  }
+  const usage =
+    (await callCodexUsageApi(accessToken)) ??
+    (await callCodexUsageApi(accessToken));
   if (!usage) return null;
   const status = buildStatusFromUsage(usage);
   log("codex-quota", "fetch_succeeded", {
-    sourceKey: resolvedAuth.sourceKey,
+    provider: CODEX_PROVIDER_ID,
     has5h: status.remaining5h != null,
     has7d: status.remaining7d != null,
     hasCredits: status.remainingCredits != null,
@@ -412,8 +344,13 @@ function applyStatus(status: CodexQuotaStatus | null): void {
 // ---------------------------------------------------------------------------
 
 async function refreshStatus(reason: string): Promise<void> {
+  const ctx = lastCtx;
+  if (!ctx) {
+    log("codex-quota", "status_skipped", { reason, message: "no context" });
+    return;
+  }
   try {
-    const status = await fetchCodexQuotaStatus();
+    const status = await fetchCodexQuotaStatus(ctx);
     log("codex-quota", "status_resolved", { reason, status });
     applyStatus(status);
   } catch (error) {
