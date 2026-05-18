@@ -12,8 +12,8 @@ type ModelRoute = {
 };
 
 const DEFAULT_ROUTE: ModelRoute = {
-  model: "openai-codex/gpt-5.5",
-  thinkingLevel: "low",
+  model: "opencode-go/deepseek-v4-flash",
+  thinkingLevel: "high",
 };
 
 const MODEL_ROUTES = {
@@ -22,12 +22,16 @@ const MODEL_ROUTES = {
     thinkingLevel: "high",
   },
   "/review": {
-    model: "opencode-go/deepseek-v4-pro",
-    thinkingLevel: "high",
+    model: "openai-codex/gpt-5.5",
+    thinkingLevel: "low",
   },
   "/commit": {
     model: "opencode-go/deepseek-v4-flash",
     thinkingLevel: "high",
+  },
+  "/opsx-explore": {
+    model: "openai-codex/gpt-5.5",
+    thinkingLevel: "low",
   },
   "/opsx-archive": {
     model: "opencode-go/deepseek-v4-flash",
