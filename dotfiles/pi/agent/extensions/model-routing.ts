@@ -20,16 +20,16 @@ const DEFAULT_ROUTE: ModelRoute = {
 
 const MODEL_ROUTES = {
   "/opsx-explore": {
-    model: "opencode-go/qwen3.6-plus",
-    thinkingLevel: "medium",
+    model: "openai-codex/gpt-5.5",
+    thinkingLevel: "low",
   },
   "/simplify": {
     model: "opencode-go/deepseek-v4-flash",
     thinkingLevel: "xhigh",
   },
   "/review": {
-    model: "opencode-go/qwen3.6-plus",
-    thinkingLevel: "medium",
+    model: "opencode-go/deepseek-v4-pro",
+    thinkingLevel: "high",
   },
 } as const satisfies Record<string, ModelRoute>;
 

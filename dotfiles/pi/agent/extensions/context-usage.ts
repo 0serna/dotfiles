@@ -1,5 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { log } from "./shared/logger.js";
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "./shared/logger.js";
 
 const CONTEXT_USAGE_WARNING_TOKENS = 100_000;
 const CACHE_HIT_REGRESSION_PP = 25;
@@ -36,6 +39,8 @@ type CacheUsageEntry = {
     };
   };
 };
+
+let logger: ExtensionLogger;
 
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
 
@@ -152,7 +157,7 @@ function publishStatus(ctx: ExtensionContext): void {
   const regression = isRegression(cacheInfo.percent, cacheInfo.previousPercent);
 
   if (regression) {
-    log("context-usage", "regression_detected", {
+    logger.log("regression_detected", {
       previousHitRate: cacheInfo.previousPercent,
       currentHitRate: cacheInfo.percent,
       drop: cacheInfo.previousPercent - cacheInfo.percent,
@@ -177,7 +182,7 @@ function computeAndPublishStatus(ctx: ExtensionContext): void {
   try {
     publishStatus(ctx);
   } catch (error) {
-    log("context-usage", "status_error", {
+    logger.log("status_error", {
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -185,7 +190,7 @@ function computeAndPublishStatus(ctx: ExtensionContext): void {
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
-    log("context-usage", "extension_loaded", { cwd: ctx.cwd });
+    logger = createExtensionLogger(ctx, "context-usage");
     computeAndPublishStatus(ctx);
   });
 

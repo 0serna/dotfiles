@@ -1,4 +1,7 @@
-import { log } from "./shared/logger.js";
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "./shared/logger.js";
 
 import {
   isToolCallEventType,
@@ -24,6 +27,8 @@ interface CmdInfo {
   scope: string;
   approvalKey: string;
 }
+
+let logger: ExtensionLogger;
 
 const sessionApprovals = new Set<string>();
 
@@ -168,7 +173,7 @@ async function promptAndHandleChoice(
   approvalKey: string,
   scope: string,
 ): Promise<{ block: true; reason: string } | undefined> {
-  log("permissions", "prompt_shown", { cwd: ctx.cwd, scope, command });
+  logger.log("prompt_shown", { cwd: ctx.cwd, scope, command });
 
   const choice = await ctx.ui.custom<ChoiceResult>((tui, theme, _kb, done) => {
     const state = { optionIndex: 0 };
@@ -259,7 +264,7 @@ async function promptAndHandleChoice(
     }
   });
 
-  log("permissions", "user_choice", {
+  logger.log("user_choice", {
     cwd: ctx.cwd,
     scope,
     choice: choice.type,
@@ -268,7 +273,7 @@ async function promptAndHandleChoice(
 
   if (choice.type === "allow-session") {
     sessionApprovals.add(approvalKey);
-    log("permissions", "session_approval_stored", {
+    logger.log("session_approval_stored", {
       cwd: ctx.cwd,
       scope,
       command,
@@ -278,7 +283,7 @@ async function promptAndHandleChoice(
   if (choice.type === "allow-once") {
     return;
   }
-  log("permissions", "blocked_by_user", { cwd: ctx.cwd, scope, command });
+  logger.log("blocked_by_user", { cwd: ctx.cwd, scope, command });
   return { block: true, reason: "Blocked by user" };
 }
 
@@ -291,10 +296,10 @@ async function handleSensitiveCommand(
   const sensitiveMatch = findSensitiveMatch(command);
   if (sensitiveMatch == null) return;
 
-  log("permissions", "sensitive_detected", { cwd: ctx.cwd, scope, command });
+  logger.log("sensitive_detected", { cwd: ctx.cwd, scope, command });
 
   if (!ctx.hasUI) {
-    log("permissions", "blocked_no_ui", { cwd: ctx.cwd, scope, command });
+    logger.log("blocked_no_ui", { cwd: ctx.cwd, scope, command });
     return {
       block: true,
       reason: "Sensitive command blocked (no UI for confirmation)",
@@ -315,7 +320,7 @@ async function handleToolCall(
   const { scope, approvalKey } = await buildCmdInfo(command, ctx.cwd, pi);
 
   if (isSessionApproved(approvalKey)) {
-    log("permissions", "session_approval_reused", {
+    logger.log("session_approval_reused", {
       cwd: ctx.cwd,
       scope,
       command,
@@ -331,5 +336,9 @@ async function handleToolCall(
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI) {
+  pi.on("session_start", (_event, ctx) => {
+    logger = createExtensionLogger(ctx, "permissions");
+  });
+
   pi.on("tool_call", (event, ctx) => handleToolCall(event, ctx, pi));
 }

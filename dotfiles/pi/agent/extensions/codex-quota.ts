@@ -1,7 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { log } from "./shared/logger.js";
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "./shared/logger.js";
 
 type CodexUsageWindow = {
   used_percent?: number;
@@ -52,6 +55,7 @@ const AUTH_MISSING_STATUS = "codex auth missing";
 let lastStatus: CodexQuotaStatus | null = null;
 let lastCtx: ExtensionContext | null = null;
 let poller: ReturnType<typeof setInterval> | null = null;
+let logger: ExtensionLogger; // created in handleSessionStart
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -115,13 +119,13 @@ async function loadCodexAccessToken(
     const accessToken =
       await ctx.modelRegistry.authStorage.getApiKey(CODEX_PROVIDER_ID);
     if (!accessToken?.trim()) {
-      log("codex-quota", "auth_missing", { provider: CODEX_PROVIDER_ID });
+      logger.log("auth_missing", { provider: CODEX_PROVIDER_ID });
       return null;
     }
-    log("codex-quota", "auth_loaded", { provider: CODEX_PROVIDER_ID });
+    logger.log("auth_loaded", { provider: CODEX_PROVIDER_ID });
     return accessToken.trim();
   } catch (error) {
-    log("codex-quota", "auth_error", {
+    logger.log("auth_error", {
       provider: CODEX_PROVIDER_ID,
       message: getErrorMessage(error),
     });
@@ -144,7 +148,7 @@ async function callCodexUsageApi(
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
-    log("codex-quota", "fetch_failed", { status: response.status });
+    logger.log("fetch_failed", { status: response.status });
     return null;
   }
   return (await response.json()) as CodexUsageResponse;
@@ -288,7 +292,7 @@ async function fetchCodexQuotaStatus(
     (await callCodexUsageApi(accessToken));
   if (!usage) return null;
   const status = buildStatusFromUsage(usage);
-  log("codex-quota", "fetch_succeeded", {
+  logger.log("fetch_succeeded", {
     provider: CODEX_PROVIDER_ID,
     has5h: status.remaining5h != null,
     has7d: status.remaining7d != null,
@@ -309,7 +313,7 @@ function setStatusSafely(
   try {
     ctx.ui.setStatus(STATUS_KEY, statusText);
   } catch (error) {
-    log("codex-quota", "status_publish_error", {
+    logger.log("status_publish_error", {
       reason,
       message: getErrorMessage(error),
     });
@@ -318,11 +322,11 @@ function setStatusSafely(
 
 function publishStatus(ctx: ExtensionContext, reason: string): void {
   if (!lastStatus) {
-    log("codex-quota", "status_skipped", { reason });
+    logger.log("status_skipped", { reason });
     return;
   }
   const statusText = formatCodexQuotaStatus(lastStatus, ctx) ?? undefined;
-  log("codex-quota", "status_published", { reason, status: statusText });
+  logger.log("status_published", { reason, status: statusText });
   setStatusSafely(ctx, reason, statusText);
 }
 
@@ -344,15 +348,15 @@ function applyStatus(status: CodexQuotaStatus | null): void {
 async function refreshStatus(reason: string): Promise<void> {
   const ctx = lastCtx;
   if (!ctx) {
-    log("codex-quota", "status_skipped", { reason, message: "no context" });
+    logger.log("status_skipped", { reason, message: "no context" });
     return;
   }
   try {
     const status = await fetchCodexQuotaStatus(ctx);
-    log("codex-quota", "status_resolved", { reason, status });
+    logger.log("status_resolved", { reason, status });
     applyStatus(status);
   } catch (error) {
-    log("codex-quota", "status_error", {
+    logger.log("status_error", {
       reason,
       message: getErrorMessage(error),
     });
@@ -373,10 +377,7 @@ function ensurePoller(): void {
 
 function handleSessionStart(_event: unknown, ctx: ExtensionContext): void {
   lastCtx = ctx;
-  log("codex-quota", "extension_loaded", {
-    cwd: ctx.cwd,
-    model: ctx.model?.id ?? null,
-  });
+  logger = createExtensionLogger(ctx, "codex-quota");
   void readCache().then((cached) => {
     if (cached) {
       lastStatus = cached;

@@ -2,7 +2,10 @@ import { StringEnum } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import { log } from "./shared/logger.js";
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "./shared/logger.js";
 
 // ===========================================================================
 // Configuration
@@ -107,13 +110,15 @@ async function doExaFetch(
   }
 }
 
+let logger: ExtensionLogger;
+
 async function parseExaResponse<T>(
   response: Response,
   label: string,
 ): Promise<T | null> {
   if (!response.ok) {
     const errorText = await response.text().catch(() => "unknown error");
-    log("web-tools", "exa_api_error", {
+    logger.log("exa_api_error", {
       label,
       status: response.status,
       errorText: errorText.slice(0, 200),
@@ -202,7 +207,7 @@ async function callExaContents(url: string): Promise<string | null> {
   const status = getFirstExaStatus(data);
 
   if (isExaStatusError(status)) {
-    log("web-tools", "exa_contents_error", {
+    logger.log("exa_contents_error", {
       url,
       status: status.status,
       tag: status.tag,
@@ -212,9 +217,9 @@ async function callExaContents(url: string): Promise<string | null> {
   }
 
   if (text) {
-    log("web-tools", "exa_contents_success", { url, len: text.length });
+    logger.log("exa_contents_success", { url, len: text.length });
   } else {
-    log("web-tools", "exa_contents_insufficient", { url });
+    logger.log("exa_contents_insufficient", { url });
   }
 
   return text;
@@ -425,7 +430,7 @@ async function executeWebSearch(
     domainFilter,
   }).catch((err: unknown) => {
     const msg = err instanceof Error ? err.message : String(err);
-    log("web-tools", "web_search_fail", { query: query.trim(), error: msg });
+    logger.log("web_search_fail", { query: query.trim(), error: msg });
     return null;
   });
   if (data == null) {
@@ -435,7 +440,7 @@ async function executeWebSearch(
       isError: true,
     };
   }
-  log("web-tools", "web_search_success", {
+  logger.log("web_search_success", {
     query: query.trim(),
     results: getResultCount(data),
   });
@@ -488,9 +493,9 @@ async function tryFetchContent(url: string): Promise<{
 }> {
   const exaContent = await callExaContents(url).catch(() => null);
   if (exaContent) return { content: exaContent, fallback: false };
-  log("web-tools", "web_fetch_fallback", { url });
+  logger.log("web_fetch_fallback", { url });
   const httpContent = await extractViaHttp(url);
-  log("web-tools", "web_fetch_http_success", {
+  logger.log("web_fetch_http_success", {
     url,
     bytes: httpContent.length,
   });
@@ -521,7 +526,7 @@ async function executeWebFetch(
   const result = await tryFetchContent(url).catch((err: unknown) => {
     const message =
       err instanceof Error ? err.message : "Unknown error during fetch";
-    log("web-tools", "web_fetch_fail", { url, error: message });
+    logger.log("web_fetch_fail", { url, error: message });
     return null;
   });
   if (result == null) {
@@ -569,6 +574,10 @@ function renderWebFetchResult(
 // ===========================================================================
 
 export default function (pi: ExtensionAPI) {
+  pi.on("session_start", (_event, ctx) => {
+    logger = createExtensionLogger(ctx, "web-tools");
+  });
+
   pi.registerTool({
     name: "web_search",
     label: "Web Search",
