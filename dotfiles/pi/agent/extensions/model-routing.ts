@@ -23,6 +23,10 @@ const MODEL_ROUTES = {
     model: "openai-codex/gpt-5.5",
     thinkingLevel: "low",
   },
+  "/opsx-propose": {
+    model: "openai-codex/gpt-5.5",
+    thinkingLevel: "low",
+  },
   "/simplify": {
     model: "opencode-go/deepseek-v4-flash",
     thinkingLevel: "xhigh",
