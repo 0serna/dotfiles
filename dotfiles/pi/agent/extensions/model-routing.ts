@@ -13,28 +13,30 @@ type ModelRoute = {
 
 const DEFAULT_THINKING: ThinkingLevel = "medium";
 
-const DEFAULT_ROUTE: ModelRoute = {
+// default model
+const LIGHT_ROUTE: ModelRoute = {
   model: "opencode-go/deepseek-v4-flash",
   thinkingLevel: "high",
 };
 
+const STANDARD_ROUTE: ModelRoute = {
+  model: "opencode-go/deepseek-v4-pro",
+  thinkingLevel: "high",
+};
+
+const HEAVY_ROUTE: ModelRoute = {
+  model: "openai-codex/gpt-5.5",
+  thinkingLevel: "medium",
+};
+
 const MODEL_ROUTES = {
-  "/opsx-explore": {
-    model: "openai-codex/gpt-5.5",
-    thinkingLevel: "low",
-  },
-  "/opsx-propose": {
-    model: "openai-codex/gpt-5.5",
-    thinkingLevel: "low",
-  },
-  "/simplify": {
-    model: "opencode-go/deepseek-v4-flash",
-    thinkingLevel: "xhigh",
-  },
-  "/review": {
-    model: "opencode-go/deepseek-v4-pro",
-    thinkingLevel: "high",
-  },
+  "/opsx-explore": STANDARD_ROUTE,
+  "/opsx-propose": HEAVY_ROUTE,
+  "/opsx-apply": LIGHT_ROUTE,
+  "/opsx-archive": LIGHT_ROUTE,
+  "/simplify": STANDARD_ROUTE,
+  "/review": STANDARD_ROUTE,
+  "/commit": LIGHT_ROUTE,
 } as const satisfies Record<string, ModelRoute>;
 
 type RouteName = keyof typeof MODEL_ROUTES;
@@ -75,10 +77,10 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (event, ctx) => {
     if (event.reason === "reload") return;
 
-    const activated = await activateRoute(pi, DEFAULT_ROUTE, ctx);
+    const activated = await activateRoute(pi, LIGHT_ROUTE, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not activate default model ${DEFAULT_ROUTE.model}; continuing with the current model.`,
+        `Could not activate default model ${LIGHT_ROUTE.model}; continuing with the current model.`,
         "warning",
       );
     }
