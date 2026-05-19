@@ -38,6 +38,15 @@
       "pluginName": "supabase",
       "installedAt": "2026-05-18T17:55:23.018Z",
       "updatedAt": "2026-05-18T17:55:23.018Z"
+    },
+    "fallow": {
+      "source": "fallow-rs/fallow-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/fallow-rs/fallow-skills.git",
+      "skillPath": "fallow/skills/fallow/SKILL.md",
+      "skillFolderHash": "624341d2c4ee1f87a90195bb0d774c6cec5f0701",
+      "installedAt": "2026-05-19T16:54:29.764Z",
+      "updatedAt": "2026-05-19T16:54:29.764Z"
     }
   },
   "dismissed": {
