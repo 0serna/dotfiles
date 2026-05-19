@@ -1,26 +1,4 @@
-# pi-footer-token-metrics Specification
-
-## Purpose
-
-Specifies the display contract for managed Pi footer token metrics, including current context-window usage and prompt-side cache reuse.
-
-## Requirements
-
-### Requirement: Footer context usage represents current context-window occupancy
-
-The Pi footer SHALL display context usage as the current context-window estimate for the active session state, not as cumulative token totals from the full session history.
-
-#### Scenario: Display current context usage
-
-- **WHEN** the active session state has a current context-window estimate available
-- **THEN** the footer displays that current context usage against the active model's context window
-- **AND** the displayed value does not substitute cumulative session token totals for current context usage
-
-#### Scenario: Context usage unknown after compaction boundary
-
-- **WHEN** the active session has crossed a compaction boundary and no later assistant response provides trustworthy usage data yet
-- **THEN** the footer indicates that current context usage is unknown
-- **AND** the footer continues to display the active model's context window when available
+## MODIFIED Requirements
 
 ### Requirement: Footer cache percentage represents prompt-side cache reuse
 
@@ -69,6 +47,8 @@ The Pi footer SHALL display cache percentage as the latest assistant turn's prom
 - **WHEN** there are no assistant messages with usage data yet (first turn of session)
 - **THEN** the footer displays `cache 0%`
 - **AND** no trend arrow or regression color is shown
+
+## ADDED Requirements
 
 ### Requirement: Extension logs significant events
 
