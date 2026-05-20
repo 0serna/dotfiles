@@ -31,7 +31,7 @@ function formatModelInfo(
   theme: Theme,
 ): string {
   const modelInfo = modelId && provider ? `${provider}/${modelId}` : modelId;
-  return theme.fg("dim", modelInfo ? `${modelInfo} ${thinking}` : thinking);
+  return theme.fg("dim", modelInfo ? `${modelInfo}/${thinking}` : thinking);
 }
 
 function getRightSide(

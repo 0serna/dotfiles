@@ -73,7 +73,7 @@ export function formatPercentResetSegment(
   resetLabel: string,
   ctx: ExtensionContext,
 ): string {
-  const segment = `${remainingPercent}/${resetLabel}`;
+  const segment = `${remainingPercent}(${resetLabel})`;
   if (remainingPercent < LOW_QUOTA_THRESHOLD_PERCENT) {
     return ctx.ui.theme.fg("mdHeading", segment);
   }
