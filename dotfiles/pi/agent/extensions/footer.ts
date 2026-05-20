@@ -10,7 +10,11 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const EXCLUDED_EXTENSIONS = new Set(["context-usage", "quota"]);
+const EXCLUDED_EXTENSIONS = new Set([
+  "context-usage",
+  "model-profile",
+  "quota",
+]);
 
 function formatCwdWithBranch(
   cwd: string,
@@ -65,6 +69,7 @@ export default function (pi: ExtensionAPI) {
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
             const usageQuota = extStatuses.get("quota");
+            const profileStatus = extStatuses.get("model-profile");
             const ordered = [extStatuses.get("context-usage")].filter(Boolean);
             const remaining = Array.from(extStatuses.entries())
               .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))
@@ -72,10 +77,11 @@ export default function (pi: ExtensionAPI) {
 
             const sections = [
               formatCwdWithBranch(cwd, branch, theme),
+              profileStatus,
               formatModelInfo(modelId, provider, thinking, theme),
               ...ordered,
               ...remaining,
-            ];
+            ].filter(Boolean);
 
             const left = sections.join(separator);
             const right = getRightSide(usageQuota, theme.fg("dim", " "));

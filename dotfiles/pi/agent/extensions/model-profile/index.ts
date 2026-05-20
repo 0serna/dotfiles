@@ -1,56 +1,35 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
-import {
-  DEFAULT_THINKING,
-  FALLBACK_PROFILE,
-  PROFILES,
-  ROUTE_TYPES,
-  type ProfileName,
-} from "./profiles.ts";
-import {
-  activateRoute,
-  getRouteName,
-  resolveActiveProfile,
-} from "./routing.ts";
-import { readState, writeState } from "./state.ts";
-import type { ModelProfile, RouteSnapshot } from "./types.ts";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { runModelProfileCommand } from "./command.ts";
+import { ROUTE_TYPES } from "./profiles.ts";
+import { activateRoute, getRouteName } from "./routing.ts";
+import { createModelProfileRuntime } from "./runtime.ts";
+import type { RouteSnapshot } from "./types.ts";
 
 export default function (pi: ExtensionAPI) {
-  let activeProfile: ModelProfile = PROFILES[FALLBACK_PROFILE];
-  let activeProfileName: ProfileName = FALLBACK_PROFILE;
-  let routeSnapshot: RouteSnapshot | undefined;
-
-  async function loadAndActivateDefault(ctx: ExtensionContext) {
-    const state = await readState();
-    activeProfile = resolveActiveProfile(state);
-    activeProfileName =
-      (Object.keys(PROFILES) as ProfileName[]).find(
-        (n) => PROFILES[n] === activeProfile,
-      ) ?? FALLBACK_PROFILE;
-
-    const activated = await activateRoute(pi, activeProfile.default, ctx);
-    if (!activated) {
-      ctx.ui.notify(
-        `Could not activate default model ${activeProfile.default.model} for current profile; continuing with the current model.`,
-        "warning",
-      );
-    }
-  }
+  const runtime = createModelProfileRuntime(pi);
 
   pi.on("session_start", async (_event, ctx) => {
-    await loadAndActivateDefault(ctx);
+    await runtime.refreshConfig(ctx);
+    runtime.publishStatus(ctx);
+    if (runtime.configEnabled()) {
+      if (!(await runtime.tryActivateDefault(ctx))) {
+        runtime.publishFailedStatus(ctx);
+      }
+    } else {
+      await runtime.warnOnce(ctx);
+    }
   });
 
   pi.on("input", async (event, ctx) => {
     if (event.source === "extension") return { action: "continue" };
+    if (!runtime.configEnabled()) return { action: "continue" };
 
     const routeName = getRouteName(event.text);
     if (!routeName) return { action: "continue" };
 
     const routeType = ROUTE_TYPES[routeName];
-    const route = activeProfile[routeType];
+    const route = runtime.getActiveProfile()?.[routeType];
+    if (!route) return { action: "continue" };
 
     const snapshot: RouteSnapshot = {
       model: ctx.model,
@@ -60,25 +39,29 @@ export default function (pi: ExtensionAPI) {
     const activated = await activateRoute(pi, route, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not activate routed model ${route.model} for ${routeName}; continuing with the current model.`,
+        `Could not activate routed model '${route.model}' for '${routeName}'; continuing with current model.`,
         "warning",
       );
       return { action: "continue" };
     }
 
-    routeSnapshot = snapshot;
+    runtime.markRouted(snapshot);
     return { action: "continue" };
   });
 
   pi.on("agent_end", async (_event, ctx) => {
-    if (!routeSnapshot) return;
+    if (!runtime.hasRoutedSnapshot()) return;
+    runtime.consumeRoutedSnapshot();
 
-    routeSnapshot = undefined;
+    if (!runtime.configEnabled()) return;
+
+    const activeProfile = runtime.getActiveProfile();
+    if (!activeProfile) return;
 
     const activated = await activateRoute(pi, activeProfile.default, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not activate default model ${activeProfile.default.model} after routed command.`,
+        `Could not restore default model '${activeProfile.default.model}' for profile '${runtime.getActiveProfileName()}'.`,
         "warning",
       );
     }
@@ -86,34 +69,15 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("model_select", (event) => {
     if (event.source === "set" || event.source === "cycle") {
-      pi.setThinkingLevel(DEFAULT_THINKING);
+      pi.setThinkingLevel("medium");
     }
   });
 
   pi.registerCommand("model-profile", {
-    description: "Select an active model profile interactively",
+    description:
+      "Manage model profiles: select active profile or configure models/thinking",
     handler: async (_args, ctx) => {
-      const profileNames = Object.keys(PROFILES) as ProfileName[];
-      const items = profileNames.map((n) =>
-        n === activeProfileName ? `${n} (active)` : n,
-      );
-      const selected = await ctx.ui.select("Select model profile:", items);
-      if (!selected) return;
-
-      const profileName = selected.replace(/ \(active\)$/, "") as ProfileName;
-      const profile = PROFILES[profileName];
-
-      await writeState(profileName);
-      activeProfile = profile;
-      activeProfileName = profileName;
-
-      const activated = await activateRoute(pi, profile.default, ctx);
-      if (!activated) {
-        ctx.ui.notify(
-          `Could not activate default model for profile "${profileName}"; profile remains selected.`,
-          "warning",
-        );
-      }
+      await runModelProfileCommand(pi, ctx, runtime);
     },
   });
 }

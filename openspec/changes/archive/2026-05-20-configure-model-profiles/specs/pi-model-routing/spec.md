@@ -1,10 +1,4 @@
-# pi-model-routing Specification
-
-## Purpose
-
-Configure Pi's active model automatically for session defaults and selected slash-prompt workflows.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Disabled routing without valid profile configuration
 
@@ -25,6 +19,8 @@ The system SHALL disable automatic model-profile routing behavior when persisted
 
 - **WHEN** profile configuration is not valid
 - **THEN** the system does not attempt to restore a profile default model or thinking level after agent execution
+
+## MODIFIED Requirements
 
 ### Requirement: Default session model routing
 
