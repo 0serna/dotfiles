@@ -5,7 +5,6 @@ import type {
 
 type ThinkingLevel = ReturnType<ExtensionAPI["getThinkingLevel"]>;
 type ModelSnapshot = NonNullable<Parameters<ExtensionAPI["setModel"]>[0]>;
-
 type ModelRoute = {
   model: string;
   thinkingLevel: ThinkingLevel;
@@ -13,30 +12,28 @@ type ModelRoute = {
 
 const DEFAULT_THINKING: ThinkingLevel = "medium";
 
-// default model
-const LIGHT_ROUTE: ModelRoute = {
+const DEFAULT_MODEL: ModelRoute = {
+  model: "openai-codex/gpt-5.5",
+  thinkingLevel: "low",
+};
+
+const LIGHT_MODEL: ModelRoute = {
   model: "opencode-go/deepseek-v4-flash",
   thinkingLevel: "high",
 };
 
-const STANDARD_ROUTE: ModelRoute = {
-  model: "opencode-go/deepseek-v4-pro",
-  thinkingLevel: "high",
-};
-
-const HEAVY_ROUTE: ModelRoute = {
+const HEAVY_MODEL: ModelRoute = {
   model: "openai-codex/gpt-5.5",
   thinkingLevel: "medium",
 };
 
 const MODEL_ROUTES = {
-  "/opsx-explore": STANDARD_ROUTE,
-  "/opsx-propose": HEAVY_ROUTE,
-  "/opsx-apply": LIGHT_ROUTE,
-  "/opsx-archive": LIGHT_ROUTE,
-  "/simplify": STANDARD_ROUTE,
-  "/review": STANDARD_ROUTE,
-  "/commit": LIGHT_ROUTE,
+  "/opsx-propose": HEAVY_MODEL,
+  "/opsx-apply": LIGHT_MODEL,
+  "/opsx-archive": LIGHT_MODEL,
+  "/review": HEAVY_MODEL,
+  "/simplify": LIGHT_MODEL,
+  "/commit": LIGHT_MODEL,
 } as const satisfies Record<string, ModelRoute>;
 
 type RouteName = keyof typeof MODEL_ROUTES;
@@ -77,10 +74,10 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (event, ctx) => {
     if (event.reason === "reload") return;
 
-    const activated = await activateRoute(pi, LIGHT_ROUTE, ctx);
+    const activated = await activateRoute(pi, DEFAULT_MODEL, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not activate default model ${LIGHT_ROUTE.model}; continuing with the current model.`,
+        `Could not activate default model ${DEFAULT_MODEL.model}; continuing with the current model.`,
         "warning",
       );
     }

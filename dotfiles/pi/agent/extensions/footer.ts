@@ -10,7 +10,7 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const EXCLUDED_EXTENSIONS = new Set(["context-usage", "codex-quota"]);
+const EXCLUDED_EXTENSIONS = new Set(["context-usage", "usage-quota"]);
 
 type FooterTheme = { fg: (style: string, text: string) => string };
 
@@ -33,10 +33,10 @@ function formatModelInfo(
 }
 
 function getRightSide(
-  codexQuota: string | undefined,
+  usageQuota: string | undefined,
   fallback: string,
 ): string {
-  return codexQuota ?? fallback;
+  return usageQuota ?? fallback;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -66,7 +66,7 @@ export default function (pi: ExtensionAPI) {
             const provider = ctx.model?.provider;
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
-            const codexQuota = extStatuses.get("codex-quota");
+            const usageQuota = extStatuses.get("usage-quota");
             const ordered = [extStatuses.get("context-usage")].filter(Boolean);
             const remaining = Array.from(extStatuses.entries())
               .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))
@@ -80,7 +80,7 @@ export default function (pi: ExtensionAPI) {
             ];
 
             const left = sections.join(separator);
-            const right = getRightSide(codexQuota, theme.fg("dim", "·"));
+            const right = getRightSide(usageQuota, theme.fg("dim", "·"));
             const pad = " ".repeat(
               Math.max(1, width - visibleWidth(left) - visibleWidth(right)),
             );
