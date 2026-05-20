@@ -29,7 +29,7 @@ function formatModelInfo(
   theme: FooterTheme,
 ): string {
   const modelInfo = modelId && provider ? `${provider}/${modelId}` : modelId;
-  return theme.fg("dim", modelInfo ? `${modelInfo} · ${thinking}` : thinking);
+  return theme.fg("dim", modelInfo ? `${modelInfo} ${thinking}` : thinking);
 }
 
 function getRightSide(
@@ -80,7 +80,7 @@ export default function (pi: ExtensionAPI) {
             ];
 
             const left = sections.join(separator);
-            const right = getRightSide(usageQuota, theme.fg("dim", "·"));
+            const right = getRightSide(usageQuota, theme.fg("dim", " "));
             const pad = " ".repeat(
               Math.max(1, width - visibleWidth(left) - visibleWidth(right)),
             );

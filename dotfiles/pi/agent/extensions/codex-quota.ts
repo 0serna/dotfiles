@@ -419,84 +419,61 @@ function formatResetTime(resetAt: number): string {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const timeStr = `${h12}:${minutes}`;
 
-  if (date.toDateString() === new Date().toDateString()) return `(${timeStr})`;
+  if (date.toDateString() === new Date().toDateString()) return timeStr;
   const days = Math.max(
     1,
     Math.round((date.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
   );
-  return `(${days}d)`;
+  return `${days}d`;
 }
 
 // ---------------------------------------------------------------------------
 // Status formatting
 // ---------------------------------------------------------------------------
 
-function buildSegmentString(
-  label: string,
-  value: number,
-  suffix: string,
-): string {
-  return suffix ? `${value}${suffix} ${label}` : `${label} ${value}${suffix}`;
-}
-
-type SegmentConfig = {
-  key: keyof CodexQuotaData;
-  suffix: string;
-  /** Default label. Overridden by resetField when available. */
-  label?: string;
-  /** If set, compute dynamic label (reset time) from this timestamp field. */
-  resetField?: keyof CodexQuotaData;
-};
-
-const QUOTA_SEGMENTS: SegmentConfig[] = [
-  {
-    key: "remaining5h",
-    suffix: "%",
-    resetField: "resetAt5h",
-  },
-  {
-    key: "remaining7d",
-    suffix: "%",
-    resetField: "resetAt7d",
-  },
-  {
-    key: "remainingCredits",
-    suffix: "",
-    label: "C",
-  },
-];
-
-function getSegmentLabel(segment: SegmentConfig, data: CodexQuotaData): string {
-  if (segment.resetField) {
-    const resetAt = data[segment.resetField];
-    if (resetAt != null) return formatResetTime(resetAt);
-  }
-  return segment.label ?? "?";
-}
-
-function formatCodexQuotaSegment(
-  segment: SegmentConfig,
-  data: CodexQuotaData,
+function formatPercentResetSegment(
+  remainingPercent: number,
+  resetLabel: string,
   ctx: ExtensionContext,
-): string | null {
-  const value = data[segment.key];
-  if (value == null) return null;
-  const label = getSegmentLabel(segment, data);
-  const segmentStr = buildSegmentString(label, value, segment.suffix);
-  if (segment.suffix === "%" && value < LOW_QUOTA_THRESHOLD_PERCENT) {
-    return ctx.ui.theme.fg("mdHeading", segmentStr);
+): string {
+  const segment = `${remainingPercent}/${resetLabel}`;
+  if (remainingPercent < LOW_QUOTA_THRESHOLD_PERCENT) {
+    return ctx.ui.theme.fg("mdHeading", segment);
   }
-  return ctx.ui.theme.fg("dim", segmentStr);
+  return ctx.ui.theme.fg("dim", segment);
 }
 
 function formatCodexQuotaStatus(
   data: CodexQuotaData,
   ctx: ExtensionContext,
 ): string | null {
-  const parts = QUOTA_SEGMENTS.map((s) =>
-    formatCodexQuotaSegment(s, data, ctx),
-  ).filter((p): p is string => p != null);
-  return parts.length ? parts.join(ctx.ui.theme.fg("dim", " ")) : null;
+  if (
+    data.remaining5h == null ||
+    data.resetAt5h == null ||
+    data.remaining7d == null ||
+    data.resetAt7d == null
+  ) {
+    return null;
+  }
+
+  const parts = [
+    formatPercentResetSegment(
+      data.remaining5h,
+      formatResetTime(data.resetAt5h),
+      ctx,
+    ),
+    formatPercentResetSegment(
+      data.remaining7d,
+      formatResetTime(data.resetAt7d),
+      ctx,
+    ),
+  ];
+
+  if (data.remainingCredits != null) {
+    parts.push(ctx.ui.theme.fg("dim", `C${data.remainingCredits}`));
+  }
+
+  return parts.join(ctx.ui.theme.fg("dim", " "));
 }
 
 // ---------------------------------------------------------------------------
@@ -578,37 +555,33 @@ function formatGoResetTime(resetInSec: number): string {
 }
 
 function formatGoSegment(
-  remainingPercent: number | undefined,
-  resetInSec: number | undefined,
+  window: OpenCodeGoWindowData,
   ctx: ExtensionContext,
-): string | null {
-  if (remainingPercent == null) return null;
-  const resetLabel = resetInSec != null ? formatGoResetTime(resetInSec) : null;
-  const segment = resetLabel
-    ? `${remainingPercent}% ${resetLabel}`
-    : `${remainingPercent}%`;
-  if (remainingPercent < LOW_QUOTA_THRESHOLD_PERCENT) {
-    return ctx.ui.theme.fg("mdHeading", segment);
-  }
-  return ctx.ui.theme.fg("dim", segment);
+): string {
+  return formatPercentResetSegment(
+    window.remainingPercent,
+    formatGoResetTime(window.resetInSec),
+    ctx,
+  );
 }
 
 function formatGoBalances(
   data: OpenCodeGoData,
   ctx: ExtensionContext,
 ): string | null {
-  const windows = [data.rolling, data.weekly, data.monthly];
-  const goParts = windows
-    .map((window) =>
-      formatGoSegment(window?.remainingPercent, window?.resetInSec, ctx),
-    )
-    .filter((part): part is string => part != null);
+  if (!data.rolling || !data.weekly || !data.monthly) return null;
+
+  const goParts = [
+    formatGoSegment(data.rolling, ctx),
+    formatGoSegment(data.weekly, ctx),
+    formatGoSegment(data.monthly, ctx),
+  ];
 
   if (data.balanceDollars != null) {
     goParts.push(ctx.ui.theme.fg("dim", `$${data.balanceDollars.toFixed(2)}`));
   }
 
-  return goParts.length ? goParts.join(ctx.ui.theme.fg("dim", " ")) : null;
+  return goParts.join(ctx.ui.theme.fg("dim", " "));
 }
 
 // ---------------------------------------------------------------------------
@@ -622,8 +595,10 @@ function formatProviderStatus<T>(
   formatter: (data: T, ctx: ExtensionContext) => string | null,
   ctx: ExtensionContext,
 ): string {
-  if (error || !data) return ctx.ui.theme.fg("mdHeading", `${label}: error`);
-  return `${ctx.ui.theme.fg("dim", `${label}: `)}${formatter(data, ctx)}`;
+  if (error || !data) return ctx.ui.theme.fg("mdHeading", `${label} error`);
+  const status = formatter(data, ctx);
+  if (!status) return ctx.ui.theme.fg("mdHeading", `${label} error`);
+  return `${ctx.ui.theme.fg("dim", `${label} `)}${status}`;
 }
 
 function publishCombinedStatus(ctx: ExtensionContext, reason: string): void {

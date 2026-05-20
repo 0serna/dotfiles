@@ -156,7 +156,7 @@ function publishStatus(
 
   ctx.ui.setStatus(
     "context-usage",
-    `${styledContext}${ctx.ui.theme.fg("dim", " · ")}${styledCache}`,
+    `${styledContext}${ctx.ui.theme.fg("dim", " ")}${styledCache}`,
   );
 }
 
