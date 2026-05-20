@@ -1,5 +1,9 @@
 import { StringEnum } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentToolResult,
+  ExtensionAPI,
+  Theme,
+} from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import {
@@ -50,11 +54,10 @@ function parseDomainFilter(filter: string[]): Record<string, string[]> {
   const exclude = filter
     .filter((e) => e.startsWith("-"))
     .map((e) => e.slice(1));
-  return Object.assign(
-    {},
-    include.length > 0 && { includeDomains: include },
-    exclude.length > 0 && { excludeDomains: exclude },
-  );
+  const result: Record<string, string[]> = {};
+  if (include.length > 0) result["includeDomains"] = include;
+  if (exclude.length > 0) result["excludeDomains"] = exclude;
+  return result;
 }
 
 // ===========================================================================
@@ -156,7 +159,7 @@ function getFirstResult(
   data: { results?: Array<{ text?: string }> } | null,
 ): { text?: string } | null {
   if (!data?.results?.length) return null;
-  return data.results[0];
+  return data.results[0] ?? null;
 }
 
 function extractContentText(
@@ -295,7 +298,7 @@ function replaceLinks(html: string): string {
     ) => {
       const href = dqHref ?? sqHref;
       const t = text.replace(/<[^>]*>/g, "").trim();
-      return t ? `${t} (${href})` : href;
+      return t ? `${t} (${href})` : (href ?? "");
     },
   );
 }
@@ -450,10 +453,7 @@ async function executeWebSearch(
   };
 }
 
-function renderWebSearchCall(
-  args: { query: string },
-  theme: { fg: (style: string, text: string) => string },
-): Text {
+function renderWebSearchCall(args: { query: string }, theme: Theme): Text {
   return new Text(
     theme.fg("toolTitle", `web_search: `) + theme.fg("accent", args.query),
     0,
@@ -462,12 +462,12 @@ function renderWebSearchCall(
 }
 
 function renderWebSearchResult(
-  result: { details: { sourceCount?: number } },
+  result: AgentToolResult<Record<string, unknown>>,
   _options: unknown,
-  theme: { fg: (style: string, text: string) => string },
+  theme: Theme,
 ): Text {
-  const count = result.details.sourceCount;
-  if (count != null && count > 0) {
+  const count = result.details["sourceCount"];
+  if (typeof count === "number" && count > 0) {
     const label = count === 1 ? "source" : "sources";
     return new Text(theme.fg("success", `${count} ${label}`), 0, 0);
   }
@@ -542,10 +542,7 @@ async function executeWebFetch(
   };
 }
 
-function renderWebFetchCall(
-  args: { url: string },
-  theme: { fg: (style: string, text: string) => string },
-): Text {
+function renderWebFetchCall(args: { url: string }, theme: Theme): Text {
   return new Text(
     theme.fg("toolTitle", `web_fetch: `) + theme.fg("accent", args.url),
     0,
@@ -554,16 +551,16 @@ function renderWebFetchCall(
 }
 
 function renderWebFetchResult(
-  result: { details: { bytes?: number; fallback?: boolean } },
+  result: AgentToolResult<Record<string, unknown>>,
   _options: unknown,
-  theme: { fg: (style: string, text: string) => string },
+  theme: Theme,
 ): Text {
-  const { bytes, fallback } = result.details;
-  if (bytes != null && bytes > 0) {
+  const bytes = result.details["bytes"];
+  const fallback = result.details["fallback"];
+  if (typeof bytes === "number" && bytes > 0) {
     const kb = (bytes / 1024).toFixed(1);
-    const label = fallback
-      ? `${kb}KB extracted (fallback)`
-      : `${kb}KB extracted`;
+    const label =
+      fallback === true ? `${kb}KB extracted (fallback)` : `${kb}KB extracted`;
     return new Text(theme.fg("success", label), 0, 0);
   }
   return new Text(theme.fg("warning", "fetch error"), 0, 0);

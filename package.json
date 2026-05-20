@@ -12,6 +12,9 @@
     "sync-pi-settings": "bash scripts/publish-pi-settings.sh"
   },
   "devDependencies": {
+    "@earendil-works/pi-ai": "^0.75.4",
+    "@earendil-works/pi-coding-agent": "^0.75.4",
+    "@earendil-works/pi-tui": "^0.75.4",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.5.2",
     "eslint": "^10.2.1",

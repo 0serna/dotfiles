@@ -6,6 +6,7 @@ import {
 import {
   isToolCallEventType,
   type ExtensionAPI,
+  type ToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
 
 import {
@@ -137,7 +138,7 @@ async function getApprovalScope(
 // Tool call validation and UI interaction
 // ---------------------------------------------------------------------------
 
-function getCommandFromEvent(event: unknown): string | null {
+function getCommandFromEvent(event: ToolCallEvent): string | null {
   if (!isToolCallEventType("bash", event)) return null;
   const command = event.input.command;
   if (typeof command !== "string" || command.trim() === "") return null;
@@ -310,7 +311,7 @@ async function handleSensitiveCommand(
 }
 
 async function handleToolCall(
-  event: unknown,
+  event: ToolCallEvent,
   ctx: ExtensionContext,
   pi: ExtensionAPI,
 ): Promise<{ block: true; reason: string } | { block?: false } | undefined> {

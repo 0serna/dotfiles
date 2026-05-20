@@ -18,6 +18,7 @@ function rtkRewriteCommand(command: string): string | null {
 
   if (result.error) return null;
   if (!result.stdout) return null;
+  if (result.status == null) return null;
   if (!VALID_RTK_EXITS.includes(result.status)) return null;
 
   return result.stdout.trim();

@@ -1,11 +1,5 @@
 {
   "entry": ["dotfiles/pi/agent/extensions/*.ts"],
   "ignorePatterns": ["dotfiles/opencode/plugins/**"],
-  "ignoreDependencies": [
-    "@opencode-ai/*",
-    "@earendil-works/pi-ai",
-    "@earendil-works/pi-coding-agent",
-    "@earendil-works/pi-tui",
-    "typebox"
-  ]
+  "ignoreDependencies": ["@opencode-ai/*", "typebox"]
 }

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { basename } from "node:path";
 
@@ -10,14 +10,12 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const EXCLUDED_EXTENSIONS = new Set(["context-usage", "usage-quota"]);
-
-type FooterTheme = { fg: (style: string, text: string) => string };
+const EXCLUDED_EXTENSIONS = new Set(["context-usage", "quota"]);
 
 function formatCwdWithBranch(
   cwd: string,
   branch: string | null,
-  theme: FooterTheme,
+  theme: Theme,
 ): string {
   return theme.fg("dim", branch ? `${cwd} (${branch})` : cwd);
 }
@@ -26,7 +24,7 @@ function formatModelInfo(
   modelId: string | null | undefined,
   provider: string | null | undefined,
   thinking: string,
-  theme: FooterTheme,
+  theme: Theme,
 ): string {
   const modelInfo = modelId && provider ? `${provider}/${modelId}` : modelId;
   return theme.fg("dim", modelInfo ? `${modelInfo} ${thinking}` : thinking);
@@ -66,7 +64,7 @@ export default function (pi: ExtensionAPI) {
             const provider = ctx.model?.provider;
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
-            const usageQuota = extStatuses.get("usage-quota");
+            const usageQuota = extStatuses.get("quota");
             const ordered = [extStatuses.get("context-usage")].filter(Boolean);
             const remaining = Array.from(extStatuses.entries())
               .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))

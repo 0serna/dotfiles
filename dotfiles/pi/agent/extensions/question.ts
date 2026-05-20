@@ -1,4 +1,9 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentToolResult,
+  ExtensionAPI,
+  ExtensionContext,
+  Theme,
+} from "@earendil-works/pi-coding-agent";
 import {
   Editor,
   type EditorTheme,
@@ -33,28 +38,6 @@ interface QuestionDetails {
 type ResultValue =
   | { type: "answer"; answer: string; wasCustom: boolean; comment?: string }
   | { type: "cancel" };
-
-type Theme = { fg: (style: string, text: string) => string };
-
-type UIComponent = {
-  render: (w: number) => string[];
-  handleInput: (d: string) => void;
-  invalidate: () => void;
-};
-
-type UIContext = {
-  hasUI: boolean;
-  ui: {
-    custom: <T>(
-      factory: (
-        tui: unknown,
-        theme: Theme,
-        kb: unknown,
-        done: (v: T) => void,
-      ) => UIComponent,
-    ) => Promise<T>;
-  };
-};
 
 // ===========================================================================
 // Schemas
@@ -150,11 +133,11 @@ function renderAllOptions(
   isCommentMode: boolean,
   theme: Theme,
 ) {
-  for (let i = 0; i < allOptions.length; i++) {
+  for (const [i, option] of allOptions.entries()) {
     renderOptionLine(
       lines,
       width,
-      allOptions[i],
+      option,
       i,
       optionIndex,
       isCommentMode && i === optionIndex,
@@ -284,7 +267,7 @@ function resultNormal(
 
 function buildResultPrompted(
   base: ReturnType<typeof makeBaseDetails>,
-  result: ResultValue,
+  result: Extract<ResultValue, { type: "answer" }>,
 ) {
   if (result.wasCustom) return resultCustom(base, result.answer);
   if (result.comment)
@@ -326,6 +309,7 @@ function selectWithEnter(
   done: (v: ResultValue) => void,
 ): void {
   const selected = allOptions[state.optionIndex];
+  if (!selected) return;
   if (selected.isOther) {
     state.editMode = "other";
     state.selectedLabel = null;
@@ -336,6 +320,7 @@ function selectWithEnter(
 
 function selectWithSpace(state: UIState, allOptions: DisplayOption[]): void {
   const selected = allOptions[state.optionIndex];
+  if (!selected) return;
   if (selected.isOther) {
     state.editMode = "other";
     state.selectedLabel = null;
@@ -445,7 +430,7 @@ async function execute(
   params: { question: string; options: OptionWithDesc[] },
   _signal: unknown,
   _onUpdate: unknown,
-  ctx: UIContext,
+  ctx: ExtensionContext,
 ) {
   if (!ctx.hasUI) {
     return {
@@ -577,13 +562,6 @@ function renderCall(args: { question: string }, theme: Theme) {
   );
 }
 
-function renderResultFallback(result: {
-  content: Array<{ type: string; text: string }>;
-}): Text {
-  const text = result.content[0];
-  return new Text(text?.type === "text" ? text.text : "", 0, 0);
-}
-
 function renderAnswered(details: QuestionDetails, theme: Theme) {
   const answer = details.answer ?? "";
   if (details.wasCustom) return renderCustomAnswer(theme, answer);
@@ -597,13 +575,11 @@ function renderDetails(details: QuestionDetails, theme: Theme) {
 }
 
 function renderResult(
-  result: { content: Array<{ type: string; text: string }>; details: unknown },
+  result: AgentToolResult<QuestionDetails>,
   _options: unknown,
   theme: Theme,
 ) {
-  const details = result.details as QuestionDetails | undefined;
-  if (!details) return renderResultFallback(result);
-  return renderDetails(details, theme);
+  return renderDetails(result.details, theme);
 }
 
 // ===========================================================================

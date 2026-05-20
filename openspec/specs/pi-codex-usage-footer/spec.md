@@ -118,13 +118,13 @@ The Pi footer SHALL retry a failed Codex quota fetch once after obtaining usable
 
 ### Requirement: Pi footer displays OpenCode Go usage quota headroom
 
-The Pi footer SHALL display OpenCode Go quota headroom in the combined usage quota status when OpenCode Go dashboard usage data is available.
+The Pi footer SHALL display OpenCode Go quota headroom in the combined quota status when OpenCode Go dashboard usage data is available, and SHALL identify the OpenCode group with the visible prefix `OC`.
 
 #### Scenario: All OpenCode Go usage windows are available
 
 - **WHEN** the system has current OpenCode Go usage data for rolling, weekly, and monthly windows
-- **THEN** the footer displays remaining headroom for all three OpenCode Go windows in the combined usage quota status
-- **AND** the OpenCode Go group is visibly identified as OpenCode Go rather than Codex
+- **THEN** the footer displays remaining headroom for all three OpenCode Go windows in the combined quota status
+- **AND** the OpenCode Go group is visibly identified with the prefix `OC`
 - **AND** each OpenCode Go window is represented as remaining percentage rather than used percentage
 - **AND** each OpenCode Go window includes a compact reset label derived from the dashboard reset duration
 
@@ -168,13 +168,14 @@ The Pi footer SHALL request OpenCode Go quota data from the OpenCode dashboard o
 
 ### Requirement: Combined usage quota footer preserves provider isolation
 
-The Pi footer SHALL combine Codex quota and OpenCode Go quota into one compact usage quota status while treating each provider as an independently available data source.
+The Pi footer SHALL combine Codex quota and OpenCode Go quota into one compact quota status while treating each provider as an independently available data source.
 
 #### Scenario: Both providers return current quota data
 
 - **WHEN** current Codex quota data and current OpenCode Go quota data are both available
-- **THEN** the footer displays both provider groups in the combined usage quota status
-- **AND** each provider group is visibly identified so overlapping quota windows are not confused
+- **THEN** the footer displays both provider groups in the combined quota status
+- **AND** the Codex provider group is visibly identified with the prefix `CODEX`
+- **AND** the OpenCode Go provider group is visibly identified with the prefix `OC`
 
 #### Scenario: Codex succeeds and OpenCode Go fails
 
@@ -204,3 +205,23 @@ The Pi footer SHALL refresh Codex quota data and OpenCode Go quota data independ
 - **WHEN** the quota footer refreshes usage data
 - **THEN** Codex quota fetching and OpenCode Go quota fetching are initiated as independent operations
 - **AND** each provider result is resolved into the combined usage quota status according to its own success or failure state
+
+### Requirement: Combined quota footer uses a single quota extension status
+
+The Pi footer SHALL render the combined quota status from a single quota extension status entry so that Codex and OpenCode quota data appear once in the footer.
+
+#### Scenario: Quota status is available
+
+- **WHEN** the quota extension publishes a combined quota status
+- **THEN** the custom Pi footer displays that status as the quota area of the footer
+- **AND** the same quota status is not duplicated in the other extension status area
+
+### Requirement: Combined quota footer remains available after extension directory refactor
+
+The managed Pi quota extension SHALL remain discoverable as a Pi extension after it is represented as a directory-based extension.
+
+#### Scenario: Pi discovers managed extensions
+
+- **WHEN** Pi discovers extensions from the managed agent extensions directory
+- **THEN** the combined quota extension is available from the directory-based quota extension entrypoint
+- **AND** the old Codex-named entrypoint is not also loaded as a duplicate quota extension
