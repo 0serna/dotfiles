@@ -28,6 +28,8 @@ const SENSITIVE_PATTERNS: RegExp[] = [
   /\bgit\s+clean\b.*(?:(?:^|\s)-[^\s]*f\b|--force\b)/i,
   // any git rebase
   /\bgit\s+rebase\b/i,
+  // git commit with --no-verify or -n
+  /\bgit\s+commit\b.*(?:--no-verify\b|(?:^|\s)-[A-Za-z]*n[A-Za-z]*\b)/i,
   // git commit with --amend
   /\bgit\s+commit\b.*--amend\b/i,
   // git checkout with -f
