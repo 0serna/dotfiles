@@ -15,8 +15,8 @@ export type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
-/** A model profile with three fixed routes */
-export type ModelProfile = {
+/** A profile with three fixed routes */
+export type Profile = {
   default: ModelRoute;
   light: ModelRoute;
   heavy: ModelRoute;
@@ -31,7 +31,7 @@ export type RouteSnapshot = {
 /** Full persisted profile configuration */
 export type PersistedConfig = {
   activeProfile: string;
-  profiles: Record<string, ModelProfile>;
+  profiles: Record<string, Profile>;
 };
 
 /** Known fixed profile names */

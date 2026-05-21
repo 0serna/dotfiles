@@ -11,16 +11,16 @@ import {
 import { loadConfig } from "./state.ts";
 import type {
   ConfigValidationResult,
-  ModelProfile,
   PersistedConfig,
+  Profile,
   ProfileName,
   RouteSnapshot,
 } from "./types.ts";
 
-export function createModelProfileRuntime(pi: ExtensionAPI) {
+export function createProfilesRuntime(pi: ExtensionAPI) {
   let configResult: ConfigValidationResult = { status: "missing" };
   let config: PersistedConfig | null = null;
-  let activeProfile: ModelProfile | null = null;
+  let activeProfile: Profile | null = null;
   let activeProfileName: ProfileName | null = null;
   let warningShownThisSession = false;
   let routeSnapshot: RouteSnapshot | undefined;
@@ -61,7 +61,7 @@ export function createModelProfileRuntime(pi: ExtensionAPI) {
 
     if (configResult.status === "missing") {
       ctx.ui.notify(
-        "Model profile configuration missing. Routing disabled; use /model-profile to set it up.",
+        "Profile configuration missing. Routing disabled; use /profiles to set it up.",
         "warning",
       );
     } else if (configResult.status === "invalid") {
@@ -70,7 +70,7 @@ export function createModelProfileRuntime(pi: ExtensionAPI) {
           ? configResult.errors.join("; ")
           : "Unknown validation error";
       ctx.ui.notify(
-        `Model profile configuration invalid: ${msg}. Routing disabled; use /model-profile to repair it.`,
+        `Profile configuration invalid: ${msg}. Routing disabled; use /profiles to repair it.`,
         "warning",
       );
     }
@@ -78,32 +78,26 @@ export function createModelProfileRuntime(pi: ExtensionAPI) {
 
   function publishStatus(ctx: ExtensionContext): void {
     if (configResult.status === "missing") {
-      ctx.ui.setStatus(
-        "model-profile",
-        ctx.ui.theme.fg("warning", "profile setup"),
-      );
+      ctx.ui.setStatus("profiles", ctx.ui.theme.fg("warning", "profile setup"));
       return;
     }
 
     if (configResult.status === "invalid") {
       ctx.ui.setStatus(
-        "model-profile",
+        "profiles",
         ctx.ui.theme.fg("warning", "profile invalid"),
       );
       return;
     }
 
     ctx.ui.setStatus(
-      "model-profile",
+      "profiles",
       ctx.ui.theme.fg("dim", `profile ${activeProfileName}`),
     );
   }
 
   function publishFailedStatus(ctx: ExtensionContext): void {
-    ctx.ui.setStatus(
-      "model-profile",
-      ctx.ui.theme.fg("warning", "profile failed"),
-    );
+    ctx.ui.setStatus("profiles", ctx.ui.theme.fg("warning", "profile failed"));
   }
 
   async function tryActivateDefault(ctx: ExtensionContext): Promise<boolean> {
@@ -141,4 +135,4 @@ export function createModelProfileRuntime(pi: ExtensionAPI) {
   };
 }
 
-export type ModelProfileRuntime = ReturnType<typeof createModelProfileRuntime>;
+export type ProfilesRuntime = ReturnType<typeof createProfilesRuntime>;

@@ -21,7 +21,7 @@ const THINKING_LEVELS: readonly ThinkingLevel[] = [
 function stateFilePath(): string {
   const stateHome =
     process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state");
-  return join(stateHome, "pi", "model-profile.json");
+  return join(stateHome, "pi", "profiles.json");
 }
 
 function isValidThinkingLevel(value: unknown): value is ThinkingLevel {

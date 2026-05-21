@@ -8,14 +8,14 @@ import {
   getActiveProfile,
   validateConfigSemantics,
 } from "./routing.ts";
-import type { ModelProfileRuntime } from "./runtime.ts";
+import type { ProfilesRuntime } from "./runtime.ts";
 import { saveConfig } from "./state.ts";
 import { editProfileRoutes, showProfileList } from "./ui.ts";
 
-export async function runModelProfileCommand(
+export async function runProfilesCommand(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
-  runtime: ModelProfileRuntime,
+  runtime: ProfilesRuntime,
 ): Promise<void> {
   await runtime.refreshConfig(ctx);
   runtime.publishStatus(ctx);

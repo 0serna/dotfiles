@@ -10,7 +10,6 @@ import { parseModelId } from "./model-ids.ts";
 import type {
   ConfigValidationResult,
   FixedRouteName,
-  ModelRoute,
   PersistedConfig,
   ProfileName,
   ThinkingLevel,
@@ -52,7 +51,7 @@ function renderProfileFrame(
 ): string[] {
   const lines: string[] = [];
   lines.push(renderBorder(width, theme));
-  lines.push(theme.fg("accent", theme.bold("Model profiles")));
+  lines.push(theme.fg("accent", theme.bold("Profiles")));
   renderWrapped(
     lines,
     width,
@@ -302,9 +301,9 @@ export async function editProfileRoutes(
         profiles: {
           ...(currentConfig?.profiles ?? {}),
           [profileName]: {
-            default: routes.default as ModelRoute,
-            light: routes.light as ModelRoute,
-            heavy: routes.heavy as ModelRoute,
+            default: routes.default,
+            light: routes.light,
+            heavy: routes.heavy,
           },
         },
       };

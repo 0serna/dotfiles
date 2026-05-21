@@ -7,9 +7,9 @@ import { parseModelId } from "./model-ids.ts";
 import { ROUTE_TYPES, type RouteName } from "./profiles.ts";
 import type {
   ConfigValidationResult,
-  ModelProfile,
   ModelRoute,
   PersistedConfig,
+  Profile,
   ProfileName,
 } from "./types.ts";
 import { FIXED_PROFILE_NAMES, FIXED_ROUTE_NAMES } from "./types.ts";
@@ -35,12 +35,12 @@ export function getRouteName(input: string): RouteName | undefined {
 }
 
 /**
- * Get the active ModelProfile and its name from a valid config.
+ * Get the active Profile and its name from a valid config.
  * Returns undefined if the config is null or the active profile doesn't exist.
  */
 export function getActiveProfile(
   config: PersistedConfig | null,
-): { profile: ModelProfile; name: ProfileName } | undefined {
+): { profile: Profile; name: ProfileName } | undefined {
   if (!config) return undefined;
 
   const profile = config.profiles[config.activeProfile];
@@ -78,6 +78,7 @@ export async function validateConfigSemantics(
   ctx: ExtensionContext,
 ): Promise<string[]> {
   const errors: string[] = [];
+  const availableModels = ctx.modelRegistry.getAvailable();
 
   for (const profileName of FIXED_PROFILE_NAMES) {
     const profile = config.profiles[profileName];
@@ -92,9 +93,9 @@ export async function validateConfigSemantics(
         errors.push(`Profile '${profileName}' missing route '${routeName}'`);
         continue;
       }
+
       const [provider, modelId] = parseModelId(route.model);
       const model = ctx.modelRegistry.find(provider, modelId);
-
       if (!model) {
         errors.push(
           `Profile '${profileName}', route '${routeName}': model '${route.model}' not found`,
@@ -102,9 +103,8 @@ export async function validateConfigSemantics(
         continue;
       }
 
-      const available = ctx.modelRegistry.getAvailable();
       if (
-        !available.some(
+        !availableModels.some(
           (m) => m.id === model.id && m.provider === model.provider,
         )
       ) {

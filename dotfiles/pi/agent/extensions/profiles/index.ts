@@ -1,12 +1,12 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { runModelProfileCommand } from "./command.ts";
+import { runProfilesCommand } from "./command.ts";
 import { ROUTE_TYPES } from "./profiles.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
-import { createModelProfileRuntime } from "./runtime.ts";
+import { createProfilesRuntime } from "./runtime.ts";
 import type { RouteSnapshot } from "./types.ts";
 
 export default function (pi: ExtensionAPI) {
-  const runtime = createModelProfileRuntime(pi);
+  const runtime = createProfilesRuntime(pi);
 
   pi.on("session_start", async (_event, ctx) => {
     await runtime.refreshConfig(ctx);
@@ -73,11 +73,11 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  pi.registerCommand("model-profile", {
+  pi.registerCommand("profiles", {
     description:
-      "Manage model profiles: select active profile or configure models/thinking",
+      "Manage profiles: select active profile or configure models/thinking",
     handler: async (_args, ctx) => {
-      await runModelProfileCommand(pi, ctx, runtime);
+      await runProfilesCommand(pi, ctx, runtime);
     },
   });
 }
