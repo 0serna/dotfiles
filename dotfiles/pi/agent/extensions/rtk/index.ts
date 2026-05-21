@@ -47,8 +47,8 @@ export default function (pi: ExtensionAPI) {
     const local = createLocalBashOperations();
     return {
       operations: {
-        exec(_cmd: string, cwd: string, options: unknown) {
-          const rewritten = rtkRewriteCommand(_cmd) ?? _cmd;
+        exec(cmd: string, cwd: string, options: unknown) {
+          const rewritten = rtkRewriteCommand(cmd) ?? cmd;
           return local.exec(
             rewritten,
             cwd,

@@ -10,7 +10,7 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const EXCLUDED_EXTENSIONS = new Set(["context-usage", "profiles", "quota"]);
+const EXCLUDED_EXTENSIONS = new Set(["context", "profiles", "quota"]);
 
 function formatCwdWithBranch(
   cwd: string,
@@ -28,13 +28,6 @@ function formatModelInfo(
 ): string {
   const modelInfo = modelId && provider ? `${provider}/${modelId}` : modelId;
   return theme.fg("dim", modelInfo ? `${modelInfo}/${thinking}` : thinking);
-}
-
-function getRightSide(
-  usageQuota: string | undefined,
-  fallback: string,
-): string {
-  return usageQuota ?? fallback;
 }
 
 export default function (pi: ExtensionAPI) {
@@ -66,7 +59,7 @@ export default function (pi: ExtensionAPI) {
             const extStatuses = footerData.getExtensionStatuses();
             const usageQuota = extStatuses.get("quota");
             const profileStatus = extStatuses.get("profiles");
-            const ordered = [extStatuses.get("context-usage")].filter(Boolean);
+            const ordered = [extStatuses.get("context")].filter(Boolean);
             const remaining = Array.from(extStatuses.entries())
               .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))
               .map(([, v]) => v);
@@ -80,7 +73,7 @@ export default function (pi: ExtensionAPI) {
             ].filter(Boolean);
 
             const left = sections.join(separator);
-            const right = getRightSide(usageQuota, theme.fg("dim", " "));
+            const right = usageQuota ?? theme.fg("dim", " ");
             const pad = " ".repeat(
               Math.max(1, width - visibleWidth(left) - visibleWidth(right)),
             );
