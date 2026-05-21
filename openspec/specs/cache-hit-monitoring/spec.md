@@ -25,12 +25,12 @@ The system SHALL compute the cache hit rate from the latest assistant message us
 
 ### Requirement: Cache hit rate display format
 
-The system SHALL display the cache hit rate in the status bar as `cache N%` where N is the integer percentage. The display color SHALL be `mdHeading` when the hit rate is below 80%, and `dim` when it is 80% or above.
+The system SHALL display the cache hit rate in the status bar as `cache N%` where N is the integer percentage. The display color SHALL be `warning` when the hit rate is below 80%, and `dim` when it is 80% or above.
 
 #### Scenario: Below threshold
 
 - **WHEN** the cache hit rate is `65`
-- **THEN** the status bar SHALL show `cache 65%` with `mdHeading` color
+- **THEN** the status bar SHALL show `cache 65%` with `warning` color
 
 #### Scenario: At threshold
 
@@ -45,7 +45,7 @@ The system SHALL display the cache hit rate in the status bar as `cache N%` wher
 #### Scenario: No cache data (display)
 
 - **WHEN** no cache hit rate can be computed
-- **THEN** the status bar SHALL show `cache 0%` with `mdHeading` color
+- **THEN** the status bar SHALL show `cache 0%` with `warning` color
 
 ### Requirement: Cache event logging
 

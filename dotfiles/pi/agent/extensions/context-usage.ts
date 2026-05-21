@@ -4,7 +4,7 @@ import {
   type ExtensionLogger,
 } from "./shared/logger.js";
 
-const CONTEXT_USAGE_WARNING_TOKENS = 100_000;
+const CONTEXT_USAGE_WARNING_TOKENS = 120_000;
 const CACHE_HIT_WARNING_PERCENT = 80;
 
 function formatK(value: number): string {
@@ -147,11 +147,11 @@ function publishStatus(
 
   const contextText = `ctx ${formatCurrentUsage(usage)}`;
   const styledContext = isContextOverLimit(usage)
-    ? ctx.ui.theme.fg("mdHeading", contextText)
+    ? ctx.ui.theme.fg("warning", contextText)
     : ctx.ui.theme.fg("dim", contextText);
   const styledCache =
     cacheInfo.percent < CACHE_HIT_WARNING_PERCENT
-      ? ctx.ui.theme.fg("mdHeading", cacheInfo.text)
+      ? ctx.ui.theme.fg("warning", cacheInfo.text)
       : ctx.ui.theme.fg("dim", cacheInfo.text);
 
   ctx.ui.setStatus(

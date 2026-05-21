@@ -75,7 +75,7 @@ export function formatPercentResetSegment(
 ): string {
   const segment = `${remainingPercent}(${resetLabel})`;
   if (remainingPercent < LOW_QUOTA_THRESHOLD_PERCENT) {
-    return ctx.ui.theme.fg("mdHeading", segment);
+    return ctx.ui.theme.fg("warning", segment);
   }
   return ctx.ui.theme.fg("dim", segment);
 }
@@ -166,8 +166,8 @@ export function formatProviderStatus<T>(
   formatter: (data: T, ctx: ExtensionContext) => string | null,
   ctx: ExtensionContext,
 ): string {
-  if (error || !data) return ctx.ui.theme.fg("mdHeading", `${label} error`);
+  if (error || !data) return ctx.ui.theme.fg("warning", `${label} error`);
   const status = formatter(data, ctx);
-  if (!status) return ctx.ui.theme.fg("mdHeading", `${label} error`);
+  if (!status) return ctx.ui.theme.fg("warning", `${label} error`);
   return `${ctx.ui.theme.fg("dim", `${label} `)}${status}`;
 }
