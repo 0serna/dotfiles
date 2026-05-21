@@ -11,8 +11,8 @@ Create a concise, factual commit message from the staged changes and run the com
 
 ## Rules
 
-- If no staged changes, print `No staged changes to commit` and stop.
 - **Be fast**; this task is not a long-running process.
+- If no staged changes, print `No staged changes to commit` and stop.
 - On failure, do not retry or amend unless the user asks.
 - Commit format:
   - Follow the conventional commits `[type]([scope]): [description]` plus an optional body.
@@ -26,9 +26,9 @@ Create a concise, factual commit message from the staged changes and run the com
 - On success, print:
 
   Commit successful
-  `[committed message]`
+  [committed message]
 
 - On failure, print:
 
   Commit failed
-  [brief factual cause from the error output]
+  [cause from the error output]

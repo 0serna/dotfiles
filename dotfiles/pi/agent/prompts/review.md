@@ -50,13 +50,14 @@ $ARGUMENTS
 
 If there are no reportable findings, print:
 
-`Looks good to me`
+```
+Looks good to me
+```
 
 If there are reportable findings, print this structure per finding:
 
-```text
-finding: [N]
+```
 severity: [severity]
 path: [path/to/file:line-range]
-[concise evidence and suggestion]
+suggestion: [concise evidence and suggestion]
 ```
