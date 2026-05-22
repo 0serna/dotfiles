@@ -35,7 +35,7 @@ function assertHtmlContent(contentType: string, url: string): void {
     contentType.startsWith("text/plain");
   if (!isHtml) {
     throw new Error(
-      `Unsupported content type "${contentType}" for ${url}. Only HTML pages are supported.`,
+      `Unsupported content type "${contentType}" for ${url}. Only HTML pages and raw text files are supported.`,
     );
   }
 }

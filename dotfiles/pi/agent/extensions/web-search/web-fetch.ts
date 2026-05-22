@@ -46,23 +46,27 @@ export async function executeWebFetch(
       isError: true,
     };
   }
-  const result = await tryFetchContent(url).catch((err: unknown) => {
-    const message =
-      err instanceof Error ? err.message : "Unknown error during fetch";
-    logWebToolEvent("web_fetch_fail", { url, error: message });
-    return null;
-  });
-  if (result == null) {
+  try {
+    const result = await tryFetchContent(url);
     return {
-      content: [{ type: "text" as const, text: "Failed to fetch content" }],
-      details: {},
+      content: [{ type: "text" as const, text: result.content }],
+      details: { bytes: result.content.length, fallback: result.fallback },
+    };
+  } catch (err: unknown) {
+    const fetchError =
+      err instanceof Error ? err.message : "Unknown error during fetch";
+    logWebToolEvent("web_fetch_fail", { url, error: fetchError });
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Failed to fetch content: ${fetchError}`,
+        },
+      ],
+      details: { fetchError },
       isError: true,
     };
   }
-  return {
-    content: [{ type: "text" as const, text: result.content }],
-    details: { bytes: result.content.length, fallback: result.fallback },
-  };
 }
 
 export function renderWebFetchCall(args: { url: string }, theme: Theme): Text {
@@ -85,6 +89,10 @@ export function renderWebFetchResult(
     const label =
       fallback === true ? `${kb}KB extracted (fallback)` : `${kb}KB extracted`;
     return new Text(theme.fg("success", label), 0, 0);
+  }
+  const fetchError = result.details["fetchError"];
+  if (typeof fetchError === "string") {
+    return new Text(theme.fg("warning", `fetch error: ${fetchError}`), 0, 0);
   }
   return new Text(theme.fg("warning", "fetch error"), 0, 0);
 }
