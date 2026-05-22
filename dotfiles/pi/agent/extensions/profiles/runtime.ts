@@ -23,7 +23,7 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
   let activeProfile: Profile | null = null;
   let activeProfileName: ProfileName | null = null;
   let warningShownThisSession = false;
-  let routeSnapshot: RouteSnapshot | undefined;
+  let snapshot: RouteSnapshot | undefined;
 
   async function refreshConfig(ctx?: ExtensionContext): Promise<void> {
     configResult = await loadConfig();
@@ -112,6 +112,12 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
     return activated;
   }
 
+  function consumeSnapshot(): RouteSnapshot | undefined {
+    const s = snapshot;
+    snapshot = undefined;
+    return s;
+  }
+
   return {
     refreshConfig,
     configEnabled,
@@ -123,14 +129,27 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
     getConfig: () => config,
     getActiveProfile: () => activeProfile,
     getActiveProfileName: () => activeProfileName,
-    markRouted: (snapshot: RouteSnapshot) => {
-      routeSnapshot = snapshot;
+    saveSnapshot: (s: RouteSnapshot) => {
+      snapshot = s;
     },
-    hasRoutedSnapshot: () => routeSnapshot !== undefined,
-    consumeRoutedSnapshot: () => {
-      const snapshot = routeSnapshot;
-      routeSnapshot = undefined;
-      return snapshot;
+    hasSnapshot: () => snapshot !== undefined,
+    consumeSnapshot,
+    restoreSnapshot: async (ctx: ExtensionContext): Promise<boolean> => {
+      const s = consumeSnapshot();
+      if (!s || !s.model) return false;
+
+      // Avoid setModel if the model is already active
+      if (
+        !ctx.model ||
+        ctx.model.provider !== s.model.provider ||
+        ctx.model.id !== s.model.id
+      ) {
+        const activated = await pi.setModel(s.model);
+        if (!activated) return false;
+      }
+
+      pi.setThinkingLevel(s.thinkingLevel);
+      return true;
     },
   };
 }

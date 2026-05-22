@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { runProfilesCommand } from "./command.ts";
-import { ROUTE_TYPES } from "./profiles.ts";
+import { COMPACT_ROUTE, ROUTE_TYPES } from "./profiles.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import { createProfilesRuntime } from "./runtime.ts";
 import type { RouteSnapshot } from "./types.ts";
@@ -45,13 +45,13 @@ export default function (pi: ExtensionAPI) {
       return { action: "continue" };
     }
 
-    runtime.markRouted(snapshot);
+    runtime.saveSnapshot(snapshot);
     return { action: "continue" };
   });
 
   pi.on("agent_end", async (_event, ctx) => {
-    if (!runtime.hasRoutedSnapshot()) return;
-    runtime.consumeRoutedSnapshot();
+    if (!runtime.hasSnapshot()) return;
+    runtime.consumeSnapshot();
 
     if (!runtime.configEnabled()) return;
 
@@ -62,6 +62,36 @@ export default function (pi: ExtensionAPI) {
     if (!activated) {
       ctx.ui.notify(
         `Could not restore default model '${activeProfile.default.model}' for profile '${runtime.getActiveProfileName()}'.`,
+        "warning",
+      );
+    }
+  });
+
+  pi.on("session_before_compact", async (_event, ctx) => {
+    if (!runtime.configEnabled()) return;
+    if (runtime.hasSnapshot()) return;
+
+    const profile = runtime.getActiveProfile();
+    if (!profile) return;
+
+    const snapshot: RouteSnapshot = {
+      model: ctx.model,
+      thinkingLevel: pi.getThinkingLevel(),
+    };
+
+    const activated = await activateRoute(pi, profile[COMPACT_ROUTE], ctx);
+    if (!activated) return;
+
+    runtime.saveSnapshot(snapshot);
+  });
+
+  pi.on("session_compact", async (_event, ctx) => {
+    if (!runtime.hasSnapshot()) return;
+
+    const restored = await runtime.restoreSnapshot(ctx);
+    if (!restored) {
+      ctx.ui.notify(
+        `Could not restore model after compaction; continuing with current model.`,
         "warning",
       );
     }

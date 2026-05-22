@@ -11,4 +11,13 @@ export const ROUTE_TYPES = {
   "/commit": "light",
 } as const satisfies Record<string, "default" | "light" | "heavy">;
 
+/**
+ * Route type used for compaction summarization.
+ * Change this to "heavy" or "default" to use a different model tier.
+ */
+export const COMPACT_ROUTE = "light" as const satisfies
+  | "default"
+  | "light"
+  | "heavy";
+
 export type RouteName = keyof typeof ROUTE_TYPES;
