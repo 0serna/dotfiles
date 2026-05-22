@@ -19,6 +19,11 @@
 - NEVER generate documentation files unless the user explicitly requests them.
 - NEVER use stash, stage, or commit without the user's explicit permission.
 
+## OpenSpec
+
+- Do not ask the user for OpenSpec change names. Choose a concise, descriptive change name from the context.
+- If only one change is active, use that change without prompting the user.
+
 ## GitHub
 
 - Use GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
