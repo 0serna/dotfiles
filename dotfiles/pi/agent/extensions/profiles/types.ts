@@ -35,7 +35,7 @@ export type PersistedConfig = {
 };
 
 /** Known fixed profile names */
-export const FIXED_PROFILE_NAMES = ["mixed", "opencode"] as const;
+export const FIXED_PROFILE_NAMES = ["default", "fallback"] as const;
 
 export type ProfileName = (typeof FIXED_PROFILE_NAMES)[number];
 

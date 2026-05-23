@@ -8,7 +8,7 @@ Define the configuration model for fixed model profiles with validation, setup, 
 
 ### Requirement: Configurable fixed model profiles
 
-The system SHALL support manual configuration for the fixed model profiles `mixed` and `opencode`, and each profile SHALL contain `low`, `medium`, and `high` routes with a model and thinking level.
+The system SHALL support manual configuration for the fixed model profiles `default` and `fallback`, and each profile SHALL contain `low`, `medium`, and `high` routes with a model and thinking level.
 
 #### Scenario: Complete profile configuration exists
 
@@ -139,7 +139,7 @@ The system SHALL publish the current model-profile state as a footer status inst
 #### Scenario: Active profile status is shown
 
 - **WHEN** valid profile configuration is loaded and the active profile low route is applied successfully
-- **THEN** the system publishes `profile <name>` as the `model-profile` footer status
+- **THEN** the system publishes `<name> profile` as the `model-profile` footer status
 - **AND** the status uses dim styling
 
 #### Scenario: Setup status is shown
