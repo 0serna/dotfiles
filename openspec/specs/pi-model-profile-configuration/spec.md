@@ -8,12 +8,12 @@ Define the configuration model for fixed model profiles with validation, setup, 
 
 ### Requirement: Configurable fixed model profiles
 
-The system SHALL support manual configuration for the fixed model profiles `mixed` and `opencode`, and each profile SHALL contain `default`, `light`, and `heavy` routes with a model and thinking level.
+The system SHALL support manual configuration for the fixed model profiles `mixed` and `opencode`, and each profile SHALL contain `low`, `medium`, and `high` routes with a model and thinking level.
 
 #### Scenario: Complete profile configuration exists
 
 - **WHEN** persisted profile configuration contains both fixed profiles
-- **AND** each fixed profile contains `default`, `light`, and `heavy` routes
+- **AND** each fixed profile contains `low`, `medium`, and `high` routes
 - **AND** each route contains a valid model and thinking level
 - **THEN** the system treats the profile configuration as complete
 
@@ -93,7 +93,7 @@ The `/model-profile` interface SHALL allow the user to activate or edit profiles
 
 - **WHEN** the user selects a profile in `/model-profile` and confirms activation
 - **THEN** the system records that profile as active
-- **AND** attempts to activate that profile's default route immediately
+- **AND** attempts to activate that profile's low route immediately
 
 #### Scenario: User edits selected profile
 
@@ -108,7 +108,7 @@ The system SHALL persist edited profile configuration only when the resulting fu
 
 - **WHEN** the user saves valid changes to the active profile
 - **THEN** the system persists the configuration
-- **AND** refreshes the active profile by activating its configured default route
+- **AND** refreshes the active profile by activating its configured low route
 
 #### Scenario: Inactive profile is edited and saved
 
@@ -138,7 +138,7 @@ The system SHALL publish the current model-profile state as a footer status inst
 
 #### Scenario: Active profile status is shown
 
-- **WHEN** valid profile configuration is loaded and the active profile default route is applied successfully
+- **WHEN** valid profile configuration is loaded and the active profile low route is applied successfully
 - **THEN** the system publishes `profile <name>` as the `model-profile` footer status
 - **AND** the status uses dim styling
 
@@ -156,7 +156,7 @@ The system SHALL publish the current model-profile state as a footer status inst
 
 #### Scenario: Failed status is shown
 
-- **WHEN** valid profile configuration is available but the active profile default route cannot be activated
+- **WHEN** valid profile configuration is available but the active profile low route cannot be activated
 - **THEN** the system publishes `profile failed` as the `model-profile` footer status
 - **AND** the status uses warning styling
 

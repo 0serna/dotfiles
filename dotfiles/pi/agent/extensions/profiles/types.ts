@@ -15,11 +15,11 @@ export type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
-/** A profile with three fixed routes */
+/** A profile with three fixed capacity routes */
 export type Profile = {
-  default: ModelRoute;
-  light: ModelRoute;
-  heavy: ModelRoute;
+  low: ModelRoute;
+  medium: ModelRoute;
+  high: ModelRoute;
 };
 
 /** Snapshot of current state before a routed command */
@@ -40,7 +40,7 @@ export const FIXED_PROFILE_NAMES = ["mixed", "opencode"] as const;
 export type ProfileName = (typeof FIXED_PROFILE_NAMES)[number];
 
 /** Known fixed route names within each profile */
-export const FIXED_ROUTE_NAMES = ["default", "light", "heavy"] as const;
+export const FIXED_ROUTE_NAMES = ["low", "medium", "high"] as const;
 
 export type FixedRouteName = (typeof FIXED_ROUTE_NAMES)[number];
 

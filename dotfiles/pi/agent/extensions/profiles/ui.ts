@@ -196,12 +196,12 @@ export async function editProfileRoutes(
     FixedRouteName,
     { model: string; thinkingLevel: ThinkingLevel }
   > = {
-    default: profileConfig?.default ?? { model: "", thinkingLevel: "medium" },
-    light: profileConfig?.light ?? { model: "", thinkingLevel: "medium" },
-    heavy: profileConfig?.heavy ?? { model: "", thinkingLevel: "medium" },
+    low: profileConfig?.low ?? { model: "", thinkingLevel: "medium" },
+    medium: profileConfig?.medium ?? { model: "", thinkingLevel: "medium" },
+    high: profileConfig?.high ?? { model: "", thinkingLevel: "medium" },
   };
 
-  let routeBeingEdited: FixedRouteName = "default";
+  let routeBeingEdited: FixedRouteName = "low";
 
   async function pickModel(): Promise<string | null> {
     const selected = await ctx.ui.select(
@@ -301,9 +301,9 @@ export async function editProfileRoutes(
         profiles: {
           ...(currentConfig?.profiles ?? {}),
           [profileName]: {
-            default: routes.default,
-            light: routes.light,
-            heavy: routes.heavy,
+            low: routes.low,
+            medium: routes.medium,
+            high: routes.high,
           },
         },
       };

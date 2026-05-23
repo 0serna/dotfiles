@@ -102,10 +102,10 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
 
   async function tryActivateDefault(ctx: ExtensionContext): Promise<boolean> {
     if (!configEnabled() || !activeProfile) return false;
-    const activated = await activateRoute(pi, activeProfile.default, ctx);
+    const activated = await activateRoute(pi, activeProfile.low, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not activate model '${activeProfile.default.model}' for profile '${activeProfileName}'; continuing with current model.`,
+        `Could not activate model '${activeProfile.low.model}' for profile '${activeProfileName}'; continuing with current model.`,
         "warning",
       );
     }

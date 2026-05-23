@@ -13,7 +13,7 @@ The system SHALL disable automatic model-profile routing behavior when persisted
 #### Scenario: Session starts without valid profile configuration
 
 - **WHEN** Pi emits `session_start` and no valid profile configuration is available
-- **THEN** the system does not attempt to activate a profile default model or thinking level
+- **THEN** the system does not attempt to activate a profile low model or thinking level
 
 #### Scenario: Slash command is submitted without valid profile configuration
 
@@ -24,45 +24,45 @@ The system SHALL disable automatic model-profile routing behavior when persisted
 #### Scenario: Routed command restore is considered without valid profile configuration
 
 - **WHEN** profile configuration is not valid
-- **THEN** the system does not attempt to restore a profile default model or thinking level after agent execution
+- **THEN** the system does not attempt to restore a profile low model or thinking level after agent execution
 
 ### Requirement: Default session model routing
 
-The system SHALL attempt to activate the active model profile's default model and thinking level when a Pi session starts for startup, new, resume, fork, or reload reasons only when valid profile configuration is available.
+The system SHALL attempt to activate the active model profile's low model and thinking level when a Pi session starts for startup, new, resume, fork, or reload reasons only when valid profile configuration is available.
 
 #### Scenario: Startup session begins
 
 - **WHEN** Pi emits `session_start` with reason `startup`
 - **AND** valid profile configuration is available
-- **THEN** the system attempts to activate the active model profile's default model and thinking level
+- **THEN** the system attempts to activate the active model profile's low model and thinking level
 
 #### Scenario: New session begins
 
 - **WHEN** Pi emits `session_start` with reason `new`
 - **AND** valid profile configuration is available
-- **THEN** the system attempts to activate the active model profile's default model and thinking level
+- **THEN** the system attempts to activate the active model profile's low model and thinking level
 
 #### Scenario: Existing session resumes
 
 - **WHEN** Pi emits `session_start` with reason `resume`
 - **AND** valid profile configuration is available
-- **THEN** the system attempts to activate the active model profile's default model and thinking level
+- **THEN** the system attempts to activate the active model profile's low model and thinking level
 
 #### Scenario: Forked session begins
 
 - **WHEN** Pi emits `session_start` with reason `fork`
 - **AND** valid profile configuration is available
-- **THEN** the system attempts to activate the active model profile's default model and thinking level
+- **THEN** the system attempts to activate the active model profile's low model and thinking level
 
 #### Scenario: Extension runtime reloads
 
 - **WHEN** Pi emits `session_start` with reason `reload`
 - **AND** valid profile configuration is available
-- **THEN** the system attempts to activate the active model profile's default model and thinking level
+- **THEN** the system attempts to activate the active model profile's low model and thinking level
 
 ### Requirement: Temporary model and thinking routing
 
-For a routed slash command, the system SHALL attempt to activate the command's route from the active model profile and apply that route's thinking level only when valid profile configuration is available and the configured model activates successfully. For compaction events, the system SHALL activate the `light` route under the same conditions, unless a command-based route is already in progress.
+For a routed slash command, the system SHALL attempt to activate the command's route from the active model profile and apply that route's thinking level only when valid profile configuration is available and the configured model activates successfully. For compaction events, the system SHALL activate the `low` route under the same conditions, unless a command-based route is already in progress.
 
 #### Scenario: Routed model activates successfully
 
@@ -83,8 +83,8 @@ For a routed slash command, the system SHALL attempt to activate the command's r
 - **WHEN** compaction triggers (manual or auto)
 - **AND** valid profile configuration is available
 - **AND** no command-based route snapshot is active
-- **AND** the active profile's light model can be activated
-- **THEN** the system uses the light model and thinking level for compaction summarization
+- **AND** the active profile's low model can be activated
+- **THEN** the system uses the low model and thinking level for compaction summarization
 
 #### Scenario: Compaction triggers with active command route
 
@@ -95,33 +95,33 @@ For a routed slash command, the system SHALL attempt to activate the command's r
 
 ### Requirement: State restoration after temporary route
 
-After a temporarily routed slash command finishes, the system SHALL activate the active model profile's default model and thinking level only when valid profile configuration remains available.
+After a temporarily routed slash command finishes, the system SHALL activate the active model profile's low model and thinking level only when valid profile configuration remains available.
 
 #### Scenario: Routed slash command completes
 
 - **WHEN** a routed slash command reaches the end of its agent execution
 - **AND** valid profile configuration is available
-- **THEN** the system activates the active model profile's default model and thinking level
+- **THEN** the system activates the active model profile's low model and thinking level
 
 #### Scenario: User state changes during routed slash command
 
 - **WHEN** the active model or thinking level changes while a routed slash command is executing
 - **AND** valid profile configuration is available when the routed slash command reaches the end of its agent execution
-- **THEN** the system still activates the active model profile's default model and thinking level
+- **THEN** the system still activates the active model profile's low model and thinking level
 
 ### Requirement: Named model profiles
 
-The system SHALL support fixed named model profiles where each configured profile defines a default route, a light route, and a heavy route.
+The system SHALL support fixed named model profiles where each configured profile defines a low route, a medium route, and a high route.
 
-#### Scenario: Active profile supplies default route
+#### Scenario: Active profile supplies base route
 
-- **WHEN** the system needs the default route
+- **WHEN** the system needs the base route
 - **AND** valid profile configuration is available
-- **THEN** the system uses the configured default route from the active model profile
+- **THEN** the system uses the configured low route from the active model profile
 
 #### Scenario: Active profile supplies temporary route
 
-- **WHEN** a routed slash command maps to a light or heavy route
+- **WHEN** a routed slash command maps to a medium or high route
 - **AND** valid profile configuration is available
 - **THEN** the system uses that configured route from the active model profile
 
@@ -133,11 +133,11 @@ The system SHALL provide a `/model-profile` command that lets the user select th
 
 - **WHEN** the user invokes `/model-profile` with valid profile configuration available and selects a profile for activation
 - **THEN** the system records the selected profile as active
-- **AND** the system attempts to activate the selected profile's default model and thinking level immediately
+- **AND** the system attempts to activate the selected profile's low model and thinking level immediately
 
-#### Scenario: Selected profile default cannot be activated
+#### Scenario: Selected profile low cannot be activated
 
-- **WHEN** the user selects a profile whose default model cannot be activated
+- **WHEN** the user selects a profile whose low model cannot be activated
 - **THEN** the system still records the selected profile as active
 - **AND** the system leaves the current model and thinking level unchanged
 - **AND** the system shows a warning notification in the Pi UI

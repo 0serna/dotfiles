@@ -58,10 +58,10 @@ export default function (pi: ExtensionAPI) {
     const activeProfile = runtime.getActiveProfile();
     if (!activeProfile) return;
 
-    const activated = await activateRoute(pi, activeProfile.default, ctx);
+    const activated = await activateRoute(pi, activeProfile.low, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not restore default model '${activeProfile.default.model}' for profile '${runtime.getActiveProfileName()}'.`,
+        `Could not restore default model '${activeProfile.low.model}' for profile '${runtime.getActiveProfileName()}'.`,
         "warning",
       );
     }

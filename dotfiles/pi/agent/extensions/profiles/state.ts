@@ -154,9 +154,9 @@ function tryRecoverConfig(raw: unknown): PersistedConfig | null {
 
     const p = profile as Record<string, unknown>;
     const recoveredRoute: PersistedConfig["profiles"][string] = {
-      default: { model: "", thinkingLevel: "medium" },
-      light: { model: "", thinkingLevel: "medium" },
-      heavy: { model: "", thinkingLevel: "medium" },
+      low: { model: "", thinkingLevel: "medium" },
+      medium: { model: "", thinkingLevel: "medium" },
+      high: { model: "", thinkingLevel: "medium" },
     };
 
     for (const routeName of FIXED_ROUTE_NAMES) {

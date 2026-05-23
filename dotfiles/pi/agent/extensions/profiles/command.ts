@@ -51,11 +51,11 @@ export async function runProfilesCommand(
 
       const activeProfile = runtime.getActiveProfile();
       if (activeProfile) {
-        const activated = await activateRoute(pi, activeProfile.default, ctx);
+        const activated = await activateRoute(pi, activeProfile.low, ctx);
         if (!activated) {
           runtime.publishFailedStatus(ctx);
           ctx.ui.notify(
-            `Could not activate model '${activeProfile.default.model}' for profile '${profileName}'; profile remains selected.`,
+            `Could not activate model '${activeProfile.low.model}' for profile '${profileName}'; profile remains selected.`,
             "warning",
           );
           break;
