@@ -16,8 +16,6 @@ import type {
 } from "./types.ts";
 import { FIXED_PROFILE_NAMES, FIXED_ROUTE_NAMES } from "./types.ts";
 
-type ProfileListMode = ConfigValidationResult["status"];
-
 export type ProfileListResult =
   | { action: "activate"; profileName: ProfileName }
   | { action: "edit"; profileName: ProfileName }
@@ -36,17 +34,40 @@ function renderWrapped(
   lines.push(...wrapTextWithAnsi(theme.fg("text", text), width));
 }
 
-function renderStatus(mode: ProfileListMode, theme: Theme): string {
-  if (mode === "valid") return theme.fg("success", "ready");
-  if (mode === "missing") return theme.fg("warning", "setup required");
-  return theme.fg("warning", "repair required");
+function statusMessage(
+  configStatus: ConfigValidationResult["status"],
+  activeProfileName: ProfileName | null,
+  theme: Theme,
+): string {
+  if (configStatus === "valid") {
+    const activeText = activeProfileName
+      ? ` Active: ${activeProfileName}.`
+      : "";
+    return theme.fg(
+      "success",
+      `Configuration ready.${activeText} Select a profile to edit, or press Space to activate.`,
+    );
+  }
+
+  if (configStatus === "missing") {
+    return theme.fg(
+      "warning",
+      "No profiles configured yet. Select a profile to start setup.",
+    );
+  }
+
+  return theme.fg(
+    "warning",
+    "Configuration needs repair. Select a profile to fix missing values.",
+  );
 }
 
 function renderProfileFrame(
   width: number,
   items: string[],
   selected: number,
-  mode: ProfileListMode,
+  configStatus: ConfigValidationResult["status"],
+  activeProfileName: ProfileName | null,
   theme: Theme,
 ): string[] {
   const lines: string[] = [];
@@ -55,7 +76,7 @@ function renderProfileFrame(
   renderWrapped(
     lines,
     width,
-    `Status: ${renderStatus(mode, theme)}. Select a profile to activate or edit.`,
+    statusMessage(configStatus, activeProfileName, theme),
     theme,
   );
   lines.push("");
@@ -67,17 +88,11 @@ function renderProfileFrame(
   }
 
   lines.push("");
-  lines.push(
-    truncateToWidth(
-      mode === "valid"
-        ? theme.fg(
-            "dim",
-            "↑↓ navigate • Enter activate • Space edit • Esc cancel",
-          )
-        : theme.fg("dim", "↑↓ navigate • Enter/Space edit • Esc cancel"),
-      width,
-    ),
-  );
+  const hints =
+    configStatus === "valid"
+      ? "↑↓ navigate • Enter edit • Space activate • Esc close"
+      : "↑↓ navigate • Enter edit • Esc close";
+  lines.push(truncateToWidth(theme.fg("dim", hints), width));
   lines.push(renderBorder(width, theme));
   return lines;
 }
@@ -91,11 +106,11 @@ function renderRouteFrame(
 ): string[] {
   const lines: string[] = [];
   lines.push(renderBorder(width, theme));
-  lines.push(theme.fg("accent", theme.bold(`Edit profile: ${profileName}`)));
+  lines.push(theme.fg("accent", theme.bold(`Configuring: ${profileName}`)));
   renderWrapped(
     lines,
     width,
-    "Choose a route to edit its model and thinking level. Esc saves only when all routes are complete.",
+    "Edit each route's model and thinking level. Esc saves and returns when all routes are complete.",
     theme,
   );
   lines.push("");
@@ -114,10 +129,7 @@ function renderRouteFrame(
   lines.push("");
   lines.push(
     truncateToWidth(
-      theme.fg(
-        "dim",
-        "↑↓ navigate • Enter edit selected route • Esc save & return",
-      ),
+      theme.fg("dim", "↑↓ navigate • Enter edit route • Esc save & return"),
       width,
     ),
   );
@@ -130,15 +142,11 @@ export async function showProfileList(
   options: {
     activeProfileName: ProfileName | null;
     configStatus: ConfigValidationResult["status"];
-    configEnabled: boolean;
   },
 ): Promise<ProfileListResult> {
-  const items = FIXED_PROFILE_NAMES.map((name) => {
-    let label = name === options.activeProfileName ? `${name} (active)` : name;
-    if (options.configStatus === "missing") label += "  [setup]";
-    else if (options.configStatus === "invalid") label += "  [repair]";
-    return label;
-  });
+  const items = FIXED_PROFILE_NAMES.map((name) =>
+    name === options.activeProfileName ? `${name} (active)` : name,
+  );
 
   return ctx.ui.custom<ProfileListResult>((tui, theme, _kb, done) => {
     let selected = 0;
@@ -156,11 +164,14 @@ export async function showProfileList(
           items,
           selected,
           options.configStatus,
+          options.activeProfileName,
           theme,
         );
         return cachedLines;
       },
       handleInput(data: string) {
+        const selectedProfileName = FIXED_PROFILE_NAMES[selected]!;
+
         if (matchesKey(data, Key.up) && selected > 0) {
           selected--;
           refresh();
@@ -168,14 +179,18 @@ export async function showProfileList(
           selected++;
           refresh();
         } else if (matchesKey(data, Key.enter)) {
-          done({
-            action: options.configEnabled ? "activate" : "edit",
-            profileName: FIXED_PROFILE_NAMES[selected]!,
-          });
-        } else if (matchesKey(data, Key.space)) {
-          done({ action: "edit", profileName: FIXED_PROFILE_NAMES[selected]! });
+          done({ action: "edit", profileName: selectedProfileName });
         } else if (matchesKey(data, Key.escape)) {
           done(null);
+        } else if (matchesKey(data, Key.space)) {
+          if (options.configStatus === "valid") {
+            done({ action: "activate", profileName: selectedProfileName });
+          } else {
+            ctx.ui.notify(
+              "Cannot activate: configuration is incomplete.",
+              "warning",
+            );
+          }
         }
       },
       invalidate() {
@@ -205,7 +220,7 @@ export async function editProfileRoutes(
 
   async function pickModel(): Promise<string | null> {
     const selected = await ctx.ui.select(
-      `Select model for ${profileName}/${routeBeingEdited}:`,
+      `Model for ${profileName}/${routeBeingEdited}:`,
       models,
     );
     return selected ?? null;
@@ -228,7 +243,7 @@ export async function editProfileRoutes(
       return null;
     }
     const selected = await ctx.ui.select(
-      `Select thinking level for ${profileName}/${routeBeingEdited}:`,
+      `Thinking for ${profileName}/${routeBeingEdited}:`,
       levels,
     );
     return (selected as ThinkingLevel) ?? null;
@@ -290,7 +305,7 @@ export async function editProfileRoutes(
       const incomplete = FIXED_ROUTE_NAMES.filter((r) => !routes[r].model);
       if (incomplete.length > 0) {
         ctx.ui.notify(
-          `Cannot save: routes [${incomplete.join(", ")}] have no model selected.`,
+          `Set a model for ${incomplete.join(", ")} before saving.`,
           "warning",
         );
         continue;

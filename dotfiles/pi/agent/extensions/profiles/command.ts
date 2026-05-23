@@ -32,7 +32,6 @@ export async function runProfilesCommand(
     const profileResult = await showProfileList(ctx, {
       activeProfileName: runtime.getActiveProfileName(),
       configStatus: runtime.getConfigResult().status,
-      configEnabled: runtime.configEnabled(),
     });
     if (!profileResult) break;
 
@@ -61,6 +60,7 @@ export async function runProfilesCommand(
           break;
         }
         runtime.publishStatus(ctx);
+        ctx.ui.notify(`Activated profile '${profileName}'.`, "info");
       }
       break;
     }
