@@ -92,7 +92,7 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
 
     ctx.ui.setStatus(
       "profiles",
-      ctx.ui.theme.fg("dim", `${activeProfileName} profile`),
+      ctx.ui.theme.fg("dim", activeProfileName ?? "unknown"),
     );
   }
 
