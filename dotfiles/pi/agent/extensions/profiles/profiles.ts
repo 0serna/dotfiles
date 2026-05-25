@@ -5,9 +5,9 @@ import type { FixedRouteName } from "./types.ts";
  * Route types (low, medium, high) are fixed names, not defined here.
  */
 export const ROUTE_TYPES = {
-  "/analyze": "high",
-  "/skill:openspec-propose": "high",
+  "/grill-me": "medium",
   "/simplify": "medium",
+  "/skill:openspec-propose": "high",
   "/review": "high",
 } as const satisfies Record<string, FixedRouteName>;
 
