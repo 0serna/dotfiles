@@ -1,6 +1,7 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { callExaContents } from "./exa.ts";
+import { tryGitHubFetch } from "./github.ts";
 import { extractViaHttp } from "./http.ts";
 import { logWebToolEvent } from "./logger.ts";
 import type { TextToolResult } from "./types.ts";
@@ -17,16 +18,27 @@ function isValidHttpUrl(s: string): boolean {
 async function tryFetchContent(url: string): Promise<{
   content: string;
   fallback: boolean;
+  source?: string;
 }> {
+  const gitHubResult = await tryGitHubFetch(url);
+  if (gitHubResult) {
+    return {
+      content: gitHubResult.content,
+      fallback: false,
+      source: gitHubResult.source,
+    };
+  }
+
   const exaContent = await callExaContents(url).catch(() => null);
-  if (exaContent) return { content: exaContent, fallback: false };
+  if (exaContent)
+    return { content: exaContent, fallback: false, source: "exa" };
   logWebToolEvent("web_fetch_fallback", { url });
   const httpContent = await extractViaHttp(url);
   logWebToolEvent("web_fetch_http_success", {
     url,
     bytes: httpContent.length,
   });
-  return { content: httpContent, fallback: true };
+  return { content: httpContent, fallback: true, source: "http-fallback" };
 }
 
 export async function executeWebFetch(
@@ -50,7 +62,11 @@ export async function executeWebFetch(
     const result = await tryFetchContent(url);
     return {
       content: [{ type: "text" as const, text: result.content }],
-      details: { bytes: result.content.length, fallback: result.fallback },
+      details: {
+        bytes: result.content.length,
+        fallback: result.fallback,
+        source: result.source,
+      },
     };
   } catch (err: unknown) {
     const fetchError =
