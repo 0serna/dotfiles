@@ -1,10 +1,4 @@
-# rtk-command-optimization Specification
-
-## Purpose
-
-TBD - created by archiving change rtk-extension-alignment. Update Purpose after archive.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Extension gates on rtk availability
 
@@ -91,6 +85,8 @@ The extension SHALL call `rtk rewrite` via Pi's async `pi.exec` API with a 2000m
 - **WHEN** `pi.exec` does not complete within 2000ms
 - **THEN** the extension SHALL return without mutating the command
 
+## MODIFIED Requirements
+
 ### Requirement: Bash commands are rewritten via rtk
 
 The extension SHALL intercept agent-initiated bash tool calls and attempt to rewrite them via `rtk rewrite`. If rewriting succeeds, the rewritten command SHALL be used instead. If rewriting fails (no rewrite available, `rtk` unavailable, or timeout), the original command SHALL execute unchanged.
@@ -128,3 +124,11 @@ For agent bash tool calls, the extension SHALL subscribe to the `tool_call` even
 
 - **WHEN** the agent calls any tool other than bash
 - **THEN** the `tool_call` handler SHALL return without side effects
+
+## REMOVED Requirements
+
+### Requirement: User `!` commands are rewritten
+
+**Reason**: Aligning with upstream RTK Pi extension which deliberately scopes to agent-initiated `bash` tool calls only. User `!` commands are a separate execution path that requires claiming the `user_bash` event (first-handler-wins), which would make the extension responsible for all shell execution.
+
+**Migration**: Users who want `!` command optimization can install a separate extension (e.g., `pi-rtk` package). This extension now only handles agent `tool_call` events.
