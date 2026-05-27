@@ -1,6 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { runProfilesCommand } from "./command.ts";
-import { COMPACT_ROUTE, ROUTE_TYPES } from "./profiles.ts";
+import { COMPACT_ROUTE, DEFAULT_ROUTE, ROUTE_TYPES } from "./profiles.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import { createProfilesRuntime } from "./runtime.ts";
 import type { RouteSnapshot } from "./types.ts";
@@ -58,10 +58,11 @@ export default function (pi: ExtensionAPI) {
     const activeProfile = runtime.getActiveProfile();
     if (!activeProfile) return;
 
-    const activated = await activateRoute(pi, activeProfile.low, ctx);
+    const defaultRoute = activeProfile[DEFAULT_ROUTE];
+    const activated = await activateRoute(pi, defaultRoute, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not restore default model '${activeProfile.low.model}' for profile '${runtime.getActiveProfileName()}'.`,
+        `Could not restore default model '${defaultRoute.model}' for profile '${runtime.getActiveProfileName()}'.`,
         "warning",
       );
     }

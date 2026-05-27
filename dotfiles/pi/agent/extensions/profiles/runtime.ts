@@ -2,6 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import { DEFAULT_ROUTE } from "./profiles.ts";
 import {
   activateRoute,
   getActiveProfile,
@@ -102,10 +103,11 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
 
   async function tryActivateDefault(ctx: ExtensionContext): Promise<boolean> {
     if (!configEnabled() || !activeProfile) return false;
-    const activated = await activateRoute(pi, activeProfile.low, ctx);
+    const route = activeProfile[DEFAULT_ROUTE];
+    const activated = await activateRoute(pi, route, ctx);
     if (!activated) {
       ctx.ui.notify(
-        `Could not activate model '${activeProfile.low.model}' for profile '${activeProfileName}'; continuing with current model.`,
+        `Could not activate model '${route.model}' for profile '${activeProfileName}'; continuing with current model.`,
         "warning",
       );
     }
