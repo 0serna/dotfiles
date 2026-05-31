@@ -1,12 +1,10 @@
 {
-  "lastChangelogVersion": "0.74.1",
+  "defaultModel": "mimo-v2.5-pro",
   "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-flash",
   "defaultThinkingLevel": "high",
-  "enabledModels": ["opencode-go/deepseek-v4-flash", "openai-codex/gpt-5.5"],
+  "enableSkillCommands": true,
   "hideThinkingBlock": true,
-  "doubleEscapeAction": "tree",
-  "enableSkillCommands": false,
+  "lastChangelogVersion": "0.78.0",
   "quietStartup": true,
-  "packages": ["npm:@howaboua/pi-auto-reasoning-tool"]
+  "treeFilterMode": "no-tools"
 }
