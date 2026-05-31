@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
-  FIXED_PROFILE_NAMES,
   FIXED_ROUTE_NAMES,
   type ConfigValidationResult,
   type PersistedConfig,
@@ -44,46 +43,17 @@ function structuralErrors(raw: unknown): string[] {
 
   const data = raw as Record<string, unknown>;
 
-  // Validate activeProfile
-  if (typeof data.activeProfile !== "string") {
-    errors.push("Missing or invalid 'activeProfile' (expected string)");
-  }
-
-  // Validate profiles
-  if (typeof data.profiles !== "object" || data.profiles === null) {
-    errors.push("Missing or invalid 'profiles' (expected object)");
-    return errors;
-  }
-
-  const profiles = data.profiles as Record<string, unknown>;
-
-  // Check required fixed profile names
-  for (const name of FIXED_PROFILE_NAMES) {
-    if (!(name in profiles)) {
-      errors.push(`Missing required profile '${name}'`);
+  // Check required fixed route names at top level
+  for (const routeName of FIXED_ROUTE_NAMES) {
+    if (!(routeName in data)) {
+      errors.push(`Missing required route '${routeName}'`);
       continue;
     }
 
-    const profile = profiles[name];
-    if (typeof profile !== "object" || profile === null) {
-      errors.push(`Profile '${name}' must be an object`);
-      continue;
-    }
-
-    const p = profile as Record<string, unknown>;
-
-    // Check required fixed route names
-    for (const routeName of FIXED_ROUTE_NAMES) {
-      if (!(routeName in p)) {
-        errors.push(`Profile '${name}' missing route '${routeName}'`);
-        continue;
-      }
-
-      if (!isValidRoute(p[routeName])) {
-        errors.push(
-          `Profile '${name}', route '${routeName}': invalid or missing model/thinkingLevel`,
-        );
-      }
+    if (!isValidRoute(data[routeName])) {
+      errors.push(
+        `Route '${routeName}': invalid or missing model/thinkingLevel`,
+      );
     }
   }
 
@@ -91,7 +61,7 @@ function structuralErrors(raw: unknown): string[] {
 }
 
 /**
- * Load and structurally validate the persisted profile configuration.
+ * Load and structurally validate the persisted configuration.
  * This does NOT check model availability or thinking level support
  * (those require access to ctx.modelRegistry and getSupportedThinkingLevels).
  */
@@ -133,54 +103,32 @@ function tryRecoverConfig(raw: unknown): PersistedConfig | null {
   if (typeof raw !== "object" || raw === null) return null;
 
   const data = raw as Record<string, unknown>;
-  const activeProfile =
-    typeof data.activeProfile === "string"
-      ? data.activeProfile
-      : FIXED_PROFILE_NAMES[0];
 
-  const profiles: Record<string, unknown> =
-    typeof data.profiles === "object" && data.profiles !== null
-      ? (data.profiles as Record<string, unknown>)
-      : {};
+  const recovered: PersistedConfig = {
+    default: { model: "", thinkingLevel: "medium" },
+    high: { model: "", thinkingLevel: "medium" },
+  };
 
-  const recoveredProfiles: PersistedConfig["profiles"] = {};
+  let hasAnyRoute = false;
 
-  for (const name of FIXED_PROFILE_NAMES) {
-    const profile = profiles[name];
-    if (typeof profile !== "object" || profile === null) {
-      // Can't recover this profile
-      continue;
-    }
-
-    const p = profile as Record<string, unknown>;
-    const recoveredRoute: PersistedConfig["profiles"][string] = {
-      low: { model: "", thinkingLevel: "medium" },
-      medium: { model: "", thinkingLevel: "medium" },
-      high: { model: "", thinkingLevel: "medium" },
-    };
-
-    for (const routeName of FIXED_ROUTE_NAMES) {
-      const route = p[routeName];
-      if (typeof route === "object" && route !== null) {
-        const r = route as Record<string, unknown>;
-        if (typeof r.model === "string") {
-          recoveredRoute[routeName].model = r.model;
-        }
-        if (isValidThinkingLevel(r.thinkingLevel)) {
-          recoveredRoute[routeName].thinkingLevel = r.thinkingLevel;
-        }
+  for (const routeName of FIXED_ROUTE_NAMES) {
+    const route = data[routeName];
+    if (typeof route === "object" && route !== null) {
+      const r = route as Record<string, unknown>;
+      if (typeof r.model === "string") {
+        recovered[routeName].model = r.model;
+        hasAnyRoute = true;
+      }
+      if (isValidThinkingLevel(r.thinkingLevel)) {
+        recovered[routeName].thinkingLevel = r.thinkingLevel;
       }
     }
-
-    recoveredProfiles[name] = recoveredRoute;
   }
 
-  if (Object.keys(recoveredProfiles).length === 0) return null;
-
-  return { activeProfile, profiles: recoveredProfiles };
+  return hasAnyRoute ? recovered : null;
 }
 
-/** Persist the profile configuration to disk. */
+/** Persist the configuration to disk. */
 export async function saveConfig(config: PersistedConfig): Promise<void> {
   const filePath = stateFilePath();
   await mkdir(dirname(filePath), { recursive: true });

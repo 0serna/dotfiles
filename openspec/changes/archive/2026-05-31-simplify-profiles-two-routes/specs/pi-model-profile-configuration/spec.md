@@ -1,8 +1,4 @@
-## Purpose
-
-Define the configuration model for Pi model routes, including validation, persistence, and interactive editing.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Configurable fixed model routes
 
@@ -137,3 +133,23 @@ The system SHALL notify the user when configuration is missing or invalid withou
 - **WHEN** the user invokes `/profile` while configuration is missing or invalid
 - **THEN** the system shows setup or repair state in the TUI
 - **AND** does not show an additional warning notification for opening the command
+
+## REMOVED Requirements
+
+### Requirement: Profile manager keyboard actions
+
+**Reason**: Single profile model eliminates profile selection. Route editor is opened directly.
+
+**Migration**: Route editor navigation replaces profile list actions.
+
+### Requirement: Profile manager status display
+
+**Reason**: Single profile model eliminates profile list. Route editor is opened directly.
+
+**Migration**: Status display removed; route editor shows configuration state directly.
+
+### Requirement: Model profile footer status
+
+**Reason**: Status bar reporting removed to reduce complexity. Pi's model indicator provides current model info.
+
+**Migration**: No replacement needed; Pi's built-in model indicator suffices.

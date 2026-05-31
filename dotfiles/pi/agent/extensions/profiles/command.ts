@@ -3,23 +3,17 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { getModelLabels } from "./model-ids.ts";
-import {
-  activateRoute,
-  getActiveProfile,
-  validateConfigSemantics,
-} from "./routing.ts";
+import { activateRoute, validateConfigSemantics } from "./routing.ts";
 import type { ProfilesRuntime } from "./runtime.ts";
 import { saveConfig } from "./state.ts";
-import { editProfileRoutes, showProfileList } from "./ui.ts";
+import { editRoutes } from "./ui.ts";
 
-export async function runProfilesCommand(
+export async function runProfileCommand(
   pi: ExtensionAPI,
   ctx: ExtensionContext,
   runtime: ProfilesRuntime,
 ): Promise<void> {
   await runtime.refreshConfig(ctx);
-  runtime.publishStatus(ctx);
-  let draftConfig = runtime.getConfig();
 
   const availableModels = ctx.modelRegistry.getAvailable();
   if (availableModels.length === 0) {
@@ -28,70 +22,31 @@ export async function runProfilesCommand(
   }
   const modelLabels = getModelLabels(availableModels);
 
-  while (true) {
-    const profileResult = await showProfileList(ctx, {
-      activeProfileName: runtime.getActiveProfileName(),
-      configStatus: runtime.getConfigResult().status,
-    });
-    if (!profileResult) break;
+  const fullConfig = await editRoutes(
+    ctx,
+    runtime.getConfig(),
+    modelLabels,
+    runtime.getConfigResult().status,
+  );
+  if (fullConfig === null) return;
 
-    const { action, profileName } = profileResult;
+  const semanticErrors = await validateConfigSemantics(fullConfig, ctx);
+  if (semanticErrors.length > 0) {
+    ctx.ui.notify(`Cannot save: ${semanticErrors.join("; ")}`, "warning");
+    return;
+  }
 
-    if (action === "activate") {
-      const config = runtime.getConfig();
-      const resolved = getActiveProfile(config);
-      if (!resolved || resolved.name !== profileName) {
-        if (config) {
-          config.activeProfile = profileName;
-          await saveConfig(config);
-          await runtime.refreshConfig(ctx);
-        }
-      }
+  await saveConfig(fullConfig);
+  await runtime.refreshConfig(ctx);
 
-      const activeProfile = runtime.getActiveProfile();
-      if (activeProfile) {
-        const activated = await activateRoute(pi, activeProfile.low, ctx);
-        if (!activated) {
-          runtime.publishFailedStatus(ctx);
-          ctx.ui.notify(
-            `Could not activate model '${activeProfile.low.model}' for profile '${profileName}'; profile remains selected.`,
-            "warning",
-          );
-          break;
-        }
-        runtime.publishStatus(ctx);
-        ctx.ui.notify(`Activated profile '${profileName}'.`, "info");
-      }
-      break;
-    }
-
-    const fullConfig = await editProfileRoutes(
-      ctx,
-      profileName,
-      draftConfig,
-      modelLabels,
-    );
-    if (fullConfig === null) continue;
-
-    draftConfig = fullConfig;
-
-    const semanticErrors = await validateConfigSemantics(fullConfig, ctx);
-    if (semanticErrors.length > 0) {
-      ctx.ui.notify(`Cannot save: ${semanticErrors.join("; ")}`, "warning");
-      continue;
-    }
-
-    await saveConfig(fullConfig);
-    await runtime.refreshConfig(ctx);
-    draftConfig = runtime.getConfig();
-    runtime.publishStatus(ctx);
-
-    if (
-      profileName === runtime.getActiveProfileName() &&
-      runtime.getActiveProfile() &&
-      !(await runtime.tryActivateDefault(ctx))
-    ) {
-      runtime.publishFailedStatus(ctx);
+  const config = runtime.getConfig();
+  if (config) {
+    const activated = await activateRoute(pi, config.default, ctx);
+    if (!activated) {
+      ctx.ui.notify(
+        `Could not activate model '${config.default.model}' for default route.`,
+        "warning",
+      );
     }
   }
 }

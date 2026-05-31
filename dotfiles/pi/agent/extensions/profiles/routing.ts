@@ -4,15 +4,13 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import { parseModelId } from "./model-ids.ts";
-import { ROUTE_TYPES, type RouteName } from "./profiles.ts";
+import { ROUTE_TYPES, type RouteName } from "./routes.ts";
 import type {
   ConfigValidationResult,
   ModelRoute,
   PersistedConfig,
-  Profile,
-  ProfileName,
 } from "./types.ts";
-import { FIXED_PROFILE_NAMES, FIXED_ROUTE_NAMES } from "./types.ts";
+import { FIXED_ROUTE_NAMES } from "./types.ts";
 
 export async function activateRoute(
   pi: ExtensionAPI,
@@ -35,35 +33,11 @@ export function getRouteName(input: string): RouteName | undefined {
 }
 
 /**
- * Get the active Profile and its name from a valid config.
- * Returns undefined if the config is null or the active profile doesn't exist.
- */
-export function getActiveProfile(
-  config: PersistedConfig | null,
-): { profile: Profile; name: ProfileName } | undefined {
-  if (!config) return undefined;
-
-  const profile = config.profiles[config.activeProfile];
-  if (!profile) return undefined;
-
-  // Verify it's one of the fixed profile names
-  if (
-    !(FIXED_PROFILE_NAMES as readonly string[]).includes(config.activeProfile)
-  ) {
-    return undefined;
-  }
-
-  return { profile, name: config.activeProfile as ProfileName };
-}
-
-/**
- * Check whether profile configuration is usable for routing.
- * A config is usable when status is "valid" and the active profile
- * resolves to a known profile name.
+ * Check whether configuration is usable for routing.
+ * A config is usable when status is "valid".
  */
 export function isConfigEnabled(result: ConfigValidationResult): boolean {
-  if (result.status !== "valid") return false;
-  return getActiveProfile(result.config) !== undefined;
+  return result.status === "valid";
 }
 
 /**
@@ -80,46 +54,36 @@ export async function validateConfigSemantics(
   const errors: string[] = [];
   const availableModels = ctx.modelRegistry.getAvailable();
 
-  for (const profileName of FIXED_PROFILE_NAMES) {
-    const profile = config.profiles[profileName];
-    if (!profile) {
-      errors.push(`Missing required profile '${profileName}'`);
+  for (const routeName of FIXED_ROUTE_NAMES) {
+    const route = config[routeName];
+    if (!route) {
+      errors.push(`Missing required route '${routeName}'`);
       continue;
     }
 
-    for (const routeName of FIXED_ROUTE_NAMES) {
-      const route = profile[routeName];
-      if (!route) {
-        errors.push(`Profile '${profileName}' missing route '${routeName}'`);
-        continue;
-      }
+    const [provider, modelId] = parseModelId(route.model);
+    const model = ctx.modelRegistry.find(provider, modelId);
+    if (!model) {
+      errors.push(`Route '${routeName}': model '${route.model}' not found`);
+      continue;
+    }
 
-      const [provider, modelId] = parseModelId(route.model);
-      const model = ctx.modelRegistry.find(provider, modelId);
-      if (!model) {
-        errors.push(
-          `Profile '${profileName}', route '${routeName}': model '${route.model}' not found`,
-        );
-        continue;
-      }
+    if (
+      !availableModels.some(
+        (m) => m.id === model.id && m.provider === model.provider,
+      )
+    ) {
+      errors.push(
+        `Route '${routeName}': model '${route.model}' has no configured API key`,
+      );
+    }
 
-      if (
-        !availableModels.some(
-          (m) => m.id === model.id && m.provider === model.provider,
-        )
-      ) {
-        errors.push(
-          `Profile '${profileName}', route '${routeName}': model '${route.model}' has no configured API key`,
-        );
-      }
-
-      const supportedLevels = getSupportedThinkingLevels(model);
-      if (!supportedLevels.includes(route.thinkingLevel)) {
-        errors.push(
-          `Profile '${profileName}', route '${routeName}': thinking level '${route.thinkingLevel}' ` +
-            `not supported by model '${route.model}' (supported: ${supportedLevels.join(", ")})`,
-        );
-      }
+    const supportedLevels = getSupportedThinkingLevels(model);
+    if (!supportedLevels.includes(route.thinkingLevel)) {
+      errors.push(
+        `Route '${routeName}': thinking level '${route.thinkingLevel}' ` +
+          `not supported by model '${route.model}' (supported: ${supportedLevels.join(", ")})`,
+      );
     }
   }
 

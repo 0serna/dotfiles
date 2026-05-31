@@ -15,36 +15,24 @@ export type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
-/** A profile with three fixed capacity routes */
-export type Profile = {
-  low: ModelRoute;
-  medium: ModelRoute;
-  high: ModelRoute;
-};
-
 /** Snapshot of current state before a routed command */
 export type RouteSnapshot = {
   model: Model<Api> | undefined;
   thinkingLevel: ThinkingLevel;
 };
 
-/** Full persisted profile configuration */
+/** Full persisted configuration — flat structure with default and high routes */
 export type PersistedConfig = {
-  activeProfile: string;
-  profiles: Record<string, Profile>;
+  default: ModelRoute;
+  high: ModelRoute;
 };
 
-/** Known fixed profile names */
-export const FIXED_PROFILE_NAMES = ["default", "fallback"] as const;
-
-export type ProfileName = (typeof FIXED_PROFILE_NAMES)[number];
-
-/** Known fixed route names within each profile */
-export const FIXED_ROUTE_NAMES = ["low", "medium", "high"] as const;
+/** Known fixed route names */
+export const FIXED_ROUTE_NAMES = ["default", "high"] as const;
 
 export type FixedRouteName = (typeof FIXED_ROUTE_NAMES)[number];
 
-/** Result of loading and structurally validating profile configuration */
+/** Result of loading and structurally validating configuration */
 export type ConfigValidationResult =
   | { status: "valid"; config: PersistedConfig }
   | { status: "invalid"; config: PersistedConfig | null; errors: string[] }

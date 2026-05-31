@@ -1,8 +1,4 @@
-## Purpose
-
-Define routing behavior for activating model routes during sessions and slash commands.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Disabled routing without valid configuration
 
@@ -143,3 +139,29 @@ The system SHALL persist the configuration to disk so it survives Pi restarts an
 
 - **WHEN** the extension starts and no valid persisted configuration exists
 - **THEN** routing behavior remains disabled until the user saves valid configuration
+
+## REMOVED Requirements
+
+### Requirement: Compaction triggers low-model routing
+
+**Reason**: Compaction no longer triggers model switching. Compaction uses whatever model is active.
+
+**Migration**: No replacement needed; compaction proceeds with current model.
+
+### Requirement: Restore pre-compaction model after compaction
+
+**Reason**: No compaction-specific routing means no snapshot to restore.
+
+**Migration**: No replacement needed.
+
+### Requirement: Model profile status in footer
+
+**Reason**: Status bar reporting removed to reduce complexity.
+
+**Migration**: No replacement needed; Pi's built-in model indicator suffices.
+
+### Requirement: Interactive model profile selection
+
+**Reason**: Single profile model eliminates profile selection. Route editor is opened directly.
+
+**Migration**: Route configuration via `/profile` replaces profile selection.
