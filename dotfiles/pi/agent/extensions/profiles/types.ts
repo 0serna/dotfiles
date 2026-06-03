@@ -21,14 +21,14 @@ export type RouteSnapshot = {
   thinkingLevel: ThinkingLevel;
 };
 
-/** Full persisted configuration — flat structure with default and high routes */
+/** Full persisted configuration — flat structure with default and light routes */
 export type PersistedConfig = {
   default: ModelRoute;
-  high: ModelRoute;
+  light: ModelRoute;
 };
 
 /** Known fixed route names */
-export const FIXED_ROUTE_NAMES = ["default", "high"] as const;
+export const FIXED_ROUTE_NAMES = ["default", "light"] as const;
 
 export type FixedRouteName = (typeof FIXED_ROUTE_NAMES)[number];
 

@@ -6,11 +6,11 @@ Define the configuration model for Pi model routes, including validation, persis
 
 ### Requirement: Configurable fixed model routes
 
-The system SHALL support manual configuration for a single profile containing `default` and `high` routes with a model and thinking level. The configuration SHALL be persisted as a flat JSON object with `default` and `high` keys.
+The system SHALL support manual configuration for a single profile containing `default` and `light` routes with a model and thinking level. The configuration SHALL be persisted as a flat JSON object with `default` and `light` keys.
 
 #### Scenario: Complete route configuration exists
 
-- **WHEN** persisted configuration contains `default` and `high` routes
+- **WHEN** persisted configuration contains `default` and `light` routes
 - **AND** each route contains a valid model and thinking level
 - **THEN** the system treats the configuration as complete
 

@@ -106,7 +106,7 @@ function tryRecoverConfig(raw: unknown): PersistedConfig | null {
 
   const recovered: PersistedConfig = {
     default: { model: "", thinkingLevel: "medium" },
-    high: { model: "", thinkingLevel: "medium" },
+    light: { model: "", thinkingLevel: "medium" },
   };
 
   let hasAnyRoute = false;

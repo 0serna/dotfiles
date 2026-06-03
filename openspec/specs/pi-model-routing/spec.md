@@ -94,7 +94,7 @@ After a temporarily routed slash command finishes, the system SHALL activate the
 
 ### Requirement: Named model routes
 
-The system SHALL support a configuration defining a `default` route and a `high` route.
+The system SHALL support a configuration defining a `default` route and a `light` route.
 
 #### Scenario: Configuration supplies default route
 
@@ -102,9 +102,9 @@ The system SHALL support a configuration defining a `default` route and a `high`
 - **AND** valid configuration is available
 - **THEN** the system uses the configured `default` route
 
-#### Scenario: Configuration supplies high route
+#### Scenario: Configuration supplies light route
 
-- **WHEN** a routed slash command maps to the `high` route
+- **WHEN** a routed slash command maps to the `light` route
 - **AND** valid configuration is available
 - **THEN** the system uses that configured route
 

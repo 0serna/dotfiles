@@ -92,12 +92,9 @@ export async function editRoutes(
   models: string[],
   configStatus: ConfigValidationResult["status"],
 ): Promise<PersistedConfig | null> {
-  const routes: Record<
-    FixedRouteName,
-    { model: string; thinkingLevel: ThinkingLevel }
-  > = {
+  const routes: PersistedConfig = {
     default: currentConfig?.default ?? { model: "", thinkingLevel: "medium" },
-    high: currentConfig?.high ?? { model: "", thinkingLevel: "medium" },
+    light: currentConfig?.light ?? { model: "", thinkingLevel: "medium" },
   };
 
   let routeBeingEdited: FixedRouteName = "default";
@@ -195,10 +192,7 @@ export async function editRoutes(
         continue;
       }
 
-      return {
-        default: routes.default,
-        high: routes.high,
-      };
+      return routes;
     }
 
     routeBeingEdited = editResult;
