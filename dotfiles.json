@@ -53,10 +53,6 @@
     "target": "~/.pi/agent/AGENTS.md"
   },
   {
-    "source": "dotfiles/pi/agent/prompts",
-    "target": "~/.pi/agent/prompts"
-  },
-  {
     "source": "dotfiles/pi/agent/extensions",
     "target": "~/.pi/agent/extensions"
   }
