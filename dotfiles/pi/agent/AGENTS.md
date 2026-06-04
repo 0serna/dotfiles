@@ -22,7 +22,7 @@
 ## OpenSpec
 
 - Do not ask the user for OpenSpec change names. Choose a concise, descriptive change name from the context.
-- If only one change is active, use that change without prompting the user.
+- If only one change is active, proceed with that change without prompting the user.
 
 ## GitHub
 
@@ -31,5 +31,5 @@
 
 ## Code Quality
 
-- Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes. A failing check is not done.
-- Do not suppress tools. When a quality tool (Fallow, linter, type checker, test runner) reports an issue, fix the underlying problem. Do not use suppression comments to deflect or silence warnings.
+- Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes.
+- Do not suppress tools. When a quality tool reports an issue, fix the underlying problem. Do not use suppression comments to deflect or silence warnings.
