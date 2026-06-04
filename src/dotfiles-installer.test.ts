@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { DotfilesInstaller } from "./dotfiles-installer";
+import { readManifest } from "./manifest.ts";
 
 let tmpDir: string;
 
@@ -360,6 +361,64 @@ describe("DotfilesInstaller", () => {
 
     expect(success).toBe(true);
     await expectSymlink(targetPath);
+  });
+
+  it("links the same source file to multiple targets", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      { "dotfiles/AGENTS.md": "shared instructions" },
+      [
+        {
+          source: "dotfiles/AGENTS.md",
+          target: "~/.config/opencode/AGENTS.md",
+        },
+        {
+          source: "dotfiles/AGENTS.md",
+          target: "~/.pi/agent/AGENTS.md",
+        },
+      ],
+    );
+
+    const success = await install(repoDir, homeDir);
+
+    expect(success).toBe(true);
+    await expectSymlink(path.join(homeDir, ".config", "opencode", "AGENTS.md"));
+    await expectSymlink(path.join(homeDir, ".pi", "agent", "AGENTS.md"));
+    expect(
+      await fs.readFile(
+        path.join(homeDir, ".config", "opencode", "AGENTS.md"),
+        "utf-8",
+      ),
+    ).toBe("shared instructions");
+    expect(
+      await fs.readFile(
+        path.join(homeDir, ".pi", "agent", "AGENTS.md"),
+        "utf-8",
+      ),
+    ).toBe("shared instructions");
+  });
+
+  it("uses shared agent instructions in the default manifest", async () => {
+    const manifest = await readManifest(process.cwd());
+    const sharedInstructionEntries = manifest.filter(
+      (entry) =>
+        entry.source === "dotfiles/AGENTS.md" &&
+        ["~/.config/opencode/AGENTS.md", "~/.pi/agent/AGENTS.md"].includes(
+          entry.target,
+        ),
+    );
+    const piEntries = manifest.filter((entry) =>
+      entry.target.startsWith("~/.pi/"),
+    );
+    const nonSharedPiEntries = piEntries.filter(
+      (entry) => entry.target !== "~/.pi/agent/AGENTS.md",
+    );
+
+    expect(sharedInstructionEntries).toHaveLength(2);
+    expect(
+      nonSharedPiEntries.every((entry) =>
+        entry.source.startsWith("dotfiles/pi/"),
+      ),
+    ).toBe(true);
   });
 
   it("replaces existing targets", async () => {

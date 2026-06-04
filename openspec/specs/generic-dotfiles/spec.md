@@ -28,6 +28,11 @@ The system SHALL read a root `dotfiles.json` manifest and create symlinks for ea
 - **WHEN** the installer has linked the sidecar directory
 - **THEN** the plugin config file at `quota-toast.json` is readable at the symlinked target
 
+#### Scenario: Link shared agent instructions to multiple targets
+
+- **WHEN** the manifest contains multiple entries with `source`: `dotfiles/AGENTS.md`
+- **THEN** the installer creates a symlink for each declared target pointing at the same source file
+
 ### Requirement: Source paths stay within the repository
 
 The system SHALL resolve each `source` relative to the repository root and reject any source that escapes the repository.
@@ -96,10 +101,16 @@ The system SHALL stop at the first invalid manifest entry or linking error and r
 
 ### Requirement: Default manifest uses mirrored Pi source paths
 
-The shipped root `dotfiles.json` manifest SHALL reference Pi source paths that match the managed repository layout under `dotfiles/pi` while preserving the same destination targets under `~/.pi`.
+The shipped root `dotfiles.json` manifest SHALL reference Pi source paths that match the managed repository layout under `dotfiles/pi` while preserving the same destination targets under `~/.pi`, except shared agent instructions SHALL use `dotfiles/AGENTS.md` as their canonical source.
 
 #### Scenario: Read Pi entries from the default manifest
 
 - **WHEN** the repository root `dotfiles.json` file is read
-- **THEN** each Pi entry targeting `~/.pi/*` uses a source path under `dotfiles/pi` with the corresponding managed relative path
+- **THEN** each Pi entry targeting `~/.pi/*` uses a source path under `dotfiles/pi` with the corresponding managed relative path, except the entry targeting `~/.pi/agent/AGENTS.md`
 - **AND** Pi entries targeting `~/.pi/agent/prompts` and `~/.pi/agent/extensions` use source paths under `dotfiles/pi/agent/prompts` and `dotfiles/pi/agent/extensions`
+- **AND** the Pi entry targeting `~/.pi/agent/AGENTS.md` uses `dotfiles/AGENTS.md` as its source
+
+#### Scenario: Read shared agent instruction entries from the default manifest
+
+- **WHEN** the repository root `dotfiles.json` file is read
+- **THEN** the entries targeting `~/.pi/agent/AGENTS.md` and `~/.config/opencode/AGENTS.md` both use `dotfiles/AGENTS.md` as their source
