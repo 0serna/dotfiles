@@ -1,7 +1,6 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { callExaSearch } from "./exa.ts";
-import { logWebToolEvent } from "./logger.ts";
 import type { ExaSearchResponse, TextToolResult } from "./types.ts";
 
 function formatSearchResponse(data: ExaSearchResponse): string {
@@ -34,11 +33,7 @@ export async function executeWebSearch(
       isError: true,
     };
   }
-  const data = await callExaSearch(query.trim()).catch((err: unknown) => {
-    const msg = err instanceof Error ? err.message : String(err);
-    logWebToolEvent("web_search_fail", { query: query.trim(), error: msg });
-    return null;
-  });
+  const data = await callExaSearch(query.trim(), _toolCallId).catch(() => null);
   if (data == null) {
     return {
       content: [{ type: "text" as const, text: "Search failed" }],
@@ -47,10 +42,6 @@ export async function executeWebSearch(
     };
   }
   const searchData = data as ExaSearchResponse;
-  logWebToolEvent("web_search_success", {
-    query: query.trim(),
-    results: searchData.results?.length ?? 0,
-  });
   return {
     content: [
       {

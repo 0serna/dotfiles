@@ -7,7 +7,7 @@ import {
 let logger: ExtensionLogger;
 
 export function configureWebToolsLogger(ctx: ExtensionContext): void {
-  logger = createExtensionLogger(ctx, "web-tools");
+  logger = createExtensionLogger(ctx, "web-search");
 }
 
 export function logWebToolEvent(

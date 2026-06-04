@@ -1,4 +1,11 @@
 import { HTTP_FETCH_TIMEOUT_MS } from "./config.ts";
+import {
+  getResponseDetails,
+  HttpResponseError,
+  responseDetails,
+  serializeError,
+} from "./diagnostics.ts";
+import { logWebToolEvent } from "./logger.ts";
 
 async function doHttpFetch(
   url: string,
@@ -16,8 +23,9 @@ async function doHttpFetch(
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(
+      throw new HttpResponseError(
         `HTTP ${response.status} ${response.statusText} for ${url}`,
+        await responseDetails(response),
       );
     }
     const contentType = response.headers.get("content-type") ?? "";
@@ -127,13 +135,36 @@ function extractTitle(html: string): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
-export async function extractViaHttp(url: string): Promise<string> {
-  const { html, contentType } = await doHttpFetch(url);
-  assertHtmlContent(contentType, url);
-  const title = extractTitle(html);
-  const body = htmlToMarkdown(html);
-  if (!body) {
-    throw new Error("Could not extract readable content from the page");
+export async function extractViaHttp(
+  url: string,
+  toolCallId?: string,
+): Promise<string> {
+  const startedAt = Date.now();
+  try {
+    const { html, contentType } = await doHttpFetch(url);
+    assertHtmlContent(contentType, url);
+    const title = extractTitle(html);
+    const body = htmlToMarkdown(html);
+    if (!body) {
+      throw new Error("Could not extract readable content from the page");
+    }
+    const content = title ? `# ${title}\n\n${body}` : body;
+    logWebToolEvent("http_fetch_success", {
+      toolCallId,
+      url,
+      elapsedMs: Date.now() - startedAt,
+      contentLength: content.length,
+    });
+    return content;
+  } catch (err: unknown) {
+    const response = getResponseDetails(err);
+    logWebToolEvent("http_fetch_failure", {
+      toolCallId,
+      url,
+      elapsedMs: Date.now() - startedAt,
+      error: serializeError(err),
+      ...(response ? { response } : {}),
+    });
+    throw err;
   }
-  return title ? `# ${title}\n\n${body}` : body;
 }

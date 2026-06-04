@@ -1,7 +1,8 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
+import { serializeError } from "./diagnostics.ts";
 import { callExaContents } from "./exa.ts";
-import { tryGitHubFetch } from "./github.ts";
+import { classifyGitHubUrl, tryGitHubFetch } from "./github.ts";
 import { extractViaHttp } from "./http.ts";
 import { logWebToolEvent } from "./logger.ts";
 import type { TextToolResult } from "./types.ts";
@@ -15,12 +16,16 @@ function isValidHttpUrl(s: string): boolean {
   }
 }
 
-async function tryFetchContent(url: string): Promise<{
+async function tryFetchContent(
+  url: string,
+  toolCallId: string,
+): Promise<{
   content: string;
   fallback: boolean;
   source?: string;
 }> {
-  const gitHubResult = await tryGitHubFetch(url);
+  const gitHubType = classifyGitHubUrl(url).type;
+  const gitHubResult = await tryGitHubFetch(url, toolCallId);
   if (gitHubResult) {
     return {
       content: gitHubResult.content,
@@ -29,15 +34,28 @@ async function tryFetchContent(url: string): Promise<{
     };
   }
 
-  const exaContent = await callExaContents(url).catch(() => null);
-  if (exaContent)
+  if (gitHubType !== "unsupported") {
+    logWebToolEvent("web_fetch_fallback", {
+      toolCallId,
+      url,
+      from: "github_fetch",
+      to: "exa_contents",
+      reason: "github_fetch_failure",
+    });
+  }
+
+  const exaContent = await callExaContents(url, toolCallId).catch(() => null);
+  if (exaContent) {
     return { content: exaContent, fallback: false, source: "exa" };
-  logWebToolEvent("web_fetch_fallback", { url });
-  const httpContent = await extractViaHttp(url);
-  logWebToolEvent("web_fetch_http_success", {
+  }
+  logWebToolEvent("web_fetch_fallback", {
+    toolCallId,
     url,
-    bytes: httpContent.length,
+    from: "exa_contents",
+    to: "http_fetch",
+    reason: "exa_contents_failure",
   });
+  const httpContent = await extractViaHttp(url, toolCallId);
   return { content: httpContent, fallback: true, source: "http-fallback" };
 }
 
@@ -59,11 +77,11 @@ export async function executeWebFetch(
     };
   }
   try {
-    const result = await tryFetchContent(url);
+    const result = await tryFetchContent(url, _toolCallId);
     return {
       content: [{ type: "text" as const, text: result.content }],
       details: {
-        bytes: result.content.length,
+        contentLength: result.content.length,
         fallback: result.fallback,
         source: result.source,
       },
@@ -71,7 +89,11 @@ export async function executeWebFetch(
   } catch (err: unknown) {
     const fetchError =
       err instanceof Error ? err.message : "Unknown error during fetch";
-    logWebToolEvent("web_fetch_fail", { url, error: fetchError });
+    logWebToolEvent("web_fetch_failure", {
+      toolCallId: _toolCallId,
+      url,
+      error: serializeError(err),
+    });
     return {
       content: [
         {
@@ -98,7 +120,7 @@ export function renderWebFetchResult(
   _options: unknown,
   theme: Theme,
 ): Text {
-  const bytes = result.details["bytes"];
+  const bytes = result.details["contentLength"];
   const fallback = result.details["fallback"];
   if (typeof bytes === "number" && bytes > 0) {
     const kb = (bytes / 1024).toFixed(1);

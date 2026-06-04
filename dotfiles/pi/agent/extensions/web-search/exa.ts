@@ -4,6 +4,12 @@ import {
   EXA_SEARCH_URL,
   EXA_TIMEOUT_MS,
 } from "./config.ts";
+import {
+  getResponseDetails,
+  HttpResponseError,
+  responseDetails,
+  serializeError,
+} from "./diagnostics.ts";
 import { logWebToolEvent } from "./logger.ts";
 import type {
   ExaContentsResponse,
@@ -49,40 +55,48 @@ async function doExaFetch(
   }
 }
 
-async function parseExaResponse<T>(
-  response: Response,
-  label: string,
-): Promise<T | null> {
+async function parseOkJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "unknown error");
-    logWebToolEvent("exa_api_error", {
-      label,
-      status: response.status,
-      errorText: errorText.slice(0, 200),
-    });
-    return null;
+    throw new HttpResponseError(
+      `Exa API ${response.status} ${response.statusText}`,
+      await responseDetails(response),
+    );
   }
   return (await response.json()) as T;
 }
 
-export async function callExaSearch(query: string): Promise<unknown> {
-  const body = buildSearchBody(query);
-  const response = await doExaFetch(EXA_SEARCH_URL, body);
-  const data = await parseExaResponse<ExaSearchResponse>(
-    response,
-    "exa_search",
-  );
-  if (!data) {
-    throw new Error(`Exa API error for query="${query}"`);
+export async function callExaSearch(
+  query: string,
+  toolCallId?: string,
+): Promise<unknown> {
+  const startedAt = Date.now();
+  try {
+    const response = await doExaFetch(EXA_SEARCH_URL, buildSearchBody(query));
+    const data = await parseOkJson<ExaSearchResponse>(response);
+    logWebToolEvent("exa_search_success", {
+      toolCallId,
+      query,
+      results: data.results?.length ?? 0,
+      elapsedMs: Date.now() - startedAt,
+    });
+    return data;
+  } catch (err: unknown) {
+    const response = getResponseDetails(err);
+    logWebToolEvent("exa_search_failure", {
+      toolCallId,
+      query,
+      elapsedMs: Date.now() - startedAt,
+      error: serializeError(err),
+      ...(response ? { response } : {}),
+    });
+    throw err;
   }
-  return data;
 }
 
 function getFirstResult(
   data: { results?: Array<{ text?: string }> } | null,
 ): { text?: string } | null {
-  if (!data?.results?.length) return null;
-  return data.results[0] ?? null;
+  return data?.results?.[0] ?? null;
 }
 
 function extractContentText(
@@ -108,34 +122,60 @@ function isExaStatusError(
   return Boolean(status?.status && status.status !== "success");
 }
 
-export async function callExaContents(url: string): Promise<string | null> {
-  const response = await doExaFetch(EXA_CONTENTS_URL, {
-    urls: [url],
-    text: true,
-  });
-  const data = await parseExaResponse<ExaContentsResponse>(
-    response,
-    "exa_contents",
-  );
-
-  const text = extractContentText(data);
-  const status = getFirstExaStatus(data);
-
-  if (isExaStatusError(status)) {
-    logWebToolEvent("exa_contents_error", {
-      url,
-      status: status.status,
-      tag: status.tag,
-      httpCode: status.httpStatusCode,
+export async function callExaContents(
+  url: string,
+  toolCallId?: string,
+): Promise<string | null> {
+  const startedAt = Date.now();
+  try {
+    const response = await doExaFetch(EXA_CONTENTS_URL, {
+      urls: [url],
+      text: true,
     });
+    const data = await parseOkJson<ExaContentsResponse>(response);
+    const text = extractContentText(data);
+    const status = getFirstExaStatus(data);
+    const elapsedMs = Date.now() - startedAt;
+
+    if (isExaStatusError(status)) {
+      logWebToolEvent("exa_contents_failure", {
+        toolCallId,
+        url,
+        elapsedMs,
+        status: status.status,
+        tag: status.tag,
+        httpCode: status.httpStatusCode,
+        contentLength: text?.length ?? 0,
+      });
+      return text;
+    }
+
+    if (text) {
+      logWebToolEvent("exa_contents_success", {
+        toolCallId,
+        url,
+        elapsedMs,
+        contentLength: text.length,
+      });
+    } else {
+      logWebToolEvent("exa_contents_failure", {
+        toolCallId,
+        url,
+        elapsedMs,
+        reason: "insufficient_content",
+      });
+    }
+
     return text;
+  } catch (err: unknown) {
+    const response = getResponseDetails(err);
+    logWebToolEvent("exa_contents_failure", {
+      toolCallId,
+      url,
+      elapsedMs: Date.now() - startedAt,
+      error: serializeError(err),
+      ...(response ? { response } : {}),
+    });
+    throw err;
   }
-
-  if (text) {
-    logWebToolEvent("exa_contents_success", { url, len: text.length });
-  } else {
-    logWebToolEvent("exa_contents_insufficient", { url });
-  }
-
-  return text;
 }

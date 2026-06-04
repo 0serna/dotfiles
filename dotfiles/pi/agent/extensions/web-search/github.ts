@@ -1,3 +1,9 @@
+import {
+  getResponseDetails,
+  HttpResponseError,
+  responseDetails,
+  serializeError,
+} from "./diagnostics.ts";
 import { logWebToolEvent } from "./logger.ts";
 
 type GitHubUrlType = "blob" | "repository" | "issue" | "pull" | "unsupported";
@@ -82,7 +88,10 @@ async function fetchGitHubApi(path: string): Promise<unknown> {
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(`GitHub API ${response.status} for ${path}`);
+      throw new HttpResponseError(
+        `GitHub API ${response.status} for ${path}`,
+        await responseDetails(response),
+      );
     }
     return await response.json();
   } finally {
@@ -113,7 +122,10 @@ async function fetchRawContent(url: string): Promise<string> {
       signal: controller.signal,
     });
     if (!response.ok) {
-      throw new Error(`Raw fetch ${response.status} for ${url}`);
+      throw new HttpResponseError(
+        `Raw fetch ${response.status} for ${url}`,
+        await responseDetails(response),
+      );
     }
     const contentType = response.headers.get("content-type");
     if (!isTextContentType(contentType)) {
@@ -299,6 +311,7 @@ export interface GitHubFetchResult {
 
 export async function tryGitHubFetch(
   url: string,
+  toolCallId?: string,
 ): Promise<GitHubFetchResult | null> {
   const parsed = classifyGitHubUrl(url);
 
@@ -306,15 +319,18 @@ export async function tryGitHubFetch(
     return null;
   }
 
+  const startedAt = Date.now();
   try {
     if (parsed.type === "blob") {
       const rawUrl = blobToRawUrl(parsed);
       const content = await fetchRawContent(rawUrl);
       logWebToolEvent("github_fetch_success", {
+        toolCallId,
         url,
         type: "blob",
         source: "github-raw",
-        bytes: content.length,
+        elapsedMs: Date.now() - startedAt,
+        contentLength: content.length,
       });
       return { content, source: "github-raw" };
     }
@@ -340,19 +356,24 @@ export async function tryGitHubFetch(
     }
 
     logWebToolEvent("github_fetch_success", {
+      toolCallId,
       url,
       type: parsed.type,
       source: "github-api",
-      bytes: content.length,
+      elapsedMs: Date.now() - startedAt,
+      contentLength: content.length,
     });
 
     return { content, source: "github-api" };
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    logWebToolEvent("github_fetch_fallback", {
+    const response = getResponseDetails(err);
+    logWebToolEvent("github_fetch_failure", {
+      toolCallId,
       url,
       type: parsed.type,
-      error: message,
+      elapsedMs: Date.now() - startedAt,
+      error: serializeError(err),
+      ...(response ? { response } : {}),
     });
     return null;
   }
