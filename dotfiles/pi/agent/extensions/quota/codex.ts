@@ -1,5 +1,6 @@
+import { failureDetails } from "../shared/diagnostics.ts";
 import type { ExtensionLogger } from "../shared/logger.js";
-import { getErrorMessage, parseCredits, toRemainingPercent } from "./status.js";
+import { parseCredits, toRemainingPercent } from "./status.js";
 import type {
   CodexQuotaData,
   CodexUsageResponse,
@@ -35,7 +36,7 @@ async function loadCodexAccessToken(
   } catch (error) {
     logger.log("auth_error", {
       provider: CODEX_PROVIDER_ID,
-      message: getErrorMessage(error),
+      ...failureDetails(error),
     });
     return null;
   }

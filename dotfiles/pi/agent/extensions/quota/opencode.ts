@@ -1,5 +1,5 @@
+import { failureDetails } from "../shared/diagnostics.ts";
 import type { ExtensionLogger } from "../shared/logger.js";
-import { getErrorMessage } from "./status.js";
 import type { OpenCodeGoData, OpenCodeGoWindowData } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ async function fetchGoDashboardHtml(
     }
     return await response.text();
   } catch (error) {
-    logger.log("go_fetch_error", { message: getErrorMessage(error) });
+    logger.log("go_fetch_error", failureDetails(error));
     return null;
   }
 }

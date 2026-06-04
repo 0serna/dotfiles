@@ -1,9 +1,8 @@
 import {
-  getResponseDetails,
+  failureDetails,
   HttpResponseError,
   responseDetails,
-  serializeError,
-} from "./diagnostics.ts";
+} from "../shared/diagnostics.ts";
 import { logWebToolEvent } from "./logger.ts";
 
 type GitHubUrlType = "blob" | "repository" | "issue" | "pull" | "unsupported";
@@ -366,14 +365,12 @@ export async function tryGitHubFetch(
 
     return { content, source: "github-api" };
   } catch (err: unknown) {
-    const response = getResponseDetails(err);
     logWebToolEvent("github_fetch_failure", {
       toolCallId,
       url,
       type: parsed.type,
       elapsedMs: Date.now() - startedAt,
-      error: serializeError(err),
-      ...(response ? { response } : {}),
+      ...failureDetails(err),
     });
     return null;
   }

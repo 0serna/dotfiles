@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { failureDetails } from "../shared/diagnostics.ts";
 import type { ExtensionLogger } from "../shared/logger.js";
 import {
   CACHE_HIT_WARNING_PERCENT,
@@ -70,8 +71,6 @@ export function computeAndPublishStatus(
   try {
     publishStatus(ctx, logger, shouldLog);
   } catch (error) {
-    logger.log("status_error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logger.log("status_error", failureDetails(error));
   }
 }

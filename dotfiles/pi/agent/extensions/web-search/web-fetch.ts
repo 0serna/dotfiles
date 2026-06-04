@@ -1,6 +1,6 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
-import { serializeError } from "./diagnostics.ts";
+import { failureDetails } from "../shared/diagnostics.ts";
 import { callExaContents } from "./exa.ts";
 import { classifyGitHubUrl, tryGitHubFetch } from "./github.ts";
 import { extractViaHttp } from "./http.ts";
@@ -92,7 +92,7 @@ export async function executeWebFetch(
     logWebToolEvent("web_fetch_failure", {
       toolCallId: _toolCallId,
       url,
-      error: serializeError(err),
+      ...failureDetails(err),
     });
     return {
       content: [

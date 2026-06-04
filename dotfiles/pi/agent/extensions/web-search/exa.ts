@@ -1,15 +1,14 @@
 import {
+  failureDetails,
+  HttpResponseError,
+  responseDetails,
+} from "../shared/diagnostics.ts";
+import {
   DEFAULT_NUM_RESULTS,
   EXA_CONTENTS_URL,
   EXA_SEARCH_URL,
   EXA_TIMEOUT_MS,
 } from "./config.ts";
-import {
-  getResponseDetails,
-  HttpResponseError,
-  responseDetails,
-  serializeError,
-} from "./diagnostics.ts";
 import { logWebToolEvent } from "./logger.ts";
 import type {
   ExaContentsResponse,
@@ -81,13 +80,11 @@ export async function callExaSearch(
     });
     return data;
   } catch (err: unknown) {
-    const response = getResponseDetails(err);
     logWebToolEvent("exa_search_failure", {
       toolCallId,
       query,
       elapsedMs: Date.now() - startedAt,
-      error: serializeError(err),
-      ...(response ? { response } : {}),
+      ...failureDetails(err),
     });
     throw err;
   }
@@ -168,13 +165,11 @@ export async function callExaContents(
 
     return text;
   } catch (err: unknown) {
-    const response = getResponseDetails(err);
     logWebToolEvent("exa_contents_failure", {
       toolCallId,
       url,
       elapsedMs: Date.now() - startedAt,
-      error: serializeError(err),
-      ...(response ? { response } : {}),
+      ...failureDetails(err),
     });
     throw err;
   }

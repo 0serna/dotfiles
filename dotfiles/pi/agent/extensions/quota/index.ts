@@ -1,4 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { failureDetails } from "../shared/diagnostics.ts";
 import {
   createExtensionLogger,
   type ExtensionLogger,
@@ -10,7 +11,6 @@ import {
   formatCodexQuotaStatus,
   formatOpenCodeBalances,
   formatProviderStatus,
-  getErrorMessage,
 } from "./status.js";
 import type {
   CodexQuotaData,
@@ -49,7 +49,7 @@ function setStatusSafely(
   } catch (error) {
     logger.log("status_publish_error", {
       reason,
-      message: getErrorMessage(error),
+      ...failureDetails(error),
     });
   }
 }
@@ -134,7 +134,7 @@ async function refreshStatus(reason: string): Promise<void> {
   } catch (error) {
     logger.log("status_error", {
       reason,
-      message: getErrorMessage(error),
+      ...failureDetails(error),
     });
   }
 }

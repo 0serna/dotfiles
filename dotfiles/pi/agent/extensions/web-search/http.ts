@@ -1,10 +1,9 @@
-import { HTTP_FETCH_TIMEOUT_MS } from "./config.ts";
 import {
-  getResponseDetails,
+  failureDetails,
   HttpResponseError,
   responseDetails,
-  serializeError,
-} from "./diagnostics.ts";
+} from "../shared/diagnostics.ts";
+import { HTTP_FETCH_TIMEOUT_MS } from "./config.ts";
 import { logWebToolEvent } from "./logger.ts";
 
 async function doHttpFetch(
@@ -157,13 +156,11 @@ export async function extractViaHttp(
     });
     return content;
   } catch (err: unknown) {
-    const response = getResponseDetails(err);
     logWebToolEvent("http_fetch_failure", {
       toolCallId,
       url,
       elapsedMs: Date.now() - startedAt,
-      error: serializeError(err),
-      ...(response ? { response } : {}),
+      ...failureDetails(err),
     });
     throw err;
   }

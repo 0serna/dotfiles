@@ -11,6 +11,11 @@ export interface ResponseDetails {
   bodySnippet?: string;
 }
 
+export interface FailureDetails extends Record<string, unknown> {
+  error: ErrorDetails;
+  response?: ResponseDetails;
+}
+
 export class HttpResponseError extends Error {
   readonly response: ResponseDetails;
 
@@ -53,10 +58,7 @@ export function serializeError(err: unknown): ErrorDetails {
 }
 
 export function getResponseDetails(err: unknown): ResponseDetails | undefined {
-  if (err instanceof HttpResponseError) {
-    return err.response;
-  }
-  return undefined;
+  return err instanceof HttpResponseError ? err.response : undefined;
 }
 
 export async function responseDetails(
@@ -67,6 +69,14 @@ export async function responseDetails(
     status: response.status,
     statusText: response.statusText,
     bodySnippet: bodySnippet.slice(0, 200),
+  };
+}
+
+export function failureDetails(err: unknown): FailureDetails {
+  const response = getResponseDetails(err);
+  return {
+    error: serializeError(err),
+    ...(response ? { response } : {}),
   };
 }
 
