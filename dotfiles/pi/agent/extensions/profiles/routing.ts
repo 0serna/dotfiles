@@ -5,12 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { parseModelId } from "./model-ids.ts";
 import { ROUTE_TYPES, type RouteName } from "./routes.ts";
-import type {
-  ConfigValidationResult,
-  ModelRoute,
-  PersistedConfig,
-} from "./types.ts";
-import { FIXED_ROUTE_NAMES } from "./types.ts";
+import type { ModelRoute, PersistedConfig } from "./types.ts";
 
 export async function activateRoute(
   pi: ExtensionAPI,
@@ -33,14 +28,6 @@ export function getRouteName(input: string): RouteName | undefined {
 }
 
 /**
- * Check whether configuration is usable for routing.
- * A config is usable when status is "valid".
- */
-export function isConfigEnabled(result: ConfigValidationResult): boolean {
-  return result.status === "valid";
-}
-
-/**
  * Run semantic validation on a persisted config.
  * Checks that each route's model is available and the thinking level
  * is supported by that model.
@@ -54,7 +41,7 @@ export async function validateConfigSemantics(
   const errors: string[] = [];
   const availableModels = ctx.modelRegistry.getAvailable();
 
-  for (const routeName of FIXED_ROUTE_NAMES) {
+  for (const routeName of ["light", "high"] as const) {
     const route = config[routeName];
     if (!route) {
       errors.push(`Missing required route '${routeName}'`);

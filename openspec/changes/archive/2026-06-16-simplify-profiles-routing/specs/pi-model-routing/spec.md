@@ -1,10 +1,4 @@
-# pi-model-routing Specification
-
-## Purpose
-
-Define routing behavior for activating model routes during sessions and slash commands.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Disabled routing without valid configuration
 
@@ -118,3 +112,15 @@ The system SHALL provide a `/profile` command that lets the user edit route conf
 - **AND** the user presses `Esc` in the route editor
 - **THEN** the system saves the configuration
 - **AND** does not activate any route after saving
+
+## REMOVED Requirements
+
+### Requirement: Default session model routing
+
+**Reason**: Pi already remembers the user's last selected model, so extension-level default activation duplicates native behavior and overrides user intent.
+**Migration**: Users should select their base model with Pi's native set/cycle controls.
+
+### Requirement: Persistent configuration
+
+**Reason**: This requirement is duplicated by the profile-configuration capability and remains covered there.
+**Migration**: Use `pi-model-profile-configuration` for route configuration persistence requirements.

@@ -1,25 +1,12 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
-import { DEFAULT_ROUTE } from "./routes.ts";
-import {
-  activateRoute,
-  isConfigEnabled,
-  validateConfigSemantics,
-} from "./routing.ts";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { validateConfigSemantics } from "./routing.ts";
 import { loadConfig } from "./state.ts";
-import type {
-  ConfigValidationResult,
-  PersistedConfig,
-  RouteSnapshot,
-} from "./types.ts";
+import type { ConfigValidationResult, PersistedConfig } from "./types.ts";
 
-export function createProfilesRuntime(pi: ExtensionAPI) {
+export function createProfilesRuntime() {
   let configResult: ConfigValidationResult = { status: "missing" };
   let config: PersistedConfig | null = null;
   let warningShownThisSession = false;
-  let snapshot: RouteSnapshot | undefined;
 
   async function refreshConfig(ctx?: ExtensionContext): Promise<void> {
     configResult = await loadConfig();
@@ -43,7 +30,7 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
   }
 
   function configEnabled(): boolean {
-    return isConfigEnabled(configResult);
+    return configResult.status === "valid";
   }
 
   async function warnOnce(ctx: ExtensionContext): Promise<void> {
@@ -67,35 +54,12 @@ export function createProfilesRuntime(pi: ExtensionAPI) {
     }
   }
 
-  async function tryActivateDefault(ctx: ExtensionContext): Promise<boolean> {
-    if (!configEnabled() || !config) return false;
-    const route = config[DEFAULT_ROUTE];
-    const activated = await activateRoute(pi, route, ctx);
-    if (!activated) {
-      ctx.ui.notify(
-        `Could not activate model '${route.model}' for default route; continuing with current model.`,
-        "warning",
-      );
-    }
-    return activated;
-  }
-
   return {
     refreshConfig,
     configEnabled,
     warnOnce,
-    tryActivateDefault,
     getConfigResult: () => configResult,
     getConfig: () => config,
-    saveSnapshot: (s: RouteSnapshot) => {
-      snapshot = s;
-    },
-    hasSnapshot: () => snapshot !== undefined,
-    consumeSnapshot: (): RouteSnapshot | undefined => {
-      const s = snapshot;
-      snapshot = undefined;
-      return s;
-    },
   };
 }
 

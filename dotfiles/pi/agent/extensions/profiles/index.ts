@@ -1,18 +1,65 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { Api, Model } from "@earendil-works/pi-ai";
+import type {
+  ExtensionAPI,
+  ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
 import { runProfileCommand } from "./command.ts";
-import { DEFAULT_ROUTE, ROUTE_TYPES } from "./routes.ts";
+import { formatModelId } from "./model-ids.ts";
+import { ROUTE_TYPES } from "./routes.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import { createProfilesRuntime } from "./runtime.ts";
-import type { RouteSnapshot } from "./types.ts";
+import {
+  getRememberedLevel,
+  loadMemory,
+  recordLevel,
+} from "./thinking-memory.ts";
+import type { ThinkingLevel } from "./types.ts";
+
+type UserSnapshot = {
+  model: Model<Api>;
+  thinkingLevel: ThinkingLevel;
+};
 
 export default function (pi: ExtensionAPI) {
-  const runtime = createProfilesRuntime(pi);
+  const runtime = createProfilesRuntime();
+  let userSnapshot: UserSnapshot | undefined;
+  let ignoreSelectionEvents = false;
+  let routeActive = false;
+
+  async function ignoreSelectionEventsWhile<T>(
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    ignoreSelectionEvents = true;
+    try {
+      return await fn();
+    } finally {
+      ignoreSelectionEvents = false;
+    }
+  }
+
+  async function restoreUserSnapshot(ctx: ExtensionContext): Promise<void> {
+    if (!userSnapshot) return;
+    const snapshot = userSnapshot;
+    const restored = await ignoreSelectionEventsWhile(async () => {
+      const ok = await pi.setModel(snapshot.model);
+      if (ok) pi.setThinkingLevel(snapshot.thinkingLevel);
+      return ok;
+    });
+    if (!restored) {
+      ctx.ui.notify(
+        `Could not restore user model '${formatModelId(snapshot.model)}'.`,
+        "warning",
+      );
+    }
+  }
 
   pi.on("session_start", async (_event, ctx) => {
+    await loadMemory();
+    if (ctx.model) {
+      userSnapshot = { model: ctx.model, thinkingLevel: pi.getThinkingLevel() };
+    }
     await runtime.refreshConfig(ctx);
-    if (runtime.configEnabled()) {
-      await runtime.tryActivateDefault(ctx);
-    } else {
+    if (!runtime.configEnabled()) {
       await runtime.warnOnce(ctx);
     }
   });
@@ -30,12 +77,9 @@ export default function (pi: ExtensionAPI) {
 
     const route = config[routeType];
 
-    const snapshot: RouteSnapshot = {
-      model: ctx.model,
-      thinkingLevel: pi.getThinkingLevel(),
-    };
-
-    const activated = await activateRoute(pi, route, ctx);
+    const activated = await ignoreSelectionEventsWhile(() =>
+      activateRoute(pi, route, ctx),
+    );
     if (!activated) {
       ctx.ui.notify(
         `Could not activate routed model '${route.model}' for '${routeName}'; continuing with current model.`,
@@ -44,39 +88,38 @@ export default function (pi: ExtensionAPI) {
       return { action: "continue" };
     }
 
-    runtime.saveSnapshot(snapshot);
+    routeActive = true;
     return { action: "continue" };
   });
 
   pi.on("agent_end", async (_event, ctx) => {
-    if (!runtime.hasSnapshot()) return;
-    runtime.consumeSnapshot();
-
-    if (!runtime.configEnabled()) return;
-
-    const config = runtime.getConfig();
-    if (!config) return;
-
-    const defaultRoute = config[DEFAULT_ROUTE];
-    const activated = await activateRoute(pi, defaultRoute, ctx);
-    if (!activated) {
-      ctx.ui.notify(
-        `Could not restore default model '${defaultRoute.model}'.`,
-        "warning",
-      );
-    }
+    if (!routeActive) return;
+    routeActive = false;
+    await restoreUserSnapshot(ctx);
   });
 
-  pi.on("model_select", (event) => {
-    if (event.source === "set" || event.source === "cycle") {
-      pi.setThinkingLevel("medium");
+  pi.on("model_select", (event, ctx) => {
+    if (ignoreSelectionEvents) return;
+    if (event.source !== "set" && event.source !== "cycle") return;
+    if (!ctx.model) return;
+
+    const remembered = getRememberedLevel(formatModelId(ctx.model));
+    if (remembered !== undefined) {
+      pi.setThinkingLevel(remembered);
     }
+    userSnapshot = { model: ctx.model, thinkingLevel: pi.getThinkingLevel() };
+  });
+
+  pi.on("thinking_level_select", (event, ctx) => {
+    if (ignoreSelectionEvents || !ctx.model) return;
+    recordLevel(formatModelId(ctx.model), event.level);
+    userSnapshot = { model: ctx.model, thinkingLevel: event.level };
   });
 
   pi.registerCommand("profile", {
     description: "Configure profile routes (model and thinking level)",
     handler: async (_args, ctx) => {
-      await runProfileCommand(pi, ctx, runtime);
+      await runProfileCommand(ctx, runtime);
     },
   });
 }

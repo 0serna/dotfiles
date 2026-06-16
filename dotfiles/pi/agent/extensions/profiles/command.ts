@@ -1,15 +1,11 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getModelLabels } from "./model-ids.ts";
-import { activateRoute, validateConfigSemantics } from "./routing.ts";
+import { validateConfigSemantics } from "./routing.ts";
 import type { ProfilesRuntime } from "./runtime.ts";
 import { saveConfig } from "./state.ts";
 import { editRoutes } from "./ui.ts";
 
 export async function runProfileCommand(
-  pi: ExtensionAPI,
   ctx: ExtensionContext,
   runtime: ProfilesRuntime,
 ): Promise<void> {
@@ -38,15 +34,5 @@ export async function runProfileCommand(
 
   await saveConfig(fullConfig);
   await runtime.refreshConfig(ctx);
-
-  const config = runtime.getConfig();
-  if (config) {
-    const activated = await activateRoute(pi, config.default, ctx);
-    if (!activated) {
-      ctx.ui.notify(
-        `Could not activate model '${config.default.model}' for default route.`,
-        "warning",
-      );
-    }
-  }
+  ctx.ui.notify("Profile routes saved.", "info");
 }

@@ -13,7 +13,8 @@ import type {
   PersistedConfig,
   ThinkingLevel,
 } from "./types.ts";
-import { FIXED_ROUTE_NAMES } from "./types.ts";
+
+const ROUTE_NAMES: FixedRouteName[] = ["light", "high"];
 
 function renderBorder(width: number, theme: Theme): string {
   return theme.fg("accent", "─".repeat(width));
@@ -93,11 +94,11 @@ export async function editRoutes(
   configStatus: ConfigValidationResult["status"],
 ): Promise<PersistedConfig | null> {
   const routes: PersistedConfig = {
-    default: currentConfig?.default ?? { model: "", thinkingLevel: "medium" },
     light: currentConfig?.light ?? { model: "", thinkingLevel: "medium" },
+    high: currentConfig?.high ?? { model: "", thinkingLevel: "medium" },
   };
 
-  let routeBeingEdited: FixedRouteName = "default";
+  let routeBeingEdited: FixedRouteName = "light";
 
   async function pickModel(): Promise<string | null> {
     const selected = await ctx.ui.select(
@@ -131,7 +132,7 @@ export async function editRoutes(
   }
 
   while (true) {
-    const routeItems = FIXED_ROUTE_NAMES.map((r) => {
+    const routeItems = ROUTE_NAMES.map((r) => {
       const rt = routes[r];
       const model = rt.model || "[unset]";
       const think = rt.model ? rt.thinkingLevel : "[unset]";
@@ -140,7 +141,7 @@ export async function editRoutes(
 
     const editResult = await ctx.ui.custom<FixedRouteName | null>(
       (tui, theme, _kb, done) => {
-        let sel = FIXED_ROUTE_NAMES.indexOf(routeBeingEdited);
+        let sel = ROUTE_NAMES.indexOf(routeBeingEdited);
         let cachedLines: string[] | undefined;
 
         function refresh() {
@@ -165,12 +166,12 @@ export async function editRoutes(
               refresh();
             } else if (
               matchesKey(data, Key.down) &&
-              sel < FIXED_ROUTE_NAMES.length - 1
+              sel < ROUTE_NAMES.length - 1
             ) {
               sel++;
               refresh();
             } else if (matchesKey(data, Key.enter)) {
-              done(FIXED_ROUTE_NAMES[sel]!);
+              done(ROUTE_NAMES[sel]!);
             } else if (matchesKey(data, Key.escape)) {
               done(null);
             }
@@ -183,7 +184,7 @@ export async function editRoutes(
     );
 
     if (editResult === null) {
-      const incomplete = FIXED_ROUTE_NAMES.filter((r) => !routes[r].model);
+      const incomplete = ROUTE_NAMES.filter((r) => !routes[r].model);
       if (incomplete.length > 0) {
         ctx.ui.notify(
           `Set a model for ${incomplete.join(", ")} before saving.`,

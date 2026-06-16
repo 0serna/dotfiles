@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
-  FIXED_ROUTE_NAMES,
   type ConfigValidationResult,
   type PersistedConfig,
   type ThinkingLevel,
@@ -43,8 +42,7 @@ function structuralErrors(raw: unknown): string[] {
 
   const data = raw as Record<string, unknown>;
 
-  // Check required fixed route names at top level
-  for (const routeName of FIXED_ROUTE_NAMES) {
+  for (const routeName of ["light", "high"] as const) {
     if (!(routeName in data)) {
       errors.push(`Missing required route '${routeName}'`);
       continue;
@@ -73,9 +71,7 @@ export async function loadConfig(): Promise<ConfigValidationResult> {
     const errors = structuralErrors(parsed);
 
     if (errors.length > 0) {
-      // Recover what we can for repair mode
-      const config = tryRecoverConfig(parsed);
-      return { status: "invalid", config, errors };
+      return { status: "invalid", config: null, errors };
     }
 
     return { status: "valid", config: parsed as PersistedConfig };
@@ -86,46 +82,12 @@ export async function loadConfig(): Promise<ConfigValidationResult> {
     ) {
       return { status: "missing" };
     }
-    // JSON parse error or other read error
     return {
       status: "invalid",
       config: null,
       errors: [(err as Error).message],
     };
   }
-}
-
-/**
- * Attempt to recover a partial PersistedConfig from structurally invalid data.
- * Returns null if nothing useful can be recovered.
- */
-function tryRecoverConfig(raw: unknown): PersistedConfig | null {
-  if (typeof raw !== "object" || raw === null) return null;
-
-  const data = raw as Record<string, unknown>;
-
-  const recovered: PersistedConfig = {
-    default: { model: "", thinkingLevel: "medium" },
-    light: { model: "", thinkingLevel: "medium" },
-  };
-
-  let hasAnyRoute = false;
-
-  for (const routeName of FIXED_ROUTE_NAMES) {
-    const route = data[routeName];
-    if (typeof route === "object" && route !== null) {
-      const r = route as Record<string, unknown>;
-      if (typeof r.model === "string") {
-        recovered[routeName].model = r.model;
-        hasAnyRoute = true;
-      }
-      if (isValidThinkingLevel(r.thinkingLevel)) {
-        recovered[routeName].thinkingLevel = r.thinkingLevel;
-      }
-    }
-  }
-
-  return hasAnyRoute ? recovered : null;
 }
 
 /** Persist the configuration to disk. */
