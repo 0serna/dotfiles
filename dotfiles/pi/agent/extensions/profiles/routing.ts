@@ -76,3 +76,35 @@ export async function validateConfigSemantics(
 
   return errors;
 }
+
+/**
+ * Try to resolve the compact route for runtime use.
+ * Returns the usable ModelRoute or null if absent/invalid/unusable.
+ * Does NOT affect required-route validation.
+ */
+export async function resolveCompactRoute(
+  config: PersistedConfig,
+  ctx: ExtensionContext,
+): Promise<ModelRoute | null> {
+  const compact = config.compact;
+  if (!compact) return null;
+  if (!compact.model || !compact.thinkingLevel) return null;
+
+  const [provider, modelId] = parseModelId(compact.model);
+  const model = ctx.modelRegistry.find(provider, modelId);
+  if (!model) return null;
+
+  const availableModels = ctx.modelRegistry.getAvailable();
+  if (
+    !availableModels.some(
+      (m) => m.id === model.id && m.provider === model.provider,
+    )
+  ) {
+    return null;
+  }
+
+  const supportedLevels = getSupportedThinkingLevels(model);
+  if (!supportedLevels.includes(compact.thinkingLevel)) return null;
+
+  return compact;
+}

@@ -1,8 +1,4 @@
-## Purpose
-
-Define the configuration model for Pi model routes, including validation, persistence, and interactive editing with an optional `compact` route.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Configurable fixed model routes
 

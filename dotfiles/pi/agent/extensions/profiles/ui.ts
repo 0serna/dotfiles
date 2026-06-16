@@ -8,13 +8,14 @@ import {
 } from "@earendil-works/pi-tui";
 import { parseModelId } from "./model-ids.ts";
 import type {
+  AllRouteName,
   ConfigValidationResult,
-  FixedRouteName,
   PersistedConfig,
   ThinkingLevel,
 } from "./types.ts";
 
-const ROUTE_NAMES: FixedRouteName[] = ["light", "high"];
+const ALL_ROUTES: AllRouteName[] = ["light", "high", "compact"];
+const REQUIRED_ROUTES: AllRouteName[] = ["light", "high"];
 
 function renderBorder(width: number, theme: Theme): string {
   return theme.fg("accent", "─".repeat(width));
@@ -79,7 +80,10 @@ function renderRouteFrame(
   lines.push("");
   lines.push(
     truncateToWidth(
-      theme.fg("dim", "↑↓ navigate • Enter edit route • Esc save & return"),
+      theme.fg(
+        "dim",
+        "↑↓ navigate • Enter edit route • d unset optional • Esc save & return",
+      ),
       width,
     ),
   );
@@ -96,9 +100,10 @@ export async function editRoutes(
   const routes: PersistedConfig = {
     light: currentConfig?.light ?? { model: "", thinkingLevel: "medium" },
     high: currentConfig?.high ?? { model: "", thinkingLevel: "medium" },
+    ...(currentConfig?.compact ? { compact: currentConfig.compact } : {}),
   };
 
-  let routeBeingEdited: FixedRouteName = "light";
+  let routeBeingEdited: AllRouteName = "light";
 
   async function pickModel(): Promise<string | null> {
     const selected = await ctx.ui.select(
@@ -132,16 +137,18 @@ export async function editRoutes(
   }
 
   while (true) {
-    const routeItems = ROUTE_NAMES.map((r) => {
+    const routeItems = ALL_ROUTES.map((r) => {
       const rt = routes[r];
-      const model = rt.model || "[unset]";
-      const think = rt.model ? rt.thinkingLevel : "[unset]";
-      return `${r.padEnd(10)} ${model.padEnd(45)} ${think}`;
+      const model = rt?.model || "[unset]";
+      const think = rt?.model ? rt.thinkingLevel : "[unset]";
+      const optionalLabel =
+        !REQUIRED_ROUTES.includes(r) && !rt?.model ? " (optional)" : "";
+      return `${r.padEnd(10)} ${model.padEnd(45)} ${think}${optionalLabel}`;
     });
 
-    const editResult = await ctx.ui.custom<FixedRouteName | null>(
+    const editResult = await ctx.ui.custom<AllRouteName | "unset" | null>(
       (tui, theme, _kb, done) => {
-        let sel = ROUTE_NAMES.indexOf(routeBeingEdited);
+        let sel = ALL_ROUTES.indexOf(routeBeingEdited);
         let cachedLines: string[] | undefined;
 
         function refresh() {
@@ -166,12 +173,19 @@ export async function editRoutes(
               refresh();
             } else if (
               matchesKey(data, Key.down) &&
-              sel < ROUTE_NAMES.length - 1
+              sel < ALL_ROUTES.length - 1
             ) {
               sel++;
               refresh();
             } else if (matchesKey(data, Key.enter)) {
-              done(ROUTE_NAMES[sel]!);
+              done(ALL_ROUTES[sel]!);
+            } else if (
+              matchesKey(data, "d") &&
+              !REQUIRED_ROUTES.includes(ALL_ROUTES[sel]!) &&
+              routes[ALL_ROUTES[sel]!]
+            ) {
+              routeBeingEdited = ALL_ROUTES[sel]!;
+              done("unset");
             } else if (matchesKey(data, Key.escape)) {
               done(null);
             }
@@ -183,8 +197,13 @@ export async function editRoutes(
       },
     );
 
+    if (editResult === "unset") {
+      delete routes[routeBeingEdited];
+      continue;
+    }
+
     if (editResult === null) {
-      const incomplete = ROUTE_NAMES.filter((r) => !routes[r].model);
+      const incomplete = REQUIRED_ROUTES.filter((r) => !routes[r]?.model);
       if (incomplete.length > 0) {
         ctx.ui.notify(
           `Set a model for ${incomplete.join(", ")} before saving.`,

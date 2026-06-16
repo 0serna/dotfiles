@@ -18,11 +18,16 @@ vi.mock("@earendil-works/pi-ai", () => ({
   ],
 }));
 
+vi.mock("@earendil-works/pi-coding-agent", () => ({
+  compact: vi.fn(),
+}));
+
 vi.mock("node:os", () => ({
   homedir: () => "/home/test",
 }));
 
 // Now import the modules under test
+import { compact } from "@earendil-works/pi-coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import registerProfilesExtension from "./index.ts";
 import { loadConfig } from "./state.ts";
@@ -31,7 +36,9 @@ import {
   loadMemory,
   recordLevel,
 } from "./thinking-memory.ts";
+import { editRoutes } from "./ui.ts";
 
+const compactMock = vi.mocked(compact);
 const mkdirMock = vi.mocked(mkdir);
 const readFileMock = vi.mocked(readFile);
 const writeFileMock = vi.mocked(writeFile);
@@ -40,10 +47,11 @@ function missingFileError(): Error & { code: string } {
   return Object.assign(new Error("ENOENT"), { code: "ENOENT" });
 }
 
-function validConfig(): string {
+function validConfig(compact?: unknown): string {
   return JSON.stringify({
     light: { model: "route/light", thinkingLevel: "low" },
     high: { model: "route/high", thinkingLevel: "medium" },
+    ...(compact ? { compact } : {}),
   });
 }
 
@@ -53,18 +61,28 @@ type TestContext = {
   modelRegistry: {
     find: (provider: string, id: string) => TestModel | undefined;
     getAvailable: () => TestModel[];
+    getApiKeyAndHeaders: (
+      model: TestModel,
+    ) => Promise<{ ok: true; apiKey: string; headers: Record<string, string> }>;
   };
   ui: { notify: ReturnType<typeof vi.fn> };
 };
 type Handler = (event: unknown, ctx: TestContext) => unknown | Promise<unknown>;
 
-function setupExtension() {
+function setupExtension(config = validConfig()) {
   const handlers = new Map<string, Handler>();
   const userModel = { provider: "user", id: "base" };
   const userModel2 = { provider: "user", id: "other" };
   const routeModel = { provider: "route", id: "light" };
   const highRouteModel = { provider: "route", id: "high" };
-  const models = [userModel, userModel2, routeModel, highRouteModel];
+  const compactRouteModel = { provider: "route", id: "compact" };
+  const models = [
+    userModel,
+    userModel2,
+    routeModel,
+    highRouteModel,
+    compactRouteModel,
+  ];
   const ctx = {
     model: userModel,
     modelRegistry: {
@@ -72,6 +90,11 @@ function setupExtension() {
         models.find((m) => m.provider === provider && m.id === id),
       ),
       getAvailable: vi.fn(() => models),
+      getApiKeyAndHeaders: vi.fn(async () => ({
+        ok: true as const,
+        apiKey: "test-api-key",
+        headers: { "x-test": "yes" },
+      })),
     },
     ui: { notify: vi.fn() },
   };
@@ -104,7 +127,7 @@ function setupExtension() {
   registerProfilesExtension(pi as never);
   readFileMock
     .mockRejectedValueOnce(missingFileError())
-    .mockResolvedValue(validConfig());
+    .mockResolvedValue(config);
 
   return { ctx, handlers, pi, userModel, userModel2, routeModel };
 }
@@ -138,6 +161,31 @@ describe("loadConfig", () => {
     }
   });
 
+  it("preserves an optional compact route when present", async () => {
+    const config = {
+      light: { model: "a/b", thinkingLevel: "low" },
+      high: { model: "a/b", thinkingLevel: "medium" },
+      compact: { model: "a/c", thinkingLevel: "minimal" },
+    };
+    readFileMock.mockResolvedValue(JSON.stringify(config));
+    const result = await loadConfig();
+    expect(result.status).toBe("valid");
+    if (result.status === "valid") {
+      expect(result.config).toEqual(config);
+    }
+  });
+
+  it("does not invalidate config when optional compact route is malformed", async () => {
+    const config = {
+      light: { model: "a/b", thinkingLevel: "low" },
+      high: { model: "a/b", thinkingLevel: "medium" },
+      compact: { model: "a/c" },
+    };
+    readFileMock.mockResolvedValue(JSON.stringify(config));
+    const result = await loadConfig();
+    expect(result.status).toBe("valid");
+  });
+
   it("returns invalid when high route is missing", async () => {
     const config = {
       light: { model: "a/b", thinkingLevel: "low" },
@@ -145,6 +193,190 @@ describe("loadConfig", () => {
     readFileMock.mockResolvedValue(JSON.stringify(config));
     const result = await loadConfig();
     expect(result.status).toBe("invalid");
+  });
+});
+
+// --- Profile editor compact route ---
+
+describe("profile editor compact route", () => {
+  it("allows unsetting compact and saving with only required routes", async () => {
+    let customCalls = 0;
+    const ctx = {
+      modelRegistry: { find: vi.fn() },
+      ui: {
+        custom: vi.fn(async (factory) => {
+          let resolved: unknown;
+          const done = (value: unknown) => {
+            resolved = value;
+          };
+          const component = factory({ requestRender: vi.fn() }, {}, {}, done);
+
+          if (customCalls === 0) {
+            component.handleInput("\x1b[B");
+            component.handleInput("\x1b[B");
+            component.handleInput("d");
+          } else {
+            component.handleInput("\x1b");
+          }
+          customCalls++;
+          if (resolved === undefined)
+            throw new Error("custom UI did not resolve");
+          return resolved;
+        }),
+        notify: vi.fn(),
+        select: vi.fn(),
+      },
+    };
+
+    const result = await editRoutes(
+      ctx as never,
+      {
+        light: { model: "route/light", thinkingLevel: "low" },
+        high: { model: "route/high", thinkingLevel: "medium" },
+        compact: { model: "route/compact", thinkingLevel: "minimal" },
+      },
+      [],
+      "valid",
+    );
+
+    expect(result).toEqual({
+      light: { model: "route/light", thinkingLevel: "low" },
+      high: { model: "route/high", thinkingLevel: "medium" },
+    });
+    expect(ctx.ui.notify).not.toHaveBeenCalled();
+  });
+});
+
+// --- Compact route compaction ---
+
+describe("compact route compaction", () => {
+  const preparation = {
+    messagesToSummarize: [],
+    turnPrefixMessages: [],
+    tokensBefore: 100,
+    firstKeptEntryId: "entry-1",
+  };
+
+  it("uses the configured compact route without changing the active model", async () => {
+    const result = {
+      summary: "summary",
+      firstKeptEntryId: "entry-1",
+      tokensBefore: 100,
+    };
+    compactMock.mockResolvedValue(result);
+    const { ctx, handlers, pi } = setupExtension(
+      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+    const response = await handlers.get("session_before_compact")?.(
+      { preparation, customInstructions: "custom", signal: undefined },
+      ctx,
+    );
+
+    expect(response).toEqual({ compaction: result });
+    expect(compactMock).toHaveBeenCalledWith(
+      preparation,
+      { provider: "route", id: "compact" },
+      "test-api-key",
+      { "x-test": "yes" },
+      "custom",
+      undefined,
+      "minimal",
+    );
+    expect(pi.setModel).not.toHaveBeenCalled();
+    expect(ctx.model).toEqual({ provider: "user", id: "base" });
+  });
+
+  it("falls back silently when compact route is absent", async () => {
+    const { ctx, handlers } = setupExtension();
+
+    await handlers.get("session_start")?.({}, ctx);
+    const response = await handlers.get("session_before_compact")?.(
+      { preparation },
+      ctx,
+    );
+
+    expect(response).toBeUndefined();
+    expect(compactMock).not.toHaveBeenCalled();
+    expect(ctx.ui.notify).not.toHaveBeenCalled();
+  });
+
+  it("falls back silently when compact route is unusable", async () => {
+    const { ctx, handlers } = setupExtension(
+      validConfig({ model: "missing/model", thinkingLevel: "minimal" }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+    const response = await handlers.get("session_before_compact")?.(
+      { preparation },
+      ctx,
+    );
+
+    expect(response).toBeUndefined();
+    expect(compactMock).not.toHaveBeenCalled();
+    expect(ctx.ui.notify).not.toHaveBeenCalled();
+  });
+
+  it("warns and falls back when compact route model disappears at runtime", async () => {
+    const { ctx, handlers } = setupExtension(
+      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+    vi.mocked(ctx.modelRegistry.find).mockReturnValue(undefined);
+    const response = await handlers.get("session_before_compact")?.(
+      { preparation },
+      ctx,
+    );
+
+    expect(response).toBeUndefined();
+    expect(compactMock).not.toHaveBeenCalled();
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "Compact route failed: model 'route/compact' not found. Falling back to default compaction.",
+      "warning",
+    );
+  });
+
+  it("warns and falls back when compact route auth fails at runtime", async () => {
+    const { ctx, handlers } = setupExtension(
+      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+    vi.mocked(ctx.modelRegistry.getApiKeyAndHeaders).mockResolvedValue({
+      ok: false,
+    } as never);
+    const response = await handlers.get("session_before_compact")?.(
+      { preparation },
+      ctx,
+    );
+
+    expect(response).toBeUndefined();
+    expect(compactMock).not.toHaveBeenCalled();
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "Compact route failed: authentication unavailable for 'route/compact'. Falling back to default compaction.",
+      "warning",
+    );
+  });
+
+  it("warns and falls back when compact route execution fails", async () => {
+    compactMock.mockRejectedValue(new Error("provider down"));
+    const { ctx, handlers } = setupExtension(
+      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+    const response = await handlers.get("session_before_compact")?.(
+      { preparation },
+      ctx,
+    );
+
+    expect(response).toBeUndefined();
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "Compact route failed: provider down. Falling back to default compaction.",
+      "warning",
+    );
   });
 });
 

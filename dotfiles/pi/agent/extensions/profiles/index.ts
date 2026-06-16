@@ -3,8 +3,9 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import { compact } from "@earendil-works/pi-coding-agent";
 import { runProfileCommand } from "./command.ts";
-import { formatModelId } from "./model-ids.ts";
+import { formatModelId, parseModelId } from "./model-ids.ts";
 import { ROUTE_TYPES } from "./routes.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import { createProfilesRuntime } from "./runtime.ts";
@@ -61,6 +62,48 @@ export default function (pi: ExtensionAPI) {
     await runtime.refreshConfig(ctx);
     if (!runtime.configEnabled()) {
       await runtime.warnOnce(ctx);
+    }
+  });
+
+  pi.on("session_before_compact", async (event, ctx) => {
+    const route = runtime.getCompactRoute();
+    if (!route) return;
+
+    function warnFallback(message: string): void {
+      ctx.ui.notify(
+        `Compact route failed: ${message}. Falling back to default compaction.`,
+        "warning",
+      );
+    }
+
+    const [provider, modelId] = parseModelId(route.model);
+    const model = ctx.modelRegistry.find(provider, modelId);
+    if (!model) {
+      warnFallback(`model '${route.model}' not found`);
+      return;
+    }
+
+    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+    if (!auth.ok || !auth.apiKey) {
+      warnFallback(`authentication unavailable for '${route.model}'`);
+      return;
+    }
+
+    try {
+      const result = await compact(
+        event.preparation,
+        model,
+        auth.apiKey,
+        auth.headers,
+        event.customInstructions,
+        event.signal,
+        route.thinkingLevel,
+      );
+      return { compaction: result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      warnFallback(message);
+      return;
     }
   });
 

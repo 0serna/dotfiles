@@ -1,15 +1,21 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { validateConfigSemantics } from "./routing.ts";
+import { resolveCompactRoute, validateConfigSemantics } from "./routing.ts";
 import { loadConfig } from "./state.ts";
-import type { ConfigValidationResult, PersistedConfig } from "./types.ts";
+import type {
+  ConfigValidationResult,
+  ModelRoute,
+  PersistedConfig,
+} from "./types.ts";
 
 export function createProfilesRuntime() {
   let configResult: ConfigValidationResult = { status: "missing" };
   let config: PersistedConfig | null = null;
+  let compactRoute: ModelRoute | null = null;
   let warningShownThisSession = false;
 
   async function refreshConfig(ctx?: ExtensionContext): Promise<void> {
     configResult = await loadConfig();
+    compactRoute = null;
 
     if (configResult.status === "valid" && ctx) {
       const errors = await validateConfigSemantics(configResult.config, ctx);
@@ -24,6 +30,9 @@ export function createProfilesRuntime() {
 
     if (configResult.status === "valid") {
       config = configResult.config;
+      if (ctx) {
+        compactRoute = await resolveCompactRoute(config, ctx);
+      }
     } else {
       config = configResult.status === "invalid" ? configResult.config : null;
     }
@@ -60,6 +69,7 @@ export function createProfilesRuntime() {
     warnOnce,
     getConfigResult: () => configResult,
     getConfig: () => config,
+    getCompactRoute: () => compactRoute,
   };
 }
 
