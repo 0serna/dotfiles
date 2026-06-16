@@ -10,8 +10,8 @@ import { renderFrame } from "./rendering.ts";
 import { buildResult } from "./results.ts";
 import type {
   DisplayOption,
-  OptionWithDesc,
   QuestionDetails,
+  QuestionOption,
   ResultValue,
   UIState,
 } from "./types.ts";
@@ -102,7 +102,7 @@ function handleKey(
 
 export async function execute(
   _toolCallId: unknown,
-  params: { question: string; options: OptionWithDesc[] },
+  params: { question: string; options: QuestionOption[] },
   _signal: unknown,
   _onUpdate: unknown,
   ctx: ExtensionContext,

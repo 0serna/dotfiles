@@ -1,15 +1,14 @@
 import { Type } from "typebox";
 
 const OptionSchema = Type.Object({
-  label: Type.String({ description: "Display label for the option" }),
-  description: Type.Optional(
-    Type.String({ description: "Optional description shown below the label" }),
-  ),
+  label: Type.String({
+    description: "Brief, self-explanatory display label for the option",
+  }),
 });
 
 export const QuestionParams = Type.Object({
   question: Type.String({
-    description: "The question text to display to the user",
+    description: "Concise question text to display to the user",
   }),
   options: Type.Array(OptionSchema, {
     description:

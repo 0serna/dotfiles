@@ -1,6 +1,6 @@
-import type { OptionWithDesc, QuestionDetails, ResultValue } from "./types.ts";
+import type { QuestionDetails, QuestionOption, ResultValue } from "./types.ts";
 
-function makeBaseDetails(question: string, options: OptionWithDesc[]) {
+function makeBaseDetails(question: string, options: QuestionOption[]) {
   return {
     question,
     options: options.map((o) => o.label),
@@ -63,7 +63,7 @@ function buildResultPrompted(
 export function buildResult(
   result: ResultValue | null,
   question: string,
-  options: OptionWithDesc[],
+  options: QuestionOption[],
 ) {
   const base = makeBaseDetails(question, options);
   if (!result || result.type === "cancel") return resultCancelled(base);

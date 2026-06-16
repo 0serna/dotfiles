@@ -58,11 +58,6 @@ function renderOptionLine(
 ) {
   const line = buildOptionLine(opt, index, optionIndex, isCommentOpen, theme);
   lines.push(truncateToWidth(line, width));
-  if (opt.description) {
-    lines.push(
-      truncateToWidth(`     ${theme.fg("muted", opt.description)}`, width),
-    );
-  }
 }
 
 function renderAllOptions(

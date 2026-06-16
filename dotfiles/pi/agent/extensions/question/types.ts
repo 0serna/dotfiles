@@ -1,9 +1,8 @@
-export interface OptionWithDesc {
+export interface QuestionOption {
   label: string;
-  description?: string;
 }
 
-export type DisplayOption = OptionWithDesc & { isOther?: boolean };
+export type DisplayOption = QuestionOption & { isOther?: boolean };
 
 export interface QuestionDetails {
   question: string;
