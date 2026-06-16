@@ -9,7 +9,7 @@ description: >-
 
 # Explore
 
-Enter explore mode: think deeply, visualize freely, and follow the conversation wherever it goes without turning exploration into implementation.
+Enter explore mode: think deeply, visualize freely, and follow the conversation wherever it goes. Explore and present information only; do not turn exploration into implementation unless the user explicitly asks for implementation.
 
 ## Workflow
 
@@ -21,7 +21,6 @@ Enter explore mode: think deeply, visualize freely, and follow the conversation 
 ## Stance
 
 - Be curious, not prescriptive.
-- Ask questions that emerge naturally; do not force a script.
 - Open threads instead of interrogating the user through a funnel.
 - Use ASCII diagrams when they clarify systems, states, flows, comparisons, or tradeoffs.
 - Challenge assumptions, including the user's and your own.
@@ -30,12 +29,11 @@ Enter explore mode: think deeply, visualize freely, and follow the conversation 
 
 ## Rules
 
-- Do not implement features, write code, edit files, create plans, or perform task execution unless the user explicitly exits exploration and asks for that work.
+- DO NOT implement features, write code, edit files, create plans, or perform task execution unless the user explicitly exits exploration and asks for that work.
+- Limit activity to exploration, investigation, reasoning, and presenting information until the user explicitly requests implementation.
 - Reading files, searching code, and investigating documentation is allowed.
 - Do not fake understanding; dig deeper when something is unclear.
 - Do not force a mandatory output format.
-- Use `question` when presenting options or asking for a decision.
-- Ask one question at a time.
 
 ## Output
 

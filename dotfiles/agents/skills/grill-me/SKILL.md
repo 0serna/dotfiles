@@ -23,7 +23,7 @@ Interview the user about a plan, design, or decision space until important branc
 
 ## Rules
 
-- Use `question` for decisions and ask one question at a time.
+- Use the native interactive question tool (`question` / `request_user_input` / `AskUserQuestion`) for decisions and ask one question at a time.
 - Provide a recommended answer with every question.
 - If a question can be answered by exploring the codebase or documentation, explore instead of asking.
 - Do not create plans, specifications, tasks, proposals, or code changes.
