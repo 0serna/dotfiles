@@ -1,8 +1,4 @@
-## Purpose
-
-Define the configuration model for Pi model routes, including validation, persistence, and interactive editing with an optional `compact` route.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Configurable fixed model routes
 
@@ -46,41 +42,6 @@ The system SHALL validate each route thinking level against the selected model's
 
 - **WHEN** persisted configuration references an unsupported thinking level for `light` or `high`
 - **THEN** the system treats the configuration as invalid
-
-### Requirement: Manual setup for missing configuration
-
-The system SHALL keep `/profile` available when configuration is missing and SHALL allow the user to create a complete configuration manually.
-
-#### Scenario: Configuration is missing
-
-- **WHEN** the user invokes `/profile` and no persisted configuration exists
-- **THEN** the system opens a setup interface with the routes shown as unset
-
-#### Scenario: Setup is incomplete
-
-- **WHEN** the user has not selected a model and thinking level for every required route
-- **THEN** the system does not persist the setup draft as active configuration
-
-#### Scenario: Setup is complete and valid
-
-- **WHEN** the user completes all required routes with available models and supported thinking levels
-- **THEN** the system allows the configuration to be saved
-
-### Requirement: Repair mode for invalid configuration
-
-The system SHALL keep `/profile` available when configuration is invalid and SHALL allow the user to repair invalid values.
-
-#### Scenario: Invalid configuration is opened
-
-- **WHEN** the user invokes `/profile` while persisted configuration is invalid
-- **THEN** the system opens a repair interface
-- **AND** shows recoverable configured values
-- **AND** marks invalid or missing required-route values visibly
-
-#### Scenario: Invalid values are repaired
-
-- **WHEN** the user replaces invalid or missing values with available models and supported thinking levels for all required routes
-- **THEN** the system allows the repaired configuration to be saved
 
 ### Requirement: Route editor navigation
 

@@ -55,9 +55,6 @@ function structuralErrors(raw: unknown): string[] {
     }
   }
 
-  // compact is optional — if present but malformed, silently ignore it
-  // (no error returned; unusable compact is treated as absent at runtime)
-
   return errors;
 }
 

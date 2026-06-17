@@ -1,8 +1,4 @@
-## Purpose
-
-Define how the optional `compact` profile route selects a dedicated model and thinking level for Pi context compaction, with fallback to default compaction when the route is absent, invalid, or fails at runtime.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Compact route mapped to a named route
 
@@ -40,3 +36,23 @@ When `ROUTE_TYPES` declares a `/compact` mapping, the system SHALL select the mo
 - **THEN** the system shows a warning for the failed compact route
 - **AND** the system does not provide a custom compaction result
 - **AND** Pi uses its default compaction behavior
+
+## REMOVED Requirements
+
+### Requirement: Optional compact profile route
+
+**Reason**: The dedicated optional `compact` route is replaced by a `/compact` mapping in `ROUTE_TYPES` that targets an existing named route. Removing the `/compact` mapping now explicitly disables custom compact routing and restores Pi default compaction.
+
+**Migration**: Remove any `compact` key from persisted `profiles.json`. Compaction now uses the route declared by `ROUTE_TYPES["/compact"]` (currently `high`). To use Pi default compaction, remove the `/compact` entry from `ROUTE_TYPES`.
+
+### Requirement: Compact route fallback on runtime failure
+
+**Reason**: Fallback semantics are folded into the new "Compact route mapped to a named route" requirement, which keeps runtime-failure fallback (model/auth/compaction failure) and defines the absent-`/compact` mapping case as intentional default compaction.
+
+**Migration**: No action needed beyond the route mapping change; runtime failure of the named route still falls back to default compaction with a warning.
+
+### Requirement: Compact route applies to all compaction triggers
+
+**Reason**: Replaced by the "Compact route mapped to a named route" requirement, whose scenarios cover manual and automatic compaction triggers through the single `/compact` mapping when present.
+
+**Migration**: No action needed; manual and automatic compaction both use the named route resolved from `ROUTE_TYPES["/compact"]` when present, or Pi default compaction when absent.

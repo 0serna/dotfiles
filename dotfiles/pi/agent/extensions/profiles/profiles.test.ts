@@ -30,13 +30,13 @@ vi.mock("node:os", () => ({
 import { compact } from "@earendil-works/pi-coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import registerProfilesExtension from "./index.ts";
+import { ROUTE_TYPES } from "./routes.ts";
 import { loadConfig } from "./state.ts";
 import {
   getRememberedLevel,
   loadMemory,
   recordLevel,
 } from "./thinking-memory.ts";
-import { editRoutes } from "./ui.ts";
 
 const compactMock = vi.mocked(compact);
 const mkdirMock = vi.mocked(mkdir);
@@ -47,11 +47,10 @@ function missingFileError(): Error & { code: string } {
   return Object.assign(new Error("ENOENT"), { code: "ENOENT" });
 }
 
-function validConfig(compact?: unknown): string {
+function validConfig(): string {
   return JSON.stringify({
     light: { model: "route/light", thinkingLevel: "low" },
     high: { model: "route/high", thinkingLevel: "medium" },
-    ...(compact ? { compact } : {}),
   });
 }
 
@@ -75,14 +74,7 @@ function setupExtension(config = validConfig()) {
   const userModel2 = { provider: "user", id: "other" };
   const routeModel = { provider: "route", id: "light" };
   const highRouteModel = { provider: "route", id: "high" };
-  const compactRouteModel = { provider: "route", id: "compact" };
-  const models = [
-    userModel,
-    userModel2,
-    routeModel,
-    highRouteModel,
-    compactRouteModel,
-  ];
+  const models = [userModel, userModel2, routeModel, highRouteModel];
   const ctx = {
     model: userModel,
     modelRegistry: {
@@ -161,31 +153,6 @@ describe("loadConfig", () => {
     }
   });
 
-  it("preserves an optional compact route when present", async () => {
-    const config = {
-      light: { model: "a/b", thinkingLevel: "low" },
-      high: { model: "a/b", thinkingLevel: "medium" },
-      compact: { model: "a/c", thinkingLevel: "minimal" },
-    };
-    readFileMock.mockResolvedValue(JSON.stringify(config));
-    const result = await loadConfig();
-    expect(result.status).toBe("valid");
-    if (result.status === "valid") {
-      expect(result.config).toEqual(config);
-    }
-  });
-
-  it("does not invalidate config when optional compact route is malformed", async () => {
-    const config = {
-      light: { model: "a/b", thinkingLevel: "low" },
-      high: { model: "a/b", thinkingLevel: "medium" },
-      compact: { model: "a/c" },
-    };
-    readFileMock.mockResolvedValue(JSON.stringify(config));
-    const result = await loadConfig();
-    expect(result.status).toBe("valid");
-  });
-
   it("returns invalid when high route is missing", async () => {
     const config = {
       light: { model: "a/b", thinkingLevel: "low" },
@@ -193,57 +160,6 @@ describe("loadConfig", () => {
     readFileMock.mockResolvedValue(JSON.stringify(config));
     const result = await loadConfig();
     expect(result.status).toBe("invalid");
-  });
-});
-
-// --- Profile editor compact route ---
-
-describe("profile editor compact route", () => {
-  it("allows unsetting compact and saving with only required routes", async () => {
-    let customCalls = 0;
-    const ctx = {
-      modelRegistry: { find: vi.fn() },
-      ui: {
-        custom: vi.fn(async (factory) => {
-          let resolved: unknown;
-          const done = (value: unknown) => {
-            resolved = value;
-          };
-          const component = factory({ requestRender: vi.fn() }, {}, {}, done);
-
-          if (customCalls === 0) {
-            component.handleInput("\x1b[B");
-            component.handleInput("\x1b[B");
-            component.handleInput("d");
-          } else {
-            component.handleInput("\x1b");
-          }
-          customCalls++;
-          if (resolved === undefined)
-            throw new Error("custom UI did not resolve");
-          return resolved;
-        }),
-        notify: vi.fn(),
-        select: vi.fn(),
-      },
-    };
-
-    const result = await editRoutes(
-      ctx as never,
-      {
-        light: { model: "route/light", thinkingLevel: "low" },
-        high: { model: "route/high", thinkingLevel: "medium" },
-        compact: { model: "route/compact", thinkingLevel: "minimal" },
-      },
-      [],
-      "valid",
-    );
-
-    expect(result).toEqual({
-      light: { model: "route/light", thinkingLevel: "low" },
-      high: { model: "route/high", thinkingLevel: "medium" },
-    });
-    expect(ctx.ui.notify).not.toHaveBeenCalled();
   });
 });
 
@@ -257,16 +173,14 @@ describe("compact route compaction", () => {
     firstKeptEntryId: "entry-1",
   };
 
-  it("uses the configured compact route without changing the active model", async () => {
+  it("uses the high route resolved from ROUTE_TYPES[/compact] without changing the active model", async () => {
     const result = {
       summary: "summary",
       firstKeptEntryId: "entry-1",
       tokensBefore: 100,
     };
     compactMock.mockResolvedValue(result);
-    const { ctx, handlers, pi } = setupExtension(
-      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
-    );
+    const { ctx, handlers, pi } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
     const response = await handlers.get("session_before_compact")?.(
@@ -277,19 +191,22 @@ describe("compact route compaction", () => {
     expect(response).toEqual({ compaction: result });
     expect(compactMock).toHaveBeenCalledWith(
       preparation,
-      { provider: "route", id: "compact" },
+      { provider: "route", id: "high" },
       "test-api-key",
       { "x-test": "yes" },
       "custom",
       undefined,
-      "minimal",
+      "medium",
     );
     expect(pi.setModel).not.toHaveBeenCalled();
     expect(ctx.model).toEqual({ provider: "user", id: "base" });
   });
 
-  it("falls back silently when compact route is absent", async () => {
+  it("yields no custom compaction when configuration is missing", async () => {
     const { ctx, handlers } = setupExtension();
+    // Force missing config: re-mock readFile to reject ENOENT for the session_start load
+    readFileMock.mockReset();
+    readFileMock.mockRejectedValue(missingFileError());
 
     await handlers.get("session_start")?.({}, ctx);
     const response = await handlers.get("session_before_compact")?.(
@@ -299,29 +216,32 @@ describe("compact route compaction", () => {
 
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
-    expect(ctx.ui.notify).not.toHaveBeenCalled();
   });
 
-  it("falls back silently when compact route is unusable", async () => {
-    const { ctx, handlers } = setupExtension(
-      validConfig({ model: "missing/model", thinkingLevel: "minimal" }),
-    );
+  it("yields no custom compaction when /compact is not mapped", async () => {
+    const routeTypes = ROUTE_TYPES as Partial<Record<string, string>>;
+    const originalCompactRoute = routeTypes["/compact"];
+    delete routeTypes["/compact"];
 
-    await handlers.get("session_start")?.({}, ctx);
-    const response = await handlers.get("session_before_compact")?.(
-      { preparation },
-      ctx,
-    );
+    try {
+      const { ctx, handlers } = setupExtension();
 
-    expect(response).toBeUndefined();
-    expect(compactMock).not.toHaveBeenCalled();
-    expect(ctx.ui.notify).not.toHaveBeenCalled();
+      await handlers.get("session_start")?.({}, ctx);
+      const response = await handlers.get("session_before_compact")?.(
+        { preparation },
+        ctx,
+      );
+
+      expect(response).toBeUndefined();
+      expect(compactMock).not.toHaveBeenCalled();
+      expect(ctx.ui.notify).not.toHaveBeenCalled();
+    } finally {
+      routeTypes["/compact"] = originalCompactRoute;
+    }
   });
 
-  it("warns and falls back when compact route model disappears at runtime", async () => {
-    const { ctx, handlers } = setupExtension(
-      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
-    );
+  it("warns and falls back when the resolved route model disappears at runtime", async () => {
+    const { ctx, handlers } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
     vi.mocked(ctx.modelRegistry.find).mockReturnValue(undefined);
@@ -333,15 +253,13 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Compact route failed: model 'route/compact' not found. Falling back to default compaction.",
+      "Compact route failed: model 'route/high' not found. Falling back to default compaction.",
       "warning",
     );
   });
 
-  it("warns and falls back when compact route auth fails at runtime", async () => {
-    const { ctx, handlers } = setupExtension(
-      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
-    );
+  it("warns and falls back when auth fails at runtime", async () => {
+    const { ctx, handlers } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
     vi.mocked(ctx.modelRegistry.getApiKeyAndHeaders).mockResolvedValue({
@@ -355,16 +273,14 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Compact route failed: authentication unavailable for 'route/compact'. Falling back to default compaction.",
+      "Compact route failed: authentication unavailable for 'route/high'. Falling back to default compaction.",
       "warning",
     );
   });
 
-  it("warns and falls back when compact route execution fails", async () => {
+  it("warns and falls back when compaction execution fails", async () => {
     compactMock.mockRejectedValue(new Error("provider down"));
-    const { ctx, handlers } = setupExtension(
-      validConfig({ model: "route/compact", thinkingLevel: "minimal" }),
-    );
+    const { ctx, handlers } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
     const response = await handlers.get("session_before_compact")?.(

@@ -66,8 +66,15 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_before_compact", async (event, ctx) => {
-    const route = runtime.getCompactRoute();
-    if (!route) return;
+    if (!runtime.configEnabled()) return;
+    const config = runtime.getConfig();
+    if (!config) return;
+
+    const routeType = (
+      ROUTE_TYPES as Partial<Record<string, keyof typeof config>>
+    )["/compact"];
+    if (!routeType) return;
+    const route = config[routeType];
 
     function warnFallback(message: string): void {
       ctx.ui.notify(

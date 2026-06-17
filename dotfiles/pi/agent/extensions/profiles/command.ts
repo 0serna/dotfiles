@@ -1,6 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { getModelLabels } from "./model-ids.ts";
-import { resolveCompactRoute, validateConfigSemantics } from "./routing.ts";
+import { validateConfigSemantics } from "./routing.ts";
 import type { ProfilesRuntime } from "./runtime.ts";
 import { saveConfig } from "./state.ts";
 import { editRoutes } from "./ui.ts";
@@ -30,18 +30,6 @@ export async function runProfileCommand(
   if (semanticErrors.length > 0) {
     ctx.ui.notify(`Cannot save: ${semanticErrors.join("; ")}`, "warning");
     return;
-  }
-
-  // If compact was explicitly configured but is unusable, reject before saving
-  if (fullConfig.compact) {
-    const resolved = await resolveCompactRoute(fullConfig, ctx);
-    if (!resolved) {
-      ctx.ui.notify(
-        "Cannot save: compact route is configured but unusable (model unavailable or thinking level unsupported).",
-        "warning",
-      );
-      return;
-    }
   }
 
   await saveConfig(fullConfig);
