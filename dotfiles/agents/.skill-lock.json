@@ -6,9 +6,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/remorses/playwriter.git",
       "skillPath": "skills/playwriter/SKILL.md",
-      "skillFolderHash": "e6cd918f821d35a79dca0277d197df667a240753",
+      "skillFolderHash": "67b1b1e1e53aa4e9d58b6bc09ea72a881e01984a",
       "installedAt": "2026-04-23T19:55:30.474Z",
-      "updatedAt": "2026-04-23T19:55:30.474Z"
+      "updatedAt": "2026-06-18T15:29:06.949Z"
     },
     "find-docs": {
       "source": "upstash/context7",
@@ -24,9 +24,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/fallow-rs/fallow-skills.git",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "skillFolderHash": "bd66b59c1998481eacd7c0aedf3660d0129fde2c",
+      "skillFolderHash": "2db87cd96d52ab50be197355b542da857f5f381d",
       "installedAt": "2026-05-19T16:54:29.764Z",
-      "updatedAt": "2026-06-05T17:42:15.165Z"
+      "updatedAt": "2026-06-18T15:29:08.362Z"
     }
   },
   "dismissed": {

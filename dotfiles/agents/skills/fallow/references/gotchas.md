@@ -23,7 +23,7 @@ Always preview with `--dry-run` before applying. This is a destructive operation
 
 ## Don't Create Config Unless Needed
 
-Fallow works with zero configuration for most projects thanks to 118 auto-detecting framework plugins. Creating an unnecessary config file can mask issues or override detection behavior.
+Fallow works with zero configuration for most projects thanks to 121 auto-detecting framework plugins. Creating an unnecessary config file can mask issues or override detection behavior.
 
 ```bash
 # WRONG: creating config for a standard Next.js project
@@ -76,6 +76,18 @@ fallow dead-code --format json --quiet
 ```
 
 Don't use `--changed-since` when auditing the full project. Use it for PR checks and incremental CI.
+
+---
+
+## Svelte Event Findings Are Project-Wide Listener Checks
+
+`unused-svelte-event` reports a Svelte `createEventDispatcher` event that has no reachable listener in the project. This is different from `unused-component-emit`, which checks whether a Vue component ever emits its declared event.
+
+```bash
+fallow dead-code --format json --quiet --unused-svelte-events
+```
+
+Dynamic event names, dispatcher values that escape the component, and projects without a declared Svelte dependency are abstained to avoid false positives.
 
 ---
 
@@ -324,6 +336,10 @@ Conservative semantics: a method carrying any decorator NOT in the list still ge
 
 The default empty list preserves today's skip-all behavior, so existing NestJS / Angular / TypeORM projects see no change.
 
+### Angular `@Input()` / `@Output()` are still covered by the component rules
+
+The skip above applies only to generic `unused-class-member` detection. The dedicated Angular component rules (`unused-component-input` for `@Input()` / signal `input()` / `model()`, and `unused-component-output` for `@Output()` / signal `output()`, both default `warn`, gated on `@angular/core`) scope usage to the component itself: an input is dead when it is read by no code in its own class body or template (inline `template` or external `templateUrl`), and an output is dead when it is emitted (`.emit()`) nowhere in its own component. The scope is the component, not the project: an input that a parent binds via `[input]="..."` but the component itself never reads IS flagged, because the parent binding is satisfied while the value goes unused inside the component. These rules abstain on the whole component for any `extends` clause, a `{...this}` spread, JS-reserved-word names, accessor (`get` / `set`) inputs, and observable-stream `@Output`s (only `new EventEmitter()` initializers are harvested); `model()` is treated as input-only. Suppress an individual finding with `// fallow-ignore-next-line unused-component-input` or `-output`.
+
 ---
 
 ## JSDoc Visibility Tags Keep Exports Alive
@@ -462,6 +478,18 @@ query CurrentUser {
 ```
 
 Fallow marks `src/fragments/user-fields.graphql` or `src/fragments/user-fields.gql` as reachable when either file exists. A typo in the relative path is reported as an unresolved import instead of silently dropping the edge.
+
+---
+
+## Tailwind v4 `@theme` Tokens Are Conservative Cleanup Candidates
+
+When `fallow health --css` reports `css_analytics.unused_theme_tokens`, treat the rows as dead-design-token candidates, not as auto-fix instructions. A Tailwind v4 `@theme` token such as `--color-brand` is considered used when fallow sees a generated utility suffix such as `bg-brand` or `text-brand`, a `var(--color-brand)` read, an `@apply` utility, a Tailwind arbitrary value such as `rounded-[--radius-card]`, or another `@theme` token that references it.
+
+The detector intentionally abstains when a Tailwind plugin or published CSS surface could consume tokens invisibly. Always run the row's `actions[].command` verification before deleting a token, and do not run `fallow fix` for these rows.
+
+## CSS Health Candidates Are Advisory
+
+`fallow health --css` also emits advisory cleanup and typo candidates in `css_analytics.unreferenced_css_classes` (a plain-CSS class defined but matched by no `class`/`className` in project markup), `css_analytics.unresolved_class_references` (the reverse: a markup class one edit away from a defined class, a likely typo), `css_analytics.unused_font_faces`, `css_analytics.undefined_keyframes`, and `css_analytics.font_size_unit_mix`. Treat them like review prompts, not confirmed defects. Run each row's `actions[].command` before changing CSS, because fonts, classes, animations, and type scales can be driven by inline styles, JavaScript, CMS templates, or preprocessor expansion that static analysis intentionally does not execute.
 
 ---
 
