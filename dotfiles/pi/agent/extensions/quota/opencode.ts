@@ -84,7 +84,12 @@ function parseGoDashboard(html: string): OpenCodeGoData | null {
     if (data.rolling || data.weekly || data.monthly) break;
   }
 
-  return data.rolling || data.weekly || data.monthly ? data : null;
+  return data.rolling ||
+    data.weekly ||
+    data.monthly ||
+    data.balanceDollars != null
+    ? data
+    : null;
 }
 
 function parseGoHydrationLiterals(html: string): OpenCodeGoData | null {

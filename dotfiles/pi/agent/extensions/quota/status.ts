@@ -140,19 +140,29 @@ export function formatOpenCodeBalances(
   data: OpenCodeGoData,
   ctx: ExtensionContext,
 ): string | null {
-  if (!data.rolling || !data.weekly || !data.monthly) return null;
+  if (
+    !data.rolling &&
+    !data.weekly &&
+    !data.monthly &&
+    data.balanceDollars == null
+  )
+    return null;
 
-  const parts = [
-    formatOpenCodeSegment(data.rolling, ctx),
-    formatOpenCodeSegment(data.weekly, ctx),
-    formatOpenCodeSegment(data.monthly, ctx),
-  ];
+  const parts: string[] = [];
+
+  if (data.rolling && data.weekly && data.monthly) {
+    parts.push(
+      formatOpenCodeSegment(data.rolling, ctx),
+      formatOpenCodeSegment(data.weekly, ctx),
+      formatOpenCodeSegment(data.monthly, ctx),
+    );
+  }
 
   if (data.balanceDollars != null) {
     parts.push(ctx.ui.theme.fg("dim", `$${data.balanceDollars.toFixed(2)}`));
   }
 
-  return parts.join(ctx.ui.theme.fg("dim", " "));
+  return parts.length > 0 ? parts.join(ctx.ui.theme.fg("dim", " ")) : null;
 }
 
 // ---------------------------------------------------------------------------
