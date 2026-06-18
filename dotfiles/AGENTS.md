@@ -10,12 +10,6 @@
 - Prefer the smallest correct implementation. Do not add speculative features, abstractions, configurability, or defensive handling for impossible scenarios.
 - Make surgical changes. Touch only files and lines that directly support the user's request, match the existing style, and do not refactor adjacent code unless required.
 - Always use `rg` (ripgrep) instead of `grep` for file searches — it's faster, respects `.gitignore`, and supports modern regex by default.
-
-## Workflow
-
-- Clean up only artifacts introduced by your own changes, such as unused imports or now-dead helpers. Mention unrelated dead code instead of removing it.
-- For non-trivial work, define a brief success criterion and verify it with the most relevant available command or test.
-- After finishing edits, always run the project's configured check commands when available, such as lint, format, or build.
 - NEVER generate documentation files unless the user explicitly requests them.
 - NEVER use stash, stage, or commit without the user's explicit permission.
 
@@ -27,7 +21,7 @@
 ## GitHub
 
 - Use GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata.
-- If necessary, clone repositories to temporary directories `/tmp` to analyze them more efficiently.
+- If necessary, clone repositories to system temporary directories `/tmp` to analyze them more efficiently.
 
 ## Code Quality
 

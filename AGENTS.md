@@ -29,4 +29,3 @@
 - `npm run check`: run ESLint, TypeScript, Fallow, and OpenSpec validation.
 - `npm run format`: format repository files with Prettier.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
-- `npm run sync-pi-settings`: sync Pi agent settings to the target config location.
