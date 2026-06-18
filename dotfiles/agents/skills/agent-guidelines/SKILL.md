@@ -1,12 +1,12 @@
 ---
-name: agents-md-creator
+name: agent-guidelines
 description: >-
   Generate or update the AGENTS.md of a JavaScript or TypeScript
   repository following the https://agents.md/ standard. Use when asked to create,
   generate, update, or refresh AGENTS.md.
 ---
 
-# AGENTS.md Creator
+# Agent Guidelines
 
 Generate or update the two default sections — **Repository Structure** (directory tree) and **Repository Commands** (command list) — in `AGENTS.md`, preserving all unrelated content. You may suggest additional sections to the user when the repository warrants them, and you can improve existing content outside the generated sections.
 
@@ -17,7 +17,7 @@ Generate or update the two default sections — **Repository Structure** (direct
 3. Detect **TypeScript** (`tsconfig.json` or `.ts` sources).
 4. Map the repository tree and available commands from `package.json`.
 5. If the repository has notable characteristics not captured by the default sections (special testing setup, non-obvious constraints, complex architecture), suggest additional sections to the user.
-6. Update or create `AGENTS.md` at root — replace only the two target sections (see [Update Rules](#update-rules)). Do not format, lint, or validate the file afterwards.
+6. Update or create `AGENTS.md` at root — replace only the two target sections (see `Update Rules`). Do not format, lint, or validate the file afterwards.
 7. Present a summary: whether created or updated, tree depth, commands listed, and any decisions the user answered.
 
 ## Repository Structure

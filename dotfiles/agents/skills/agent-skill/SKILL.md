@@ -1,5 +1,5 @@
 ---
-name: skill-creator
+name: agent-skill
 description: >-
   Create, review, validate, and improve Agent Skills (SKILL.md) following the
   agentskills.io specification, best practices, and description optimization
@@ -10,7 +10,7 @@ description: >-
   maintenance.
 ---
 
-# Agent Skill Creator
+# Agent Skill
 
 Create, review, validate, and improve Agent Skills following the [specification](https://agentskills.io/specification), [best practices](https://agentskills.io/skill-creation/best-practices), and [description optimization guide](https://agentskills.io/skill-creation/optimizing-descriptions).
 
