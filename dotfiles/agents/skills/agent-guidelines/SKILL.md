@@ -1,9 +1,9 @@
 ---
 name: agent-guidelines
 description: >-
-  Generate or update the AGENTS.md of a JavaScript or TypeScript
-  repository following the https://agents.md/ standard. Use when asked to create,
-  generate, update, or refresh AGENTS.md.
+  Generate or update AGENTS.md for any software repository following the
+  https://agents.md/ standard. Use when asked to create, generate, update, or
+  refresh AGENTS.md.
 ---
 
 # Agent Guidelines
@@ -14,19 +14,19 @@ Generate or update the two default sections — **Repository Structure** (direct
 
 1. Load `templates/agents-md-example.md` to see the exact output format.
 2. Read `AGENTS.md` if it exists — identify unrelated content to preserve.
-3. Detect **TypeScript** (`tsconfig.json` or `.ts` sources).
-4. Map the repository tree and available commands from `package.json`.
+3. Detect the project ecosystem from manifests, build files, layout, and tooling.
+4. Map the repository tree and explicit commands from script manifests, task runners, and automation files.
 5. If the repository has notable characteristics not captured by the default sections (special testing setup, non-obvious constraints, complex architecture), suggest additional sections to the user.
 6. Update or create `AGENTS.md` at root — replace only the two target sections (see `Update Rules`). Do not format, lint, or validate the file afterwards.
 7. Present a summary: whether created or updated, tree depth, commands listed, and any decisions the user answered.
 
 ## Repository Structure
 
-Build a markdown code-fence tree starting at `.`. Include important source/doc directories. Do **not** include: root config files (package.json, tsconfig, formatters, CI), `.git`, dependency dirs, build outputs (`dist/`, `.next/`), caches, logs, editor state, or tooling directories (`.husky/`, `.github/`, `.vscode/`, `.agents/`). Keep depth shallow (1–2 levels) unless deeper levels reveal meaningful boundaries (e.g. monorepo `packages/`, nested source/test pairs). Annotate TypeScript directories when applicable.
+Build a markdown code-fence tree starting at `.`. Include important source/doc directories. Do **not** include: root config/CI files, `.git`, dependency dirs, build outputs (`dist/`, `build/`, `.next/`, `target/`), caches, logs, editor state, or tooling directories (`.husky/`, `.github/`, `.vscode/`, `.agents/`). Keep depth shallow (1–2 levels) unless deeper levels reveal meaningful boundaries (e.g. monorepo `packages/`, nested source/test pairs). Annotate directories only when the purpose is non-obvious or project-specific.
 
 ## Repository Commands
 
-List commands from `package.json`. Include: install, test, lint, format, typecheck, build, dev, and check (quality gate). Omit lifecycle scripts (`prepare`, `postinstall`), unsafe/deploy-only commands, and anything not useful. If no useful commands are found, write `No useful commands detected.`
+List only explicit, useful commands from script manifests, task runners (`package.json`, `Makefile`, `justfile`, `Taskfile.yml`, language-specific task sections), or executable files in `scripts/`. Include install, test, lint, format, typecheck, build, dev, and check commands when explicitly defined. Omit lifecycle hooks, private/internal helper targets, unsafe/deploy-only commands, and anything not useful. Do not invent conventional commands from ecosystem detection alone. If no useful commands are found, keep the section and write `No useful commands detected.`
 
 ## Best Practices
 
@@ -44,5 +44,5 @@ Find `## Repository Structure` and `## Repository Commands` by heading and repla
 ## Gotchas
 
 - The skill operates on the **current working directory** as the repository root, not `git rev-parse --show-toplevel`.
-- If `package.json` is missing, **ask** the user — do not silently skip or abort.
+- If no command source is present, do not ask the user for commands; keep `Repository Commands` with `No useful commands detected.`
 - Do not format, lint, or validate the generated `AGENTS.md` — that could alter preserved content.
