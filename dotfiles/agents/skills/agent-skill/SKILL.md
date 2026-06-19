@@ -60,11 +60,14 @@ Before drafting or reviewing, investigate existing context so instructions are c
    - Does the skill add knowledge the agent wouldn't have alone?
    - Are instructions specific ("run `script.py --validate`") not generic ("handle errors appropriately")?
    - Does it favor procedure over declaration? (generalizable workflows, not one-shot answers)
+   - Do important steps have checkable completion criteria, so the agent knows when each step is done?
    - Are there concrete gotchas and edge cases?
    - Does it provide defaults, not menus of options?
    - Is every instruction necessary? Would the agent get it right without it?
+   - Does each sentence change behavior, or is it a no-op the agent would already follow?
+   - Is each meaning stated in one authoritative place, without semantic duplication?
 4. **Check reference integrity** — every `references/`, `scripts/`, `assets/` path mentioned in `SKILL.md` must exist as a file
-5. **Check progressive disclosure** — `SKILL.md` should stay under 500 lines; move detailed reference material to separate files with instructions on when to load them
+5. **Check progressive disclosure** — `SKILL.md` should stay under 500 lines; keep material every branch needs inline, and move branch-specific detail to separate files with instructions on when to load them
 6. **Check description triggering** — see [Description Optimization](#description-optimization) for the lightweight checklist
 7. **Report** findings as:
 
@@ -127,12 +130,14 @@ Validation must pass before considering a skill complete. If `uvx` is unavailabl
 | Criterion                  | What to check                                                                   |
 | -------------------------- | ------------------------------------------------------------------------------- |
 | **Focused scope**          | One coherent unit of work; composes well with other skills                      |
+| **Predictable process**    | Makes the agent follow a reliable process, not merely produce plausible output  |
 | **Progressive disclosure** | `SKILL.md` under 500 lines; deep material in `references/` with load conditions |
 | **Grounded**               | Based on project-specific context, not generic knowledge                        |
 | **Defaults, not menus**    | Pick one default approach; mention alternatives briefly                         |
 | **Concrete gotchas**       | List corrections to mistakes the agent would make without them                  |
 | **Validation gate**        | the required `uvx` validation command passes; reference integrity confirmed     |
 | **Specific instructions**  | No "handle errors appropriately" — say what to do for each failure mode         |
+| **Pruned prose**           | No no-op sentences, stale sediment, or duplicated meanings                      |
 | **Trigger precision**      | Description covers scope without false-positive near-misses                     |
 | **Minimal frontmatter**    | Only `name` and `description` unless there is a documented reason for more      |
 
