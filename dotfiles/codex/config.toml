@@ -1,0 +1,22 @@
+model = "gpt-5.5"
+model_reasoning_effort = "low"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+[features]
+apps = false
+
+[projects."/home/oscar/repositories/dotfiles"]
+trust_level = "trusted"
+
+[projects."/home/oscar/repositories/cv"]
+trust_level = "trusted"
+
+[tui]
+status_line = ["current-dir", "model-with-reasoning", "context-used", "five-hour-limit", "weekly-limit"]
+status_line_use_colors = true
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
+
+[notice]
+hide_full_access_warning = true

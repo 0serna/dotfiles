@@ -37,6 +37,14 @@
     "target": "~/.agents"
   },
   {
+    "source": "dotfiles/AGENTS.md",
+    "target": "~/.codex/AGENTS.md"
+  },
+  {
+    "source": "dotfiles/codex/config.toml",
+    "target": "~/.codex/config.toml"
+  },
+  {
     "source": "dotfiles/rtk/config.toml",
     "target": "~/.config/rtk/config.toml"
   },
