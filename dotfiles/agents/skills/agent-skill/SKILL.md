@@ -29,7 +29,7 @@ Before drafting or reviewing, investigate existing context so instructions are c
 
 1. `ls ~/.agents/skills/` — understand conventions used by existing skills
 2. Search for relevant source material with `rg`: error messages, workflows, commands, domain patterns, project-specific facts, gotchas
-3. If context is insufficient for a meaningful skill, ask the user only about **blocking decisions**:
+3. If context is insufficient for a meaningful skill, ask the user only about **blocking decisions**; use the native interactive question tool (`question` / `request_user_input` / `AskUserQuestion`) when presenting options or asking for a decision:
    - What triggers should activate this skill?
    - What tools, commands, or APIs should the agent use?
    - What must the agent NOT do?

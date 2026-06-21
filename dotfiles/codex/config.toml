@@ -1,5 +1,6 @@
-model = "gpt-5.5"
-model_reasoning_effort = "low"
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 [features]
@@ -20,3 +21,6 @@ status_line_use_colors = true
 
 [notice]
 hide_full_access_warning = true
+
+[notice.model_migrations]
+"gpt-5.4" = "gpt-5.5"

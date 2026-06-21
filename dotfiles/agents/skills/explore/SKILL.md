@@ -39,7 +39,7 @@ Enter explore mode: think deeply, visualize freely, and follow the conversation 
 - Reading files, searching code, running read-only inspection commands, and investigating documentation is allowed when it supports the exploration.
 - Do not fake understanding; dig deeper when something is unclear.
 - Ask one focused question at a time only when a missing answer blocks meaningful exploration and cannot be discovered independently; otherwise state assumptions and continue.
-- Use the native interactive question tool when presenting options or asking for a decision.
+- Use the native interactive question tool (`question` / `request_user_input` / `AskUserQuestion`) when presenting options or asking for a decision.
 - The final exploration report is mandatory. Do not skip it, even if the next step seems obvious.
 
 ## Final Exploration Report
