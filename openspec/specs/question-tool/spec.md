@@ -53,7 +53,7 @@ The tool SHALL support three interaction modes:
 1. **Navigate**: Arrow keys (↑/↓) move selection. The "Other" option is selectable like any other.
 2. **Confirm (Enter)**: If the selected option is a regular option, the tool SHALL return immediately with that answer. If the selected option is "Other", the tool SHALL enter text input mode.
 3. **Comment (Space)**: If the selected option is a regular option, the tool SHALL select it and open a comment field. If the selected option is "Other", the tool SHALL enter text input mode (equivalent to Enter).
-4. **Escape in list**: Cancels the question. Returns a cancelled result.
+4. **Escape in list**: Cancels the question. Returns a cancelled result and aborts the current agent run.
 5. **Escape in text/comment input**: Returns to the list without confirming.
 
 #### Scenario: Enter on normal option confirms
@@ -74,7 +74,8 @@ The tool SHALL support three interaction modes:
 #### Scenario: Escape cancels
 
 - **WHEN** the user presses Escape in the option list
-- **THEN** the tool SHALL return with cancelled state.
+- **THEN** the tool SHALL return with cancelled state
+- **AND** the current agent run SHALL be aborted.
 
 #### Scenario: Escape in input returns to list
 
@@ -117,7 +118,8 @@ Cancelled:
 ```typescript
 {
   content: [{ type: "text", text: "User cancelled the selection" }],
-  details: { question, options, answer: null, cancelled: true }
+  details: { question, options, answer: null, cancelled: true },
+  terminate: true
 }
 ```
 
@@ -139,7 +141,9 @@ Cancelled:
 #### Scenario: Cancelled result
 
 - **WHEN** the user presses Escape
-- **THEN** the returned details SHALL contain `answer: null` and `cancelled: true`.
+- **THEN** the returned details SHALL contain `answer: null` and `cancelled: true`
+- **AND** the tool result SHALL set `terminate: true`
+- **AND** the current agent run SHALL be aborted.
 
 ### Requirement: Custom TUI rendering
 

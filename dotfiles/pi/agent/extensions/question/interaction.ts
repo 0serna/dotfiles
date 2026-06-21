@@ -222,5 +222,12 @@ export async function execute(
     };
   });
 
-  return buildResult(result, params.question, params.options);
+  const toolResult = buildResult(result, params.question, params.options);
+
+  if (!result || result.type === "cancel") {
+    ctx.abort();
+    return { ...toolResult, terminate: true };
+  }
+
+  return toolResult;
 }
