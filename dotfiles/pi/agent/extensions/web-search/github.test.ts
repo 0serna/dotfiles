@@ -48,12 +48,26 @@ describe("classifyGitHubUrl", () => {
     expect(result.number).toBe(7);
   });
 
+  it("classifies releases URLs", () => {
+    const result = classifyGitHubUrl("https://github.com/owner/repo/releases");
+    expect(result.type).toBe("releases");
+    expect(result.owner).toBe("owner");
+    expect(result.repo).toBe("repo");
+  });
+
+  it("classifies release tag URLs", () => {
+    const result = classifyGitHubUrl(
+      "https://github.com/owner/repo/releases/tag/v1.0",
+    );
+    expect(result.type).toBe("release-tag");
+    expect(result.owner).toBe("owner");
+    expect(result.repo).toBe("repo");
+    expect(result.tag).toBe("v1.0");
+  });
+
   it("returns unsupported for unrecognized GitHub URL shapes", () => {
     expect(
       classifyGitHubUrl("https://github.com/owner/repo/commits/main").type,
-    ).toBe("unsupported");
-    expect(
-      classifyGitHubUrl("https://github.com/owner/repo/releases").type,
     ).toBe("unsupported");
     expect(classifyGitHubUrl("https://github.com/owner/repo/wiki").type).toBe(
       "unsupported",
