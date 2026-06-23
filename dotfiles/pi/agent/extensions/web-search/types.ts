@@ -23,3 +23,21 @@ export type ExaContentsResponse = {
   results?: Array<{ text?: string }>;
   statuses?: ExaContentsStatus[];
 };
+
+export type TavilySearchResponse = {
+  results?: Array<{
+    title?: string;
+    url?: string;
+    content?: string;
+    score?: number;
+  }>;
+  usage?: { credits?: number };
+  response_time?: number;
+};
+
+export type SearchResult = {
+  title: string;
+  url: string;
+  snippet: string;
+  provider: "exa" | "tavily";
+};

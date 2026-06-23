@@ -26,11 +26,14 @@ function getApiKeyOrThrow(): string {
   return key;
 }
 
-function buildSearchBody(query: string): Record<string, unknown> {
+function buildSearchBody(
+  query: string,
+  numResults?: number,
+): Record<string, unknown> {
   return {
     query,
     type: "auto",
-    numResults: DEFAULT_NUM_RESULTS,
+    numResults: numResults ?? DEFAULT_NUM_RESULTS,
     contents: { highlights: true },
   };
 }
@@ -67,10 +70,14 @@ async function parseOkJson<T>(response: Response): Promise<T> {
 export async function callExaSearch(
   query: string,
   toolCallId?: string,
-): Promise<unknown> {
+  numResults?: number,
+): Promise<ExaSearchResponse> {
   const startedAt = Date.now();
   try {
-    const response = await doExaFetch(EXA_SEARCH_URL, buildSearchBody(query));
+    const response = await doExaFetch(
+      EXA_SEARCH_URL,
+      buildSearchBody(query, numResults),
+    );
     const data = await parseOkJson<ExaSearchResponse>(response);
     logWebToolEvent("exa_search_success", {
       toolCallId,
