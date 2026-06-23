@@ -5,7 +5,14 @@ import {
 } from "../shared/diagnostics.ts";
 import { logWebToolEvent } from "./logger.ts";
 
-type GitHubUrlType = "blob" | "repository" | "issue" | "pull" | "unsupported";
+type GitHubUrlType =
+  | "blob"
+  | "repository"
+  | "issue"
+  | "pull"
+  | "releases"
+  | "release-tag"
+  | "unsupported";
 
 export interface ParsedGitHubUrl {
   type: GitHubUrlType;
@@ -14,12 +21,16 @@ export interface ParsedGitHubUrl {
   ref?: string;
   path?: string;
   number?: number;
+  tag?: string;
 }
 
 const BLOB_RE =
   /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/;
 const ISSUE_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)$/;
 const PULL_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)$/;
+const RELEASE_TAG_RE =
+  /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/tag\/([^/]+)$/;
+const RELEASES_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/?$/;
 const REPO_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/?$/;
 
 export function classifyGitHubUrl(url: string): ParsedGitHubUrl {
@@ -53,6 +64,25 @@ export function classifyGitHubUrl(url: string): ParsedGitHubUrl {
       owner: m[1]!,
       repo: m[2]!,
       number: Number(m[3]),
+    };
+  }
+
+  m = url.match(RELEASE_TAG_RE);
+  if (m) {
+    return {
+      type: "release-tag",
+      owner: m[1]!,
+      repo: m[2]!,
+      tag: m[3]!,
+    };
+  }
+
+  m = url.match(RELEASES_RE);
+  if (m) {
+    return {
+      type: "releases",
+      owner: m[1]!,
+      repo: m[2]!,
     };
   }
 
@@ -303,6 +333,68 @@ export function renderPullRequest(data: GitHubPullRequest): string {
   return lines.join("\n");
 }
 
+export interface GitHubRelease {
+  name: string | null;
+  tag_name: string;
+  body: string | null;
+  draft: boolean;
+  prerelease: boolean;
+  created_at: string;
+  published_at: string | null;
+  author: GitHubUser | null;
+  html_url: string;
+  assets: GitHubReleaseAsset[];
+}
+
+interface GitHubReleaseAsset {
+  name: string;
+  download_count: number;
+  browser_download_url: string;
+}
+
+export function renderRelease(data: GitHubRelease): string {
+  const lines: string[] = [];
+  const title = data.name ?? data.tag_name;
+  lines.push(`# ${title}`);
+  lines.push("");
+
+  const meta: string[] = [];
+  meta.push(`**Tag:** ${data.tag_name}`);
+  if (data.author) {
+    meta.push(`**Author:** ${data.author.login}`);
+  }
+  if (data.prerelease) {
+    meta.push("**Prerelease:** yes");
+  }
+  if (data.draft) {
+    meta.push("**Draft:** yes");
+  }
+  if (data.published_at) {
+    meta.push(`**Published:** ${data.published_at}`);
+  } else {
+    meta.push(`**Created:** ${data.created_at}`);
+  }
+  lines.push(meta.join(" | "));
+
+  if (data.assets.length > 0) {
+    lines.push("");
+    lines.push("**Assets:**");
+    for (const asset of data.assets) {
+      lines.push(`- ${asset.name} (${asset.download_count} downloads)`);
+    }
+  }
+
+  lines.push("");
+  lines.push(`**URL:** ${data.html_url}`);
+
+  if (data.body) {
+    lines.push("");
+    lines.push(data.body);
+  }
+
+  return lines.join("\n");
+}
+
 export interface GitHubFetchResult {
   content: string;
   source: "github-raw" | "github-api";
@@ -310,10 +402,9 @@ export interface GitHubFetchResult {
 
 export async function tryGitHubFetch(
   url: string,
+  parsed: ParsedGitHubUrl,
   toolCallId?: string,
 ): Promise<GitHubFetchResult | null> {
-  const parsed = classifyGitHubUrl(url);
-
   if (parsed.type === "unsupported") {
     return null;
   }
@@ -339,8 +430,12 @@ export async function tryGitHubFetch(
       apiPath = `/repos/${parsed.owner}/${parsed.repo}`;
     } else if (parsed.type === "issue") {
       apiPath = `/repos/${parsed.owner}/${parsed.repo}/issues/${parsed.number}`;
-    } else {
+    } else if (parsed.type === "pull") {
       apiPath = `/repos/${parsed.owner}/${parsed.repo}/pulls/${parsed.number}`;
+    } else if (parsed.type === "releases") {
+      apiPath = `/repos/${parsed.owner}/${parsed.repo}/releases/latest`;
+    } else {
+      apiPath = `/repos/${parsed.owner}/${parsed.repo}/releases/tags/${parsed.tag}`;
     }
 
     const data = await fetchGitHubApi(apiPath);
@@ -350,8 +445,10 @@ export async function tryGitHubFetch(
       content = renderRepo(data as GitHubRepo);
     } else if (parsed.type === "issue") {
       content = renderIssue(data as GitHubIssue);
-    } else {
+    } else if (parsed.type === "pull") {
       content = renderPullRequest(data as GitHubPullRequest);
+    } else {
+      content = renderRelease(data as GitHubRelease);
     }
 
     logWebToolEvent("github_fetch_success", {
@@ -365,11 +462,17 @@ export async function tryGitHubFetch(
 
     return { content, source: "github-api" };
   } catch (err: unknown) {
+    const isRateLimited =
+      err instanceof HttpResponseError &&
+      err.response.status === 403 &&
+      err.response.bodySnippet?.includes("rate limit");
+
     logWebToolEvent("github_fetch_failure", {
       toolCallId,
       url,
       type: parsed.type,
       elapsedMs: Date.now() - startedAt,
+      ...(isRateLimited ? { reason: "rate_limited" } : {}),
       ...failureDetails(err),
     });
     return null;

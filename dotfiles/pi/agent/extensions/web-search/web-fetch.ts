@@ -17,56 +17,77 @@ function isValidHttpUrl(s: string): boolean {
   }
 }
 
+const CACHE_TTL_MS = 600_000;
+
+const fetchCache = new Map<
+  string,
+  { content: string; source: string; timestamp: number }
+>();
+
+function cacheAndReturn(
+  url: string,
+  content: string,
+  source: string,
+): { content: string; source: string } {
+  fetchCache.set(url, { content, source, timestamp: Date.now() });
+  return { content, source };
+}
+
 async function tryFetchContent(
   url: string,
   toolCallId: string,
-): Promise<{
-  content: string;
-  source?: string;
-}> {
-  const gitHubType = classifyGitHubUrl(url).type;
-  const gitHubResult = await tryGitHubFetch(url, toolCallId);
-  if (gitHubResult) {
-    return {
-      content: gitHubResult.content,
-      source: gitHubResult.source,
-    };
+): Promise<{ content: string; source: string }> {
+  const cached = fetchCache.get(url);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return { content: cached.content, source: cached.source };
   }
 
-  if (gitHubType !== "unsupported") {
+  const parsed = classifyGitHubUrl(url);
+
+  if (parsed.type !== "unsupported") {
+    const gitHubResult = await tryGitHubFetch(url, parsed, toolCallId);
+    if (gitHubResult) {
+      return cacheAndReturn(url, gitHubResult.content, gitHubResult.source);
+    }
     logWebToolEvent("web_fetch_fallback", {
       toolCallId,
       url,
       from: "github_fetch",
-      to: "exa_contents",
+      to: "http_fetch",
       reason: "github_fetch_failure",
     });
   }
 
-  const exaContent = await callExaContents(url, toolCallId).catch(() => null);
-  if (exaContent) {
-    return { content: exaContent, source: "exa" };
+  const httpContent = await extractViaHttp(url, toolCallId);
+  if (httpContent) {
+    return cacheAndReturn(url, httpContent, "http-fallback");
   }
   logWebToolEvent("web_fetch_fallback", {
     toolCallId,
     url,
-    from: "exa_contents",
+    from: "http_fetch",
     to: "cloudflare_markdown",
-    reason: "exa_contents_failure",
+    reason: "http_fetch_failure",
   });
+
   const cloudflareContent = await tryCloudflareMarkdown(url, toolCallId);
   if (cloudflareContent) {
-    return { content: cloudflareContent, source: "cloudflare" };
+    return cacheAndReturn(url, cloudflareContent, "cloudflare");
   }
   logWebToolEvent("web_fetch_fallback", {
     toolCallId,
     url,
     from: "cloudflare_markdown",
-    to: "http_fetch",
+    to: "exa_contents",
     reason: "cloudflare_markdown_failure",
   });
-  const httpContent = await extractViaHttp(url, toolCallId);
-  return { content: httpContent, source: "http-fallback" };
+
+  const exaContent = await callExaContents(url, toolCallId).catch(() => null);
+  if (exaContent) {
+    return cacheAndReturn(url, exaContent, "exa");
+  }
+
+  throw new Error("All retrieval tiers failed to provide content");
 }
 
 export async function executeWebFetch(

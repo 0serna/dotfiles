@@ -1,10 +1,4 @@
-# web-fetch Specification
-
-## Purpose
-
-TBD - created by archiving change pi-exa-tools. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Fetch content from a single URL
 
@@ -60,59 +54,6 @@ The system SHALL accept a single URL and return its readable content, attempting
 - **WHEN** the user calls `web_fetch` with a malformed or empty URL
 - **THEN** the system SHALL return an error indicating the URL is invalid
 
-### Requirement: Display retrieval source in tool result
-
-The system SHALL display the retrieval source name alongside the content size in the `web_fetch` tool result renderer. The system SHALL map internal source identifiers to short display labels.
-
-#### Scenario: Display source for GitHub retrieval
-
-- **WHEN** the tool result has `source` set to `github-raw` or `github-api`
-- **THEN** the renderer SHALL display the label `github` alongside the content size (e.g., `17.2KB (github)`)
-
-#### Scenario: Display source for Exa retrieval
-
-- **WHEN** the tool result has `source` set to `exa`
-- **THEN** the renderer SHALL display the label `exa` alongside the content size (e.g., `17.2KB (exa)`)
-
-#### Scenario: Display source for Cloudflare retrieval
-
-- **WHEN** the tool result has `source` set to `cloudflare`
-- **THEN** the renderer SHALL display the label `cloudflare` alongside the content size (e.g., `17.2KB (cloudflare)`)
-
-#### Scenario: Display source for HTTP fallback retrieval
-
-- **WHEN** the tool result has `source` set to `http-fallback`
-- **THEN** the renderer SHALL display the label `http` alongside the content size (e.g., `17.2KB (http)`)
-
-#### Scenario: Unknown or missing source
-
-- **WHEN** the tool result has no `source` field or an unrecognized source value
-- **THEN** the renderer SHALL display only the content size without a source label (e.g., `17.2KB extracted`)
-
-#### Scenario: Error result
-
-- **WHEN** the tool result is an error
-- **THEN** the renderer SHALL display only the error message without a source label
-
-### Requirement: In-process fetch content cache
-
-The system SHALL maintain an in-process cache of successful `web_fetch` results to avoid redundant HTTP requests when the LLM fetches the same URL multiple times within a session.
-
-#### Scenario: Cache stores content, source, and timestamp
-
-- **WHEN** a fetch succeeds through any fallback tier
-- **THEN** the system SHALL store the URL, content, source identifier, and current timestamp in the cache
-
-#### Scenario: Cache returns early on hit
-
-- **WHEN** `tryFetchContent` is called with a URL that has a valid cache entry (not expired)
-- **THEN** the system SHALL return the cached content and source immediately without invoking any fallback tier
-
-#### Scenario: No cache size limit
-
-- **WHEN** the process accumulates more than 30 unique cached URLs
-- **THEN** the system SHALL continue accepting new entries without eviction, relying on process termination to clear the cache
-
 ### Requirement: Cloudflare Browser Run fallback with credentials gating
 
 The system SHALL attempt Cloudflare Browser Run's `/markdown` Quick Action endpoint as a fallback between HTTP text extraction and Exa-assisted retrieval. The system SHALL skip this fallback silently when required environment variables are not set.
@@ -131,20 +72,6 @@ The system SHALL attempt Cloudflare Browser Run's `/markdown` Quick Action endpo
 
 - **WHEN** the Browser Run `/markdown` endpoint returns a response with no usable content
 - **THEN** the system SHALL fall through to the Exa fallback
-
-### Requirement: Browser Run rendering configuration
-
-The system SHALL configure the Browser Run `/markdown` request to fully render JavaScript-heavy pages by waiting for network idle and blocking non-essential resources.
-
-#### Scenario: Wait for network idle
-
-- **WHEN** the system sends a request to the Browser Run `/markdown` endpoint
-- **THEN** the system SHALL set `gotoOptions.waitUntil` to `networkidle0` to ensure JavaScript rendering completes before extraction
-
-#### Scenario: Block non-essential resources
-
-- **WHEN** the system sends a request to the Browser Run `/markdown` endpoint
-- **THEN** the system SHALL set `rejectResourceTypes` to `["image", "font", "stylesheet"]` to reduce browser time consumption without affecting Markdown text extraction
 
 ### Requirement: Browser Run quota and rate-limit handling
 
@@ -168,82 +95,6 @@ The system SHALL enforce a 30-second timeout on Browser Run `/markdown` requests
 
 - **WHEN** the Browser Run `/markdown` request does not complete within 30 seconds
 - **THEN** the system SHALL abort the request and fall through to the Exa fallback
-
-### Requirement: Log Browser Run events for diagnostic insights
-
-The system SHALL log Browser Run success and failure events using the shared web tools logging infrastructure, consistent with existing Exa and HTTP fallback logging patterns.
-
-#### Scenario: Log successful Browser Run extraction
-
-- **WHEN** the Browser Run `/markdown` endpoint returns content successfully
-- **THEN** the system SHALL log a `cloudflare_markdown_success` event with the URL, elapsed time, and content length
-
-#### Scenario: Log Browser Run failure
-
-- **WHEN** the Browser Run `/markdown` request fails due to HTTP error, timeout, or invalid response
-- **THEN** the system SHALL log a `cloudflare_markdown_failure` event with the URL, elapsed time, and failure details
-
-#### Scenario: Log Browser Run skip due to quota cache
-
-- **WHEN** the Browser Run fallback is skipped because the quota-exhausted flag is set
-- **THEN** the system SHALL log a `cloudflare_markdown_skipped` event indicating quota exhaustion as the reason
-
-### Requirement: Error handling
-
-The system SHALL return descriptive error messages when fetch operations fail.
-
-#### Scenario: Unreachable URL
-
-- **WHEN** the user calls `web_fetch` with a URL that returns a non-2xx status or is unreachable
-- **THEN** the system SHALL return an error with the HTTP status code or connection failure description
-
-#### Scenario: Timeout
-
-- **WHEN** the URL takes too long to respond
-- **THEN** the system SHALL return an error indicating the request timed out
-
-### Requirement: Log GitHub rate limit for diagnostic insights
-
-The system SHALL detect GitHub API HTTP 403 rate limit responses and log them with a distinct reason for diagnostic visibility.
-
-#### Scenario: Log rate limited GitHub fetch
-
-- **WHEN** the GitHub API returns HTTP 403 with a response body containing "rate limit"
-- **THEN** the system SHALL log a `github_fetch_failure` event with `reason: "rate_limited"` alongside the standard failure details
-
-#### Scenario: Log non-rate-limit GitHub failure
-
-- **WHEN** the GitHub API returns an error that is not a rate limit 403
-- **THEN** the system SHALL log a `github_fetch_failure` event without the `rate_limited` reason, preserving the standard failure details
-
-### Requirement: Log Exa statuses for diagnostic insights
-
-The system SHALL inspect the Exa Contents API `statuses` response field to capture specific error tags when content retrieval fails, improving diagnostic visibility beyond generic failure messages.
-
-#### Scenario: Log crawl not found
-
-- **WHEN** the Exa Contents API returns a `CRAWL_NOT_FOUND` status for a URL
-- **THEN** the system SHALL log the specific tag and associated HTTP status code
-
-#### Scenario: Log crawl timeout
-
-- **WHEN** the Exa Contents API returns a `CRAWL_TIMEOUT` or `CRAWL_LIVECRAWL_TIMEOUT` status for a URL
-- **THEN** the system SHALL log the specific timeout tag
-
-#### Scenario: Log source not available
-
-- **WHEN** the Exa Contents API returns a `SOURCE_NOT_AVAILABLE` status for a URL
-- **THEN** the system SHALL log the tag and HTTP 403 status code
-
-#### Scenario: Log unknown error
-
-- **WHEN** the Exa Contents API returns a `CRAWL_UNKNOWN_ERROR` status for a URL
-- **THEN** the system SHALL log the tag and associated HTTP status code
-
-#### Scenario: Successful fetch with statuses check
-
-- **WHEN** the Exa Contents API returns successfully for a URL
-- **THEN** the system SHALL verify the `statuses` field reflects a success state and log the content length
 
 ### Requirement: Optimize recognized public GitHub URLs
 
@@ -288,3 +139,38 @@ The system SHALL detect recognized public GitHub URLs passed to `web_fetch` and 
 
 - **WHEN** a recognized GitHub URL cannot be retrieved through its optimized raw or API endpoint
 - **THEN** the system SHALL use the HTTP, Cloudflare, and Exa fallback retrieval behavior instead of failing immediately
+
+## ADDED Requirements
+
+### Requirement: In-process fetch content cache
+
+The system SHALL maintain an in-process cache of successful `web_fetch` results to avoid redundant HTTP requests when the LLM fetches the same URL multiple times within a session.
+
+#### Scenario: Cache stores content, source, and timestamp
+
+- **WHEN** a fetch succeeds through any fallback tier
+- **THEN** the system SHALL store the URL, content, source identifier, and current timestamp in the cache
+
+#### Scenario: Cache returns early on hit
+
+- **WHEN** `tryFetchContent` is called with a URL that has a valid cache entry (not expired)
+- **THEN** the system SHALL return the cached content and source immediately without invoking any fallback tier
+
+#### Scenario: No cache size limit
+
+- **WHEN** the process accumulates more than 30 unique cached URLs
+- **THEN** the system SHALL continue accepting new entries without eviction, relying on process termination to clear the cache
+
+### Requirement: Log GitHub rate limit for diagnostic insights
+
+The system SHALL detect GitHub API HTTP 403 rate limit responses and log them with a distinct reason for diagnostic visibility.
+
+#### Scenario: Log rate limited GitHub fetch
+
+- **WHEN** the GitHub API returns HTTP 403 with a response body containing "rate limit"
+- **THEN** the system SHALL log a `github_fetch_failure` event with `reason: "rate_limited"` alongside the standard failure details
+
+#### Scenario: Log non-rate-limit GitHub failure
+
+- **WHEN** the GitHub API returns an error that is not a rate limit 403
+- **THEN** the system SHALL log a `github_fetch_failure` event without the `rate_limited` reason, preserving the standard failure details
