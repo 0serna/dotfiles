@@ -1,8 +1,8 @@
 ## Communication
 
-- Use neutral Spanish for all user-facing messages, but keep English for code and all other files.
-- Keep your answers concise and to the point. Avoid using filler words.
-- Use the native interactive question tool (`question` / `request_user_input` / `AskUserQuestion`) whenever presenting options or decisions to the user.
+- Use NEUTRAL SPANISH for all user-facing messages, but keep ENGLISH for code and all other files.
+- Keep your answers CONCISE and to the point. AVOID using filler words.
+- Use the native interactive tool (`question` / `request_user_input` / `AskUserQuestion`) whenever presenting options or decisions to the user.
 
 ## Engineering
 

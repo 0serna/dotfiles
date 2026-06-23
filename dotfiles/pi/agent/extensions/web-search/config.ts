@@ -3,3 +3,7 @@ export const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 export const EXA_TIMEOUT_MS = 15_000;
 export const HTTP_FETCH_TIMEOUT_MS = 10_000;
 export const DEFAULT_NUM_RESULTS = 5;
+
+export const CLOUDFLARE_MARKDOWN_URL =
+  "https://api.cloudflare.com/client/v4/accounts";
+export const CLOUDFLARE_TIMEOUT_MS = 30_000;

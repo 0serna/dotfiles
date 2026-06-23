@@ -1,6 +1,7 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { failureDetails } from "../shared/diagnostics.ts";
+import { tryCloudflareMarkdown } from "./cloudflare.ts";
 import { callExaContents } from "./exa.ts";
 import { classifyGitHubUrl, tryGitHubFetch } from "./github.ts";
 import { extractViaHttp } from "./http.ts";
@@ -21,7 +22,6 @@ async function tryFetchContent(
   toolCallId: string,
 ): Promise<{
   content: string;
-  fallback: boolean;
   source?: string;
 }> {
   const gitHubType = classifyGitHubUrl(url).type;
@@ -29,7 +29,6 @@ async function tryFetchContent(
   if (gitHubResult) {
     return {
       content: gitHubResult.content,
-      fallback: false,
       source: gitHubResult.source,
     };
   }
@@ -46,17 +45,28 @@ async function tryFetchContent(
 
   const exaContent = await callExaContents(url, toolCallId).catch(() => null);
   if (exaContent) {
-    return { content: exaContent, fallback: false, source: "exa" };
+    return { content: exaContent, source: "exa" };
   }
   logWebToolEvent("web_fetch_fallback", {
     toolCallId,
     url,
     from: "exa_contents",
-    to: "http_fetch",
+    to: "cloudflare_markdown",
     reason: "exa_contents_failure",
   });
+  const cloudflareContent = await tryCloudflareMarkdown(url, toolCallId);
+  if (cloudflareContent) {
+    return { content: cloudflareContent, source: "cloudflare" };
+  }
+  logWebToolEvent("web_fetch_fallback", {
+    toolCallId,
+    url,
+    from: "cloudflare_markdown",
+    to: "http_fetch",
+    reason: "cloudflare_markdown_failure",
+  });
   const httpContent = await extractViaHttp(url, toolCallId);
-  return { content: httpContent, fallback: true, source: "http-fallback" };
+  return { content: httpContent, source: "http-fallback" };
 }
 
 export async function executeWebFetch(
@@ -82,7 +92,6 @@ export async function executeWebFetch(
       content: [{ type: "text" as const, text: result.content }],
       details: {
         contentLength: result.content.length,
-        fallback: result.fallback,
         source: result.source,
       },
     };
@@ -115,17 +124,27 @@ export function renderWebFetchCall(args: { url: string }, theme: Theme): Text {
   );
 }
 
+const SOURCE_LABELS: Record<string, string> = {
+  "github-raw": "github",
+  "github-api": "github",
+  exa: "exa",
+  cloudflare: "cloudflare",
+  "http-fallback": "http",
+};
+
 export function renderWebFetchResult(
   result: AgentToolResult<Record<string, unknown>>,
   _options: unknown,
   theme: Theme,
 ): Text {
   const bytes = result.details["contentLength"];
-  const fallback = result.details["fallback"];
   if (typeof bytes === "number" && bytes > 0) {
     const kb = (bytes / 1024).toFixed(1);
+    const source = result.details["source"];
     const label =
-      fallback === true ? `${kb}KB extracted (fallback)` : `${kb}KB extracted`;
+      typeof source === "string" && source in SOURCE_LABELS
+        ? `${kb}KB (${SOURCE_LABELS[source]})`
+        : `${kb}KB extracted`;
     return new Text(theme.fg("success", label), 0, 0);
   }
   const fetchError = result.details["fetchError"];
