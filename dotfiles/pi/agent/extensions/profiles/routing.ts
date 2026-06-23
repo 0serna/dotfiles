@@ -5,7 +5,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { parseModelId } from "./model-ids.ts";
 import { ROUTE_TYPES, type RouteName } from "./routes.ts";
-import type { ModelRoute, PersistedConfig } from "./types.ts";
+import { ROUTE_NAMES, type ModelRoute, type PersistedConfig } from "./types.ts";
 
 export async function activateRoute(
   pi: ExtensionAPI,
@@ -41,7 +41,7 @@ export async function validateConfigSemantics(
   const errors: string[] = [];
   const availableModels = ctx.modelRegistry.getAvailable();
 
-  for (const routeName of ["light", "high"] as const) {
+  for (const routeName of ROUTE_NAMES) {
     const route = config[routeName];
     if (!route) {
       errors.push(`Missing required route '${routeName}'`);

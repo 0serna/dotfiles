@@ -13,13 +13,12 @@ export type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
-/** Full persisted configuration — flat structure with required light/high routes */
-export type PersistedConfig = {
-  light: ModelRoute;
-  high: ModelRoute;
-};
+export const ROUTE_NAMES = ["cheap", "balanced", "strong"] as const;
 
-export type FixedRouteName = "light" | "high";
+export type FixedRouteName = (typeof ROUTE_NAMES)[number];
+
+/** Full persisted configuration — flat structure with required cheap/balanced/strong routes */
+export type PersistedConfig = Record<FixedRouteName, ModelRoute>;
 
 /** Result of loading and structurally validating configuration */
 export type ConfigValidationResult =

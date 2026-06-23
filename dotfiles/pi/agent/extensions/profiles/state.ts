@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  ROUTE_NAMES,
   type ConfigValidationResult,
   type PersistedConfig,
   type ThinkingLevel,
@@ -42,7 +43,7 @@ function structuralErrors(raw: unknown): string[] {
 
   const data = raw as Record<string, unknown>;
 
-  for (const routeName of ["light", "high"] as const) {
+  for (const routeName of ROUTE_NAMES) {
     if (!(routeName in data)) {
       errors.push(`Missing required route '${routeName}'`);
       continue;

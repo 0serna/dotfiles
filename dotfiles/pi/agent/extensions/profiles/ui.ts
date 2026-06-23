@@ -7,14 +7,13 @@ import {
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import { parseModelId } from "./model-ids.ts";
-import type {
-  ConfigValidationResult,
-  FixedRouteName,
-  PersistedConfig,
-  ThinkingLevel,
+import {
+  ROUTE_NAMES,
+  type ConfigValidationResult,
+  type FixedRouteName,
+  type PersistedConfig,
+  type ThinkingLevel,
 } from "./types.ts";
-
-const ALL_ROUTES: FixedRouteName[] = ["light", "high"];
 
 function renderBorder(width: number, theme: Theme): string {
   return theme.fg("accent", "─".repeat(width));
@@ -94,11 +93,15 @@ export async function editRoutes(
   configStatus: ConfigValidationResult["status"],
 ): Promise<PersistedConfig | null> {
   const routes: PersistedConfig = {
-    light: currentConfig?.light ?? { model: "", thinkingLevel: "medium" },
-    high: currentConfig?.high ?? { model: "", thinkingLevel: "medium" },
+    cheap: currentConfig?.cheap ?? { model: "", thinkingLevel: "medium" },
+    balanced: currentConfig?.balanced ?? {
+      model: "",
+      thinkingLevel: "medium",
+    },
+    strong: currentConfig?.strong ?? { model: "", thinkingLevel: "medium" },
   };
 
-  let routeBeingEdited: FixedRouteName = "light";
+  let routeBeingEdited: FixedRouteName = "cheap";
 
   async function pickModel(): Promise<string | null> {
     const selected = await ctx.ui.select(
@@ -132,7 +135,7 @@ export async function editRoutes(
   }
 
   while (true) {
-    const routeItems = ALL_ROUTES.map((r) => {
+    const routeItems = ROUTE_NAMES.map((r) => {
       const rt = routes[r];
       const model = rt?.model || "[unset]";
       const think = rt?.model ? rt.thinkingLevel : "[unset]";
@@ -141,7 +144,7 @@ export async function editRoutes(
 
     const editResult = await ctx.ui.custom<FixedRouteName | null>(
       (tui, theme, _kb, done) => {
-        let sel = ALL_ROUTES.indexOf(routeBeingEdited);
+        let sel = ROUTE_NAMES.indexOf(routeBeingEdited);
         let cachedLines: string[] | undefined;
 
         function refresh() {
@@ -166,12 +169,12 @@ export async function editRoutes(
               refresh();
             } else if (
               matchesKey(data, Key.down) &&
-              sel < ALL_ROUTES.length - 1
+              sel < ROUTE_NAMES.length - 1
             ) {
               sel++;
               refresh();
             } else if (matchesKey(data, Key.enter)) {
-              done(ALL_ROUTES[sel]!);
+              done(ROUTE_NAMES[sel]!);
             } else if (matchesKey(data, Key.escape)) {
               done(null);
             }
@@ -184,7 +187,7 @@ export async function editRoutes(
     );
 
     if (editResult === null) {
-      const incomplete = ALL_ROUTES.filter((r) => !routes[r]?.model);
+      const incomplete = ROUTE_NAMES.filter((r) => !routes[r]?.model);
       if (incomplete.length > 0) {
         ctx.ui.notify(
           `Set a model for ${incomplete.join(", ")} before saving.`,

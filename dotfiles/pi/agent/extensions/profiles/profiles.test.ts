@@ -49,8 +49,9 @@ function missingFileError(): Error & { code: string } {
 
 function validConfig(): string {
   return JSON.stringify({
-    light: { model: "route/light", thinkingLevel: "low" },
-    high: { model: "route/high", thinkingLevel: "medium" },
+    cheap: { model: "route/cheap", thinkingLevel: "low" },
+    balanced: { model: "route/balanced", thinkingLevel: "medium" },
+    strong: { model: "route/strong", thinkingLevel: "medium" },
   });
 }
 
@@ -72,9 +73,16 @@ function setupExtension(config = validConfig()) {
   const handlers = new Map<string, Handler>();
   const userModel = { provider: "user", id: "base" };
   const userModel2 = { provider: "user", id: "other" };
-  const routeModel = { provider: "route", id: "light" };
-  const highRouteModel = { provider: "route", id: "high" };
-  const models = [userModel, userModel2, routeModel, highRouteModel];
+  const cheapRouteModel = { provider: "route", id: "cheap" };
+  const balancedRouteModel = { provider: "route", id: "balanced" };
+  const strongRouteModel = { provider: "route", id: "strong" };
+  const models = [
+    userModel,
+    userModel2,
+    cheapRouteModel,
+    balancedRouteModel,
+    strongRouteModel,
+  ];
   const ctx = {
     model: userModel,
     modelRegistry: {
@@ -121,7 +129,7 @@ function setupExtension(config = validConfig()) {
     .mockRejectedValueOnce(missingFileError())
     .mockResolvedValue(config);
 
-  return { ctx, handlers, pi, userModel, userModel2, routeModel };
+  return { ctx, handlers, pi, userModel, userModel2, cheapRouteModel };
 }
 
 beforeEach(() => {
@@ -140,10 +148,11 @@ describe("loadConfig", () => {
     expect(result.status).toBe("missing");
   });
 
-  it("returns valid for correct light/high config", async () => {
+  it("returns valid for correct cheap/balanced/strong config", async () => {
     const config = {
-      light: { model: "a/b", thinkingLevel: "low" },
-      high: { model: "a/b", thinkingLevel: "medium" },
+      cheap: { model: "a/b", thinkingLevel: "low" },
+      balanced: { model: "a/b", thinkingLevel: "medium" },
+      strong: { model: "a/b", thinkingLevel: "medium" },
     };
     readFileMock.mockResolvedValue(JSON.stringify(config));
     const result = await loadConfig();
@@ -153,9 +162,10 @@ describe("loadConfig", () => {
     }
   });
 
-  it("returns invalid when high route is missing", async () => {
+  it("returns invalid when strong route is missing", async () => {
     const config = {
-      light: { model: "a/b", thinkingLevel: "low" },
+      cheap: { model: "a/b", thinkingLevel: "low" },
+      balanced: { model: "a/b", thinkingLevel: "medium" },
     };
     readFileMock.mockResolvedValue(JSON.stringify(config));
     const result = await loadConfig();
@@ -173,7 +183,7 @@ describe("compact route compaction", () => {
     firstKeptEntryId: "entry-1",
   };
 
-  it("uses the high route resolved from ROUTE_TYPES[/compact] without changing the active model", async () => {
+  it("uses the balanced route resolved from ROUTE_TYPES[/compact] without changing the active model", async () => {
     const result = {
       summary: "summary",
       firstKeptEntryId: "entry-1",
@@ -191,7 +201,7 @@ describe("compact route compaction", () => {
     expect(response).toEqual({ compaction: result });
     expect(compactMock).toHaveBeenCalledWith(
       preparation,
-      { provider: "route", id: "high" },
+      { provider: "route", id: "balanced" },
       "test-api-key",
       { "x-test": "yes" },
       "custom",
@@ -253,7 +263,7 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Compact route failed: model 'route/high' not found. Falling back to default compaction.",
+      "Compact route failed: model 'route/balanced' not found. Falling back to default compaction.",
       "warning",
     );
   });
@@ -273,7 +283,7 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Compact route failed: authentication unavailable for 'route/high'. Falling back to default compaction.",
+      "Compact route failed: authentication unavailable for 'route/balanced'. Falling back to default compaction.",
       "warning",
     );
   });
@@ -300,37 +310,37 @@ describe("compact route compaction", () => {
 
 describe("user snapshot route restoration", () => {
   it("restores the session-start model and thinking after a routed command", async () => {
-    const { ctx, handlers, pi, userModel, routeModel } = setupExtension();
+    const { ctx, handlers, pi, userModel, cheapRouteModel } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
     await handlers.get("input")?.(
-      { source: "user", text: "/skill:simplify now" },
+      { source: "user", text: "/skill:commit now" },
       ctx,
     );
     await handlers.get("agent_end")?.({}, ctx);
 
-    expect(pi.setModel).toHaveBeenNthCalledWith(1, routeModel);
+    expect(pi.setModel).toHaveBeenNthCalledWith(1, cheapRouteModel);
     expect(pi.setModel).toHaveBeenNthCalledWith(2, userModel);
     expect(pi.setThinkingLevel).toHaveBeenNthCalledWith(1, "low");
     expect(pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
   });
 
   it("does not replace the user snapshot when routed commands are chained", async () => {
-    const { ctx, handlers, pi, userModel, routeModel } = setupExtension();
+    const { ctx, handlers, pi, userModel, cheapRouteModel } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
     await handlers.get("input")?.(
-      { source: "user", text: "/skill:simplify one" },
+      { source: "user", text: "/skill:commit one" },
       ctx,
     );
     await handlers.get("input")?.(
-      { source: "user", text: "/skill:simplify two" },
+      { source: "user", text: "/skill:commit two" },
       ctx,
     );
     await handlers.get("agent_end")?.({}, ctx);
 
-    expect(pi.setModel).toHaveBeenNthCalledWith(1, routeModel);
-    expect(pi.setModel).toHaveBeenNthCalledWith(2, routeModel);
+    expect(pi.setModel).toHaveBeenNthCalledWith(1, cheapRouteModel);
+    expect(pi.setModel).toHaveBeenNthCalledWith(2, cheapRouteModel);
     expect(pi.setModel).toHaveBeenNthCalledWith(3, userModel);
   });
 
@@ -346,7 +356,7 @@ describe("user snapshot route restoration", () => {
     );
     await handlers.get("thinking_level_select")?.({ level: "xhigh" }, ctx);
     await handlers.get("input")?.(
-      { source: "user", text: "/skill:simplify now" },
+      { source: "user", text: "/skill:commit now" },
       ctx,
     );
     await handlers.get("agent_end")?.({}, ctx);
