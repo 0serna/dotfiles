@@ -47,6 +47,19 @@ function missingFileError(): Error & { code: string } {
   return Object.assign(new Error("ENOENT"), { code: "ENOENT" });
 }
 
+/** Route readFile to config by default; user-selection.json only when a selection is provided. */
+function mockReadFiles(selection: string | null, config = validConfig()) {
+  readFileMock.mockImplementation(async (path) => {
+    const pathStr = String(path);
+    if (pathStr.endsWith("/thinking-memory.json")) throw missingFileError();
+    if (pathStr.endsWith("/user-selection.json")) {
+      if (selection === null) throw missingFileError();
+      return selection;
+    }
+    return config;
+  });
+}
+
 function validConfig(): string {
   return JSON.stringify({
     cheap: { model: "route/cheap", thinkingLevel: "low" },
@@ -125,11 +138,16 @@ function setupExtension(config = validConfig()) {
   };
 
   registerProfilesExtension(pi as never);
-  readFileMock
-    .mockRejectedValueOnce(missingFileError())
-    .mockResolvedValue(config);
+  mockReadFiles(null, config);
 
-  return { ctx, handlers, pi, userModel, userModel2, cheapRouteModel };
+  return {
+    ctx,
+    handlers,
+    pi,
+    userModel,
+    userModel2,
+    cheapRouteModel,
+  };
 }
 
 beforeEach(() => {
@@ -309,10 +327,133 @@ describe("compact route compaction", () => {
 // --- User snapshot route restoration ---
 
 describe("user snapshot route restoration", () => {
+  it("restores persisted user selection on session_start even when Pi starts with a contaminated default", async () => {
+    const { ctx, handlers, pi, userModel } = setupExtension();
+
+    // Simulate Pi starting with a route-contaminated default model
+    ctx.model = { provider: "route", id: "cheap" };
+
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: userModel.provider,
+        modelId: userModel.id,
+        thinkingLevel: "high",
+      }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+
+    expect(pi.setModel).toHaveBeenCalledWith(userModel);
+    expect(pi.setThinkingLevel).toHaveBeenCalledWith("high");
+  });
+
+  it("does not restore or overwrite persisted user selection when model is unavailable", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
+    const { ctx, handlers, pi } = setupExtension();
+
+    // Pi starts with route-contaminated default
+    ctx.model = { provider: "route", id: "cheap" };
+
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: "missing",
+        modelId: "model",
+        thinkingLevel: "high",
+      }),
+    );
+
+    await handlers.get("session_start")?.({}, ctx);
+
+    // Model should NOT have changed, and the contaminated default should not replace the persisted selection.
+    expect(pi.setModel).not.toHaveBeenCalled();
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
+  it("persists user selection on manual model select", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
+    const { ctx, handlers, userModel2 } = setupExtension();
+
+    await handlers.get("session_start")?.({}, ctx);
+    ctx.model = userModel2;
+
+    await handlers.get("model_select")?.(
+      { source: "set", model: userModel2 },
+      ctx,
+    );
+
+    expect(writeFileMock).toHaveBeenCalledWith(
+      "/home/test/.local/state/pi/user-selection.json",
+      JSON.stringify(
+        {
+          modelProvider: userModel2.provider,
+          modelId: userModel2.id,
+          thinkingLevel: "high",
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  });
+
+  it("persists user selection on manual thinking level change", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
+    const { ctx, handlers } = setupExtension();
+
+    await handlers.get("session_start")?.({}, ctx);
+
+    await handlers.get("thinking_level_select")?.({ level: "xhigh" }, ctx);
+
+    expect(writeFileMock).toHaveBeenCalledWith(
+      "/home/test/.local/state/pi/user-selection.json",
+      JSON.stringify(
+        {
+          modelProvider: "user",
+          modelId: "base",
+          thinkingLevel: "xhigh",
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  });
+
+  it("does not persist user selection during route activation", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
+    const { ctx, handlers } = setupExtension();
+
+    await handlers.get("session_start")?.({}, ctx);
+    // Clear writeFile calls from session_start snapshot
+    writeFileMock.mockClear();
+    mkdirMock.mockClear();
+
+    await handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      ctx,
+    );
+
+    expect(writeFileMock).not.toHaveBeenCalled();
+  });
+
   it("restores the session-start model and thinking after a routed command", async () => {
     const { ctx, handlers, pi, userModel, cheapRouteModel } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
+
+    // mock user-selection.json so agent_end reads the persisted selection
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: userModel.provider,
+        modelId: userModel.id,
+        thinkingLevel: "high",
+      }),
+    );
+
     await handlers.get("input")?.(
       { source: "user", text: "/skill:commit now" },
       ctx,
@@ -325,10 +466,20 @@ describe("user snapshot route restoration", () => {
     expect(pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
   });
 
-  it("does not replace the user snapshot when routed commands are chained", async () => {
+  it("does not replace the user selection when routed commands are chained", async () => {
     const { ctx, handlers, pi, userModel, cheapRouteModel } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
+
+    // mock user-selection.json so agent_end reads the persisted selection
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: userModel.provider,
+        modelId: userModel.id,
+        thinkingLevel: "high",
+      }),
+    );
+
     await handlers.get("input")?.(
       { source: "user", text: "/skill:commit one" },
       ctx,
@@ -344,7 +495,9 @@ describe("user snapshot route restoration", () => {
     expect(pi.setModel).toHaveBeenNthCalledWith(3, userModel);
   });
 
-  it("restores the latest user-selected model and thinking", async () => {
+  it("restores the latest user-selected model and thinking from file", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
     const { ctx, handlers, pi, userModel2 } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
@@ -355,6 +508,16 @@ describe("user snapshot route restoration", () => {
       ctx,
     );
     await handlers.get("thinking_level_select")?.({ level: "xhigh" }, ctx);
+
+    // mock user-selection.json so agent_end reads the latest persisted selection
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: userModel2.provider,
+        modelId: userModel2.id,
+        thinkingLevel: "xhigh",
+      }),
+    );
+
     await handlers.get("input")?.(
       { source: "user", text: "/skill:commit now" },
       ctx,
@@ -363,6 +526,60 @@ describe("user snapshot route restoration", () => {
 
     expect(pi.setModel).toHaveBeenLastCalledWith(userModel2);
     expect(pi.setThinkingLevel).toHaveBeenLastCalledWith("xhigh");
+  });
+
+  it("restores the latest file-backed selection when another instance changes it during a route", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
+    const { ctx, handlers, pi, userModel2, cheapRouteModel } = setupExtension();
+
+    await handlers.get("session_start")?.({}, ctx);
+
+    // Start a route on the original user selection
+    await handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      ctx,
+    );
+
+    // Simulate another instance changing user-selection.json while the route is active
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: userModel2.provider,
+        modelId: userModel2.id,
+        thinkingLevel: "xhigh",
+      }),
+    );
+
+    await handlers.get("agent_end")?.({}, ctx);
+
+    // Route activated cheap, then restored from file: user/other + xhigh
+    expect(pi.setModel).toHaveBeenNthCalledWith(1, cheapRouteModel);
+    expect(pi.setModel).toHaveBeenNthCalledWith(2, userModel2);
+    expect(pi.setThinkingLevel).toHaveBeenNthCalledWith(1, "low");
+    expect(pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "xhigh");
+  });
+
+  it("leaves the current model unchanged at agent_end when no persisted user selection exists", async () => {
+    const { ctx, handlers, pi } = setupExtension();
+
+    // Force no user-selection.json ever
+    mockReadFiles(null);
+
+    await handlers.get("session_start")?.({}, ctx);
+
+    // Set up a user-selection.json read that returns nothing
+    await handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      ctx,
+    );
+
+    // Clear setModel calls from session_start and route activation
+    const setModelCallsBefore = vi.mocked(pi.setModel).mock.calls.length;
+
+    await handlers.get("agent_end")?.({}, ctx);
+
+    // No additional setModel call after agent_end
+    expect(vi.mocked(pi.setModel)).toHaveBeenCalledTimes(setModelCallsBefore);
   });
 });
 

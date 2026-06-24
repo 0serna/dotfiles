@@ -14,16 +14,14 @@ import {
   loadMemory,
   recordLevel,
 } from "./thinking-memory.ts";
-import type { ThinkingLevel } from "./types.ts";
-
-type UserSnapshot = {
-  model: Model<Api>;
-  thinkingLevel: ThinkingLevel;
-};
+import {
+  loadUserSelection,
+  saveUserSelection,
+  type UserSelection,
+} from "./user-selection.ts";
 
 export default function (pi: ExtensionAPI) {
   const runtime = createProfilesRuntime();
-  let userSnapshot: UserSnapshot | undefined;
   let ignoreSelectionEvents = false;
   let routeActive = false;
 
@@ -38,27 +36,41 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  async function restoreUserSnapshot(ctx: ExtensionContext): Promise<void> {
-    if (!userSnapshot) return;
-    const snapshot = userSnapshot;
-    const restored = await ignoreSelectionEventsWhile(async () => {
-      const ok = await pi.setModel(snapshot.model);
-      if (ok) pi.setThinkingLevel(snapshot.thinkingLevel);
-      return ok;
-    });
-    if (!restored) {
+  async function restorePersistedUserSelection(
+    ctx: ExtensionContext,
+    persisted: UserSelection,
+  ): Promise<void> {
+    const model = ctx.modelRegistry.find(
+      persisted.modelProvider,
+      persisted.modelId,
+    );
+    if (!model) {
       ctx.ui.notify(
-        `Could not restore user model '${formatModelId(snapshot.model)}'.`,
+        `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`,
         "warning",
       );
+      return;
     }
+    await ignoreSelectionEventsWhile(async () => {
+      const ok = await pi.setModel(model as Model<Api>);
+      if (ok) pi.setThinkingLevel(persisted.thinkingLevel);
+    });
   }
 
   pi.on("session_start", async (_event, ctx) => {
     await loadMemory();
-    if (ctx.model) {
-      userSnapshot = { model: ctx.model, thinkingLevel: pi.getThinkingLevel() };
+    const persisted = await loadUserSelection();
+
+    if (persisted) {
+      await restorePersistedUserSelection(ctx, persisted);
+    } else if (ctx.model) {
+      await saveUserSelection({
+        modelProvider: ctx.model.provider,
+        modelId: ctx.model.id,
+        thinkingLevel: pi.getThinkingLevel(),
+      });
     }
+
     await runtime.refreshConfig(ctx);
     if (!runtime.configEnabled()) {
       await runtime.warnOnce(ctx);
@@ -145,7 +157,10 @@ export default function (pi: ExtensionAPI) {
   pi.on("agent_end", async (_event, ctx) => {
     if (!routeActive) return;
     routeActive = false;
-    await restoreUserSnapshot(ctx);
+    const persisted = await loadUserSelection();
+    if (persisted) {
+      await restorePersistedUserSelection(ctx, persisted);
+    }
   });
 
   pi.on("model_select", (event, ctx) => {
@@ -157,13 +172,21 @@ export default function (pi: ExtensionAPI) {
     if (remembered !== undefined) {
       pi.setThinkingLevel(remembered);
     }
-    userSnapshot = { model: ctx.model, thinkingLevel: pi.getThinkingLevel() };
+    void saveUserSelection({
+      modelProvider: ctx.model.provider,
+      modelId: ctx.model.id,
+      thinkingLevel: pi.getThinkingLevel(),
+    });
   });
 
   pi.on("thinking_level_select", (event, ctx) => {
     if (ignoreSelectionEvents || !ctx.model) return;
     recordLevel(formatModelId(ctx.model), event.level);
-    userSnapshot = { model: ctx.model, thinkingLevel: event.level };
+    void saveUserSelection({
+      modelProvider: ctx.model.provider,
+      modelId: ctx.model.id,
+      thinkingLevel: event.level,
+    });
   });
 
   pi.registerCommand("profile", {

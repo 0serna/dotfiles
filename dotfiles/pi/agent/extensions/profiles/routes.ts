@@ -1,12 +1,11 @@
 import type { FixedRouteName } from "./types.ts";
 
 export const ROUTE_TYPES = {
-  "/skill:openspec-propose": "strong",
-  "/skill:openspec-apply-change": "balanced",
-  "/skill:openspec-archive-change": "cheap",
-  "/skill:review": "strong",
   "/skill:commit": "cheap",
+  "/skill:openspec-archive-change": "cheap",
   "/compact": "balanced",
+  "/skill:simplify": "strong",
+  "/skill:review": "strong",
 } as const satisfies Record<string, FixedRouteName>;
 
 export type RouteName = keyof typeof ROUTE_TYPES;
