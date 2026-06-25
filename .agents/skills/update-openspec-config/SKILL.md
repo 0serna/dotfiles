@@ -1,9 +1,10 @@
 ---
 name: update-openspec-config
-description: Use only to update shared generated OpenSpec skills. Do not use for normal OpenSpec proposal, exploration, application, or archive workflows.
+disable-model-invocation: true
+description: Refresh generated OpenSpec skills from the latest OpenSpec CLI.
 ---
 
-Update generated OpenSpec skill files. Run the generator, copy the shared skills into the repo, and verify the copies. Do not use this skill for normal OpenSpec workflows.
+Refresh generated OpenSpec skill files from the latest CLI without manually rewriting generated content.
 
 ## Workflow
 
@@ -11,32 +12,25 @@ Update generated OpenSpec skill files. Run the generator, copy the shared skills
    ```bash
    npm install -g @fission-ai/openspec@latest
    ```
-2. Clean any pre-existing staging directory, then create a fresh one in `/tmp/` (e.g., `/tmp/openspec-staging/`).
+   Complete when `openspec --version` succeeds.
+2. Create a clean staging directory under `/tmp/`.
+   Complete when the staging directory exists and contains no state from a previous run.
 3. Run `openspec init --tools pi` in the staging directory.
-4. Copy generated OpenSpec skill directories from `.pi/skills/` into `dotfiles/agents/skills/`:
-   - Remove stale `openspec-*` directories from the target before copying.
-   - Copy only directories whose names start with `openspec-`.
-   - Exclude `openspec-explore`.
-5. Verify the copied skills:
-   - Use `diff -r` to compare each copied target skill directory against its matching source directory.
-   - Confirm `openspec-explore` is absent from the target.
-   - Use `find` with `wc -l` to count the copied skill directories.
-   - Report the counts and flag any content mismatches.
+   Complete when the staging directory contains generated `.pi/skills/openspec-*` directories.
+4. Replace generated target skills in `dotfiles/agents/skills/`.
+   - Remove existing target directories matching `openspec-*`.
+   - Copy generated source directories matching `openspec-*`, except `openspec-explore`.
+     Complete when the target contains only the copied generated OpenSpec skill directories and no `openspec-explore` directory.
+5. Verify the copied skills.
+   - Compare every copied target directory with its matching source directory using `diff -r`.
+   - Count source `openspec-*` directories excluding `openspec-explore`.
+   - Count copied target `openspec-*` directories.
+     Complete when every copied directory has a clean diff, the target count equals the expected source count, and stale generated target directories are absent.
 
-## Gotchas
+## Failure handling
 
-- If `openspec init` fails, check that the CLI installed correctly and the tool name (`pi`) is valid in the current version.
-- The generated skill directories always start with `openspec-`. Only copy those; leave other directories untouched.
-- Cleaning the staging directory before starting (step 2) avoids stale state from a previous run.
-- If the number of generated skill directories differs from the previous run, the OpenSpec CLI version may have changed. Report the deviation without assuming it is an error.
-
-## Rules
-
-- Always use `/tmp/` for the staging directory.
-- Do not manually rewrite generated content.
-- Do not use this skill for regular OpenSpec proposal, exploration, apply, or archive workflows.
-- Keep the copy limited to generated OpenSpec skill outputs.
-- Always exclude `openspec-explore` from the copied skills.
+- If `openspec init` fails, verify that the CLI installed correctly and that `pi` is a valid tool name in the installed version.
+- If the generated skill count changed from the previous repo state, report the deviation without assuming it is an error.
 
 ## Output
 
@@ -45,4 +39,3 @@ Return a concise summary with:
 - update result
 - copied skill count
 - verification results, including any count deviations
-- any tool-reference findings
