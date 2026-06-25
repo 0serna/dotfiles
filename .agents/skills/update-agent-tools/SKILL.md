@@ -1,9 +1,17 @@
 ---
 name: update-agent-tools
-description: Update curated global/local agent tooling used by these dotfiles. Use when asked to refresh agent CLIs or binaries.
+disable-model-invocation: true
+description: Update curated agent CLIs and binaries used by these dotfiles.
 ---
 
-Update the curated agent tools used by this dotfiles repository. This skill updates installed tools only; it must not modify repository files, regenerate generated content, or broaden the tool list by scanning for new commands. Only version is reported per tool — paths are intentionally omitted.
+Update the curated agent tools used by this dotfiles repository.
+
+Guardrails:
+
+- Update installed tools only.
+- Do not modify repository files or regenerate generated content.
+- Do not scan for new commands or broaden the tool list.
+- Report versions only; omit paths.
 
 ## Scope
 
@@ -24,11 +32,11 @@ Update these tools with these exact methods:
 
 3. Continue to the next tool if an update command fails.
 
-4. After `npx skills update -g -y` completes, parse its output to identify which skills were updated (lines matching `✓ Updated <skill-name>`).
+4. After the `skills` tool update completes, parse `npx skills update -g -y` output to identify updated skill names (lines matching `✓ Updated <skill-name>`).
 
 5. Capture the post-update version using the same checks as step 1.
 
-6. Return a compact summary for every tool (versions only, no paths). If skills were updated, list which ones.
+6. Return a compact summary for every tool (versions only, no paths). Derive status from the update command, not the version check. If the `skills` tool updated any skill names, list them.
 
 ## Failure Handling
 
@@ -47,4 +55,4 @@ Return a concise summary with one row per tool:
 - version before and after, or `not verifiable`
 - any short failure message
 
-If skills were updated, list which ones.
+If the `skills` tool updated any skill names, list them.
