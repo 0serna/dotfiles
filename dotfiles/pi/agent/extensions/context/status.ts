@@ -2,7 +2,6 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { failureDetails } from "../shared/diagnostics.ts";
 import type { ExtensionLogger } from "../shared/logger.js";
 import {
-  CACHE_HIT_WARNING_PERCENT,
   formatCacheHit,
   formatCurrentUsage,
   isCacheBelowThreshold,
@@ -21,19 +20,12 @@ function isContextOverLimit(usage: ContextUsage | undefined): boolean {
 }
 
 function logCacheStatus(logger: ExtensionLogger, cacheInfo: CacheInfo): void {
-  if (cacheInfo.cacheUnavailableReason) {
-    logger.log("cache_unavailable", {
-      reason: cacheInfo.cacheUnavailableReason,
-    });
-    return;
-  }
-
-  if (isCacheBelowThreshold(cacheInfo)) {
-    logger.log("cache_below_threshold", {
-      hitRate: cacheInfo.percent,
-      threshold: CACHE_HIT_WARNING_PERCENT,
-    });
-  }
+  logger.log("cache_status", {
+    hitRate: cacheInfo.percent,
+    input: cacheInfo.input,
+    cacheRead: cacheInfo.cacheRead,
+    reason: cacheInfo.cacheUnavailableReason ?? null,
+  });
 }
 
 function publishStatus(

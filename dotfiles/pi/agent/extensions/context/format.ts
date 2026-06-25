@@ -20,6 +20,8 @@ export type CacheUsageEntry = {
 export type CacheInfo = {
   text: string;
   percent: number;
+  input: number;
+  cacheRead: number;
   cacheUnavailableReason?: string;
 };
 
@@ -71,6 +73,8 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
     return {
       text: "cache 0%",
       percent: 0,
+      input: 0,
+      cacheRead: 0,
       cacheUnavailableReason: "no_assistant_messages",
     };
   }
@@ -81,6 +85,8 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
     return {
       text: "cache 0%",
       percent: 0,
+      input: latestUsage.input,
+      cacheRead: latestUsage.cacheRead,
       cacheUnavailableReason: "no_cache_reads",
     };
   }
@@ -91,6 +97,8 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
     return {
       text: "cache 0%",
       percent: 0,
+      input: latestUsage.input,
+      cacheRead: latestUsage.cacheRead,
       cacheUnavailableReason: "zero_denominator",
     };
   }
@@ -98,6 +106,8 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
   return {
     text: `cache ${formatPercent(percent)}`,
     percent,
+    input: latestUsage.input,
+    cacheRead: latestUsage.cacheRead,
   };
 }
 

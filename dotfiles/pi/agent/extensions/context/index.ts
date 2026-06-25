@@ -14,7 +14,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("turn_end", (_event, ctx) => {
-    computeAndPublishStatus(ctx, logger);
+    computeAndPublishStatus(ctx, logger, true);
   });
 
   pi.on("model_select", (_event, ctx) => {
