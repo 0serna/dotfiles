@@ -12,7 +12,7 @@
 
 ## Repository Commands
 
-- `<install command>`: install dependencies.
-- `<test command>`: run tests.
-- `<check command>`: run the full quality gate.
-- `<format command>`: format repository files.
+- `npm install`: install dependencies.
+- `npm test`: run tests.
+- `npm run check`: run the full quality gate.
+- `npm run format`: format repository files.

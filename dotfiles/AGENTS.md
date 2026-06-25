@@ -2,14 +2,13 @@
 
 - Use NEUTRAL SPANISH for all user-facing messages, but keep ENGLISH for code and all other files.
 - Keep your answers CONCISE and to the point. AVOID using filler words.
-- Use the native interactive tool (`question` / `request_user_input` / `AskUserQuestion`) whenever presenting options or decisions to the user.
+- Use the `question` tool whenever presenting options or decisions to the user.
 
 ## Engineering
 
 - Before coding, state assumptions when they affect the solution. If the request has multiple plausible interpretations, ask instead of choosing silently.
 - Prefer the smallest correct implementation. Do not add speculative features, abstractions, configurability, or defensive handling for impossible scenarios.
-- Make surgical changes. Touch only files and lines that directly support the user's request, match the existing style, and do not refactor adjacent code unless required.
-- Always use `rg` (ripgrep) instead of `grep` for file searches — it's faster, respects `.gitignore`, and supports modern regex by default.
+- Always use `rg` (ripgrep) instead of `grep` for file searches — it's faster and respects `.gitignore`.
 - NEVER generate documentation files unless the user explicitly requests them.
 - NEVER use stash, stage, or commit without the user's explicit permission.
 

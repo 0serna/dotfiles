@@ -1,14 +1,12 @@
 ---
 name: review
-description: >-
-  Perform a focused code review of local changes or a GitHub pull request. Use
-  when the user asks to review a diff, current changes, staged or unstaged work,
-  or a PR, and report only important confirmed findings grounded in real code.
+disable-model-invocation: true
+description: Confirmed-only code review for local changes or pull requests.
 ---
 
 # Review
 
-Perform a focused code review of local changes or a pull request, verify likely issues against the real code, and report only important confirmed findings.
+Run a confirmed-only review: every reported finding must be introduced or worsened by the target changes, verified against real code, and backed by concrete evidence.
 
 ## Workflow
 
@@ -16,10 +14,10 @@ Perform a focused code review of local changes or a pull request, verify likely 
    - For a PR number or URL, run `gh pr checkout [number]`, inspect `gh pr view [number] --json title,body,baseRefName`, and analyze the diff between `HEAD` and the base branch.
    - If no explicit PR target is provided, analyze the diff between `HEAD` and the local working tree.
    - If the target is unclear, ask for clarification before proceeding.
-2. Generate a small set of strong candidate issues from the changes. For each candidate, note category, file and line, and a one-sentence hypothesis.
-3. Prefer fewer, stronger candidates and merge duplicates.
-4. Verify each candidate by reading full files and relevant context, then try to disprove the hypothesis.
-5. Keep only issues introduced or worsened by the current changes.
+2. Read the full diff and generate a small set of strong candidate issues. For each candidate, note file, line, and a one-sentence hypothesis; this is complete when every modified file has been considered.
+3. Prefer fewer, stronger candidates and merge duplicates; this is complete when no two candidates describe the same defect.
+4. Verify each candidate by reading full files and relevant context, then try to disprove the hypothesis; this is complete when each candidate has a `CONFIRMED` or `DISCARDED` verdict.
+5. Keep only issues introduced or worsened by the current changes; discard every candidate that is pre-existing, speculative, or not tied to changed code.
 6. Report only confirmed findings with concrete evidence.
 
 ## Review Lenses
@@ -40,16 +38,12 @@ Check correctness, security, authorization, permissions, input validation, secre
 
 ## Internal Verification Notes
 
-Use this structure while verifying candidates:
+Use this structure while verifying candidates. Every candidate must end with `CONFIRMED` or `DISCARDED` before writing the final output:
 
 ```text
 Verdict: CONFIRMED | DISCARDED
-category:
-severity:
-title:
 where:
 evidence:
-why it matters:
 suggestion:
 ```
 
@@ -63,8 +57,11 @@ Looks good to me
 
 If there are reportable findings, print this structure per finding:
 
-```text
-severity: [severity]
-path: [path/to/file:line-range]
-suggestion: [concise evidence and suggestion]
+```markdown
+**severity**: [severity]
+**path**: [path/to/file:line-range]
+
+## Evidence
+
+[concise concrete evidence and fix direction]
 ```
