@@ -50,10 +50,6 @@ export function hashNormalizedContent(text: string): string {
   return createHash("sha256").update(normalizeContent(text)).digest("hex");
 }
 
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-
 export function truncateTarget(target: string, maxLength: number): string {
   const normalized = target.trim().replace(/\s+/g, " ");
   if (normalized.length <= maxLength) return normalized;

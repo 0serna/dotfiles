@@ -1,6 +1,6 @@
+import { estimateTokens as estimateMessageTokens } from "@earendil-works/pi-coding-agent";
 import {
   asRecord,
-  estimateTokens,
   extractTextContent,
   hashNormalizedContent,
   replaceTextContent,
@@ -53,16 +53,29 @@ function emptyReasonCounts(): Record<PruneReason, number> {
   };
 }
 
+function estimateToolResultTokens(text: string, toolName: string): number {
+  return estimateMessageTokens({
+    role: "toolResult",
+    toolCallId: "context-prune-estimate",
+    toolName,
+    content: [{ type: "text", text }],
+    isError: false,
+    timestamp: 0,
+  });
+}
+
 function estimatedSavedTokens(decision: StubDecision): number {
+  const toolName = decision.candidate.metadata.toolName;
   const stubText = buildStub(
     decision.reason,
-    decision.candidate.metadata.toolName,
+    toolName,
     decision.candidate.metadata.target,
   );
 
   return Math.max(
     0,
-    estimateTokens(decision.candidate.text) - estimateTokens(stubText),
+    estimateToolResultTokens(decision.candidate.text, toolName) -
+      estimateToolResultTokens(stubText, toolName),
   );
 }
 
@@ -175,7 +188,8 @@ function decideStubs(
       reason = "superseded_file_operation";
     } else if (
       candidate.metadata.isCommandListingOrSearch &&
-      estimateTokens(candidate.text) > LARGE_OUTPUT_TOKEN_THRESHOLD
+      estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
+        LARGE_OUTPUT_TOKEN_THRESHOLD
     ) {
       reason = "old_large_output";
     }
