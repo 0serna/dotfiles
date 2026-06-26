@@ -72,9 +72,14 @@ export function formatPercentResetSegment(
   remainingPercent: number,
   resetLabel: string,
   ctx: ExtensionContext,
+  suppressExhaustedWarning = false,
 ): string {
-  const segment = `${remainingPercent}(${resetLabel})`;
-  if (remainingPercent < LOW_QUOTA_THRESHOLD_PERCENT) {
+  const roundedPercent = clampPercent(remainingPercent);
+  const segment = `${roundedPercent}(${resetLabel})`;
+  if (
+    roundedPercent < LOW_QUOTA_THRESHOLD_PERCENT &&
+    !(suppressExhaustedWarning && roundedPercent === 0)
+  ) {
     return ctx.ui.theme.fg("warning", segment);
   }
   return ctx.ui.theme.fg("dim", segment);
@@ -97,21 +102,29 @@ export function formatCodexQuotaStatus(
     return null;
   }
 
+  const isConsumingCredits =
+    data.remainingCredits != null &&
+    data.remainingCredits > 0 &&
+    (data.remaining5h === 0 || data.remaining7d === 0);
+
   const parts = [
     formatPercentResetSegment(
       data.remaining5h,
       formatResetTime(data.resetAt5h),
       ctx,
+      isConsumingCredits,
     ),
     formatPercentResetSegment(
       data.remaining7d,
       formatResetTime(data.resetAt7d),
       ctx,
+      isConsumingCredits,
     ),
   ];
 
   if (data.remainingCredits != null) {
-    parts.push(ctx.ui.theme.fg("dim", `C${data.remainingCredits}`));
+    const color = isConsumingCredits ? "warning" : "dim";
+    parts.push(ctx.ui.theme.fg(color, `C${data.remainingCredits}`));
   }
 
   return parts.join(ctx.ui.theme.fg("dim", " "));
@@ -128,11 +141,13 @@ export function formatOpenCodeResetTime(resetInSec: number): string {
 export function formatOpenCodeSegment(
   window: OpenCodeGoWindowData,
   ctx: ExtensionContext,
+  suppressExhaustedWarning = false,
 ): string {
   return formatPercentResetSegment(
     window.remainingPercent,
     formatOpenCodeResetTime(window.resetInSec),
     ctx,
+    suppressExhaustedWarning,
   );
 }
 
@@ -148,18 +163,26 @@ export function formatOpenCodeBalances(
   )
     return null;
 
+  const isConsumingBalance =
+    data.balanceDollars != null &&
+    data.balanceDollars > 0 &&
+    [data.rolling, data.weekly, data.monthly].some(
+      (window) => window && clampPercent(window.remainingPercent) === 0,
+    );
+
   const parts: string[] = [];
 
   if (data.rolling && data.weekly && data.monthly) {
     parts.push(
-      formatOpenCodeSegment(data.rolling, ctx),
-      formatOpenCodeSegment(data.weekly, ctx),
-      formatOpenCodeSegment(data.monthly, ctx),
+      formatOpenCodeSegment(data.rolling, ctx, isConsumingBalance),
+      formatOpenCodeSegment(data.weekly, ctx, isConsumingBalance),
+      formatOpenCodeSegment(data.monthly, ctx, isConsumingBalance),
     );
   }
 
   if (data.balanceDollars != null) {
-    parts.push(ctx.ui.theme.fg("dim", `$${data.balanceDollars.toFixed(2)}`));
+    const color = isConsumingBalance ? "warning" : "dim";
+    parts.push(ctx.ui.theme.fg(color, `$${data.balanceDollars.toFixed(2)}`));
   }
 
   return parts.length > 0 ? parts.join(ctx.ui.theme.fg("dim", " ")) : null;
