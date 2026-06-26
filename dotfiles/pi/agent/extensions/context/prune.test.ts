@@ -180,6 +180,40 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
   });
 
+  it("keeps old large skill read results", () => {
+    const skillText = "x".repeat(8_004);
+    const messages = [
+      assistantToolCall("a", "read", {
+        path: "/home/user/.agents/skills/review/SKILL.md",
+      }),
+      toolResult("a", "read", skillText),
+      ...tail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(skillText);
+  });
+
+  it("stubs superseded skill read results", () => {
+    const messages = [
+      assistantToolCall("a", "read", {
+        path: "/home/user/.agents/skills/review/SKILL.md",
+      }),
+      toolResult("a", "read", "old skill"),
+      assistantToolCall("b", "read", {
+        path: "/home/user/.agents/skills/review/SKILL.md",
+      }),
+      toolResult("b", "read", "new skill"),
+      ...tail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toContain("reason=superseded_file_operation");
+    expect(textOf(pruned[3]!)).toBe("new skill");
+  });
+
   it("fails open when logging throws", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),

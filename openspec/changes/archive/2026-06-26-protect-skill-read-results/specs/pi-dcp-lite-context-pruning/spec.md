@@ -1,19 +1,6 @@
-# pi-dcp-lite-context-pruning Specification
+# pi-dcp-lite-context-pruning Specification Delta
 
-## Purpose
-
-Automatically reduce stale tool result content in transient context to improve cache stability and reduce token consumption in long tool-heavy sessions.
-
-## Requirements
-
-### Requirement: Recent message protection
-
-DCP SHALL preserve the last 15 messages in the context without stubbing them.
-
-#### Scenario: Recent stale output is protected
-
-- **WHEN** an otherwise eligible `toolResult` is within the last 15 messages
-- **THEN** DCP SHALL leave that message unchanged
+## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 

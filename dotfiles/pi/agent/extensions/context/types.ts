@@ -16,6 +16,7 @@ export interface ToolMetadata {
   target: string;
   operationKey: string | null;
   isFileOperation: boolean;
+  isSkillRead: boolean;
 }
 
 export interface ToolResultCandidate {

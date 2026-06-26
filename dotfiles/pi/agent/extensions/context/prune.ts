@@ -187,8 +187,9 @@ function decideStubs(
     ) {
       reason = "superseded_file_operation";
     } else if (
+      !candidate.metadata.isSkillRead &&
       estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-      LARGE_OUTPUT_TOKEN_THRESHOLD
+        LARGE_OUTPUT_TOKEN_THRESHOLD
     ) {
       reason = "old_large_output";
     }
