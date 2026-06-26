@@ -1,27 +1,4 @@
-## Purpose
-
-The cache hit monitoring capability defines how the context-usage extension computes, displays, colors, and logs cache hit rate information in the pi status bar.
-
-## Requirements
-
-### Requirement: Cache hit rate computation
-
-The system SHALL compute the cache hit rate from the latest assistant message usage data. The hit rate SHALL be `cacheRead / (cacheRead + input)` expressed as an integer percentage (0-100). When no assistant messages with usage exist in the session branch, the hit rate SHALL be reported as 0%. When `cacheRead + input === 0`, the hit rate SHALL be reported as 0%.
-
-#### Scenario: Normal cache hit rate
-
-- **WHEN** the latest assistant message has `input: 100` and `cacheRead: 900`
-- **THEN** the computed hit rate SHALL be `90`
-
-#### Scenario: Zero tokens exchanged
-
-- **WHEN** the latest assistant message has `input: 0` and `cacheRead: 0`
-- **THEN** the computed hit rate SHALL be `0`
-
-#### Scenario: No assistant messages yet
-
-- **WHEN** the session branch contains no assistant messages with usage data
-- **THEN** the computed hit rate SHALL be `0`
+## MODIFIED Requirements
 
 ### Requirement: Cache hit rate display format
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import dcp, { pruneMessages } from "./index.js";
+import { pruneMessages } from "./prune.ts";
 
 interface Message {
   role: string;
@@ -50,7 +50,7 @@ function textOf(message: Message): string {
   return first?.text ?? "";
 }
 
-describe("DCP pruning", () => {
+describe("context DCP pruning", () => {
   it("stubs duplicate non-recent tool results", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/a.ts" }),
@@ -60,7 +60,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toBe("same output");
     expect(textOf(pruned[3]!)).toContain("reason=duplicate_output");
@@ -82,7 +82,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages, { logger: { log } });
+    const { messages: pruned } = pruneMessages(messages, { logger: { log } });
 
     expect(textOf(pruned[1]!)).toBe("Yes");
     expect(textOf(pruned[3]!)).toBe("Yes");
@@ -101,7 +101,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toContain("reason=resolved_error");
     expect(textOf(pruned[3]!)).toBe("ok");
@@ -122,7 +122,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toBe("Error: invalid option");
     expect(textOf(pruned[3]!)).toBe("Yes");
@@ -137,7 +137,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toContain("reason=superseded_file_operation");
     expect(textOf(pruned[3]!)).toBe("new file");
@@ -150,7 +150,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
   });
@@ -163,7 +163,7 @@ describe("DCP pruning", () => {
       toolResult("a", "bash", "x".repeat(8_004)),
     ];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[20]!)).toBe("x".repeat(8_004));
   });
@@ -175,7 +175,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages, {
+    const { messages: pruned } = pruneMessages(messages, {
       logger: {
         log: () => {
           throw new Error("boom");
@@ -193,7 +193,7 @@ describe("DCP pruning", () => {
     const result = toolResult("a", "bash", "x".repeat(8_004));
     const messages = [user, assistant, result, ...tail()];
 
-    const pruned = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(pruned[0]!).toBe(user);
     expect(pruned[1]!).toBe(assistant);
@@ -210,7 +210,10 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    pruneMessages(messages, { logger: { log }, contextSequence: 7 });
+    const { metrics } = pruneMessages(messages, {
+      logger: { log },
+      contextSequence: 7,
+    });
 
     const payload = log.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(log).toHaveBeenCalledOnce();
@@ -228,6 +231,7 @@ describe("DCP pruning", () => {
         old_large_output: 1,
       },
     });
+    expect(metrics).toStrictEqual(payload);
     expect(payload.estimatedSavedTokens).toEqual(expect.any(Number));
     expect(payload.estimatedSavedTokens).toBeGreaterThan(0);
     expect(payload.estimatedSavedTokensByReason).toMatchObject({
@@ -246,7 +250,7 @@ describe("DCP pruning", () => {
       ...tail(),
     ];
 
-    const pruned = pruneMessages(messages, {
+    const { messages: pruned } = pruneMessages(messages, {
       logger: { log },
       contextSequence: 1,
     });
@@ -260,26 +264,5 @@ describe("DCP pruning", () => {
       estimatedSavedTokens: 0,
       estimatedSavedTokensByTool: {},
     });
-  });
-});
-
-describe("DCP extension registration", () => {
-  it("registers only session_start and context handlers", () => {
-    const handlers = new Map<string, (...args: unknown[]) => unknown>();
-    const pi = {
-      on: vi.fn((event: string, handler: (...args: unknown[]) => unknown) => {
-        handlers.set(event, handler);
-      }),
-      registerTool: vi.fn(),
-      registerCommand: vi.fn(),
-      registerPrompt: vi.fn(),
-    };
-
-    dcp(pi as never);
-
-    expect([...handlers.keys()]).toEqual(["session_start", "context"]);
-    expect(pi.registerTool).not.toHaveBeenCalled();
-    expect(pi.registerCommand).not.toHaveBeenCalled();
-    expect(pi.registerPrompt).not.toHaveBeenCalled();
   });
 });

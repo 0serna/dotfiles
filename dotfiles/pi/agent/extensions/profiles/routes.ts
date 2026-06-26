@@ -4,6 +4,7 @@ export const ROUTE_TYPES = {
   "/skill:commit": "cheap",
   "/skill:openspec-archive-change": "cheap",
   "/compact": "balanced",
+  "/skill:openspec-apply-change": "balanced",
   "/skill:simplify": "strong",
   "/skill:review": "strong",
 } as const satisfies Record<string, FixedRouteName>;

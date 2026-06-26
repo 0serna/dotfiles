@@ -233,17 +233,25 @@ function metricsFor(
   };
 }
 
+export type PruneResult<T> = {
+  messages: T[];
+  metrics: PruneMetrics;
+};
+
 export function pruneMessages<T>(
   messages: readonly T[],
   options: PruneOptions = {},
-): T[] {
+): PruneResult<T> {
   try {
     const candidates = collectCandidates(messages);
     const decisions = decideStubs(candidates);
-    options.logger?.log("context_pruned", {
-      ...metricsFor(candidates, decisions, options.contextSequence),
-    });
-    if (decisions.length === 0) return [...messages];
+    const metrics = metricsFor(candidates, decisions, options.contextSequence);
+
+    options.logger?.log("context_pruned", { ...metrics });
+
+    if (decisions.length === 0) {
+      return { messages: [...messages], metrics };
+    }
 
     const replacements = new Map<number, Record<string, unknown>>();
     for (const decision of decisions) {
@@ -260,10 +268,27 @@ export function pruneMessages<T>(
       );
     }
 
-    return messages.map(
-      (message, index) => (replacements.get(index) as T | undefined) ?? message,
-    );
+    return {
+      messages: messages.map(
+        (message, index) =>
+          (replacements.get(index) as T | undefined) ?? message,
+      ),
+      metrics,
+    };
   } catch {
-    return [...messages];
+    return {
+      messages: [...messages],
+      metrics: {
+        contextSequence: options.contextSequence,
+        processedCount: 0,
+        stubbedCount: 0,
+        protectedRecentCount: 0,
+        reasonCounts: emptyReasonCounts(),
+        estimatedSavedTokens: 0,
+        estimatedSavedTokensByReason: emptyReasonCounts(),
+        estimatedSavedTokensByTool: {},
+        targets: [],
+      },
+    };
   }
 }

@@ -6,6 +6,22 @@ export type ContextUsage = {
   percent: number | null;
 };
 
+export type DcpStatusMetrics = {
+  contextSequence?: number;
+  stubbedCount: number;
+  estimatedSavedTokens: number;
+  reasonCounts: Record<string, number>;
+};
+
+export function emptyDcpMetrics(): DcpStatusMetrics {
+  return {
+    contextSequence: undefined,
+    stubbedCount: 0,
+    estimatedSavedTokens: 0,
+    reasonCounts: {},
+  };
+}
+
 export type CacheUsageEntry = {
   type: string;
   message?: {
@@ -22,15 +38,12 @@ export type CacheInfo = {
   percent: number;
   input: number;
   cacheRead: number;
+  belowThresholdStreak: number;
   cacheUnavailableReason?: string;
 };
 
 export function formatK(value: number): string {
-  if (value < 1000) {
-    return value.toFixed(1);
-  }
-
-  return `${(value / 1000).toFixed(1)}k`;
+  return `${Math.round(value / 1000)}k`;
 }
 
 export function formatPercent(value: number): string {
@@ -63,11 +76,27 @@ function computeHitRate(usage: { input: number; cacheRead: number }): number {
   return Math.round((usage.cacheRead / denominator) * 100);
 }
 
+function countBelowThresholdStreak(
+  usages: Array<{ input: number; cacheRead: number }>,
+): number {
+  let streak = 0;
+
+  for (let index = usages.length - 1; index >= 0; index -= 1) {
+    const usage = usages[index];
+    if (usage === undefined) continue;
+    if (computeHitRate(usage) >= CACHE_HIT_WARNING_PERCENT) break;
+    streak += 1;
+  }
+
+  return streak;
+}
+
 export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
   const usages = entries
     .filter(isAssistantWithUsage)
     .map((e) => e.message.usage);
   const latestUsage = usages.at(-1);
+  const belowThresholdStreak = countBelowThresholdStreak(usages);
 
   if (!latestUsage) {
     return {
@@ -75,6 +104,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
       percent: 0,
       input: 0,
       cacheRead: 0,
+      belowThresholdStreak,
       cacheUnavailableReason: "no_assistant_messages",
     };
   }
@@ -87,6 +117,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
       percent: 0,
       input: latestUsage.input,
       cacheRead: latestUsage.cacheRead,
+      belowThresholdStreak,
       cacheUnavailableReason: "no_cache_reads",
     };
   }
@@ -99,6 +130,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
       percent: 0,
       input: latestUsage.input,
       cacheRead: latestUsage.cacheRead,
+      belowThresholdStreak,
       cacheUnavailableReason: "zero_denominator",
     };
   }
@@ -108,9 +140,10 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
     percent,
     input: latestUsage.input,
     cacheRead: latestUsage.cacheRead,
+    belowThresholdStreak,
   };
 }
 
 export function isCacheBelowThreshold(cacheInfo: CacheInfo): boolean {
-  return cacheInfo.percent < CACHE_HIT_WARNING_PERCENT;
+  return cacheInfo.belowThresholdStreak >= 2;
 }
