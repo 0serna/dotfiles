@@ -6,19 +6,9 @@ interface ToolCallMetadata {
   target: string;
   operationKey: string | null;
   isFileOperation: boolean;
-  isCommandListingOrSearch: boolean;
 }
 
 const FILE_TOOL_NAMES = new Set(["read", "write", "edit"]);
-const SEARCH_TOOL_NAMES = new Set([
-  "grep",
-  "rg",
-  "search",
-  "web_search",
-  "web-fetch",
-  "web_fetch",
-]);
-const COMMAND_TOOL_NAMES = new Set(["bash", "shell", "exec", "ls", "find"]);
 
 function normalizedToolName(name: string): string {
   return name.toLowerCase().replace(/^functions[._-]/, "");
@@ -59,21 +49,6 @@ function isFileOperation(
   );
 }
 
-function commandLooksLikeListingOrSearch(command: string): boolean {
-  return /^\s*(ls|find|rg|grep|fd|tree)\b/.test(command);
-}
-
-function isCommandListingOrSearch(
-  toolName: string,
-  args: Record<string, unknown>,
-): boolean {
-  const name = normalizedToolName(toolName);
-  if (SEARCH_TOOL_NAMES.has(name)) return true;
-  if (COMMAND_TOOL_NAMES.has(name)) return true;
-  const command = stringArg(args, ["command"]);
-  return command === null ? false : commandLooksLikeListingOrSearch(command);
-}
-
 function buildOperationKey(toolName: string, target: string): string {
   return `${normalizedToolName(toolName)}:${target.trim().toLowerCase()}`;
 }
@@ -93,7 +68,6 @@ function parseToolCall(
     operationKey:
       target === null ? null : buildOperationKey(block.name, target),
     isFileOperation: isFileOperation(block.name, args),
-    isCommandListingOrSearch: isCommandListingOrSearch(block.name, args),
   };
 }
 
@@ -143,9 +117,5 @@ export function metadataForToolResult(
     isFileOperation:
       toolCall?.isFileOperation ??
       FILE_TOOL_NAMES.has(normalizedToolName(toolName)),
-    isCommandListingOrSearch:
-      toolCall?.isCommandListingOrSearch ??
-      (COMMAND_TOOL_NAMES.has(normalizedToolName(toolName)) ||
-        SEARCH_TOOL_NAMES.has(normalizedToolName(toolName))),
   };
 }

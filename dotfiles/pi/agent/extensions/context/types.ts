@@ -1,7 +1,7 @@
 import type { ExtensionLogger } from "../shared/logger.js";
 
-export const RECENT_MESSAGE_COUNT = 20;
-export const LARGE_OUTPUT_TOKEN_THRESHOLD = 2000;
+export const RECENT_MESSAGE_COUNT = 15;
+export const LARGE_OUTPUT_TOKEN_THRESHOLD = 1500;
 export const TARGET_MAX_LENGTH = 120;
 
 export type PruneReason =
@@ -16,7 +16,6 @@ export interface ToolMetadata {
   target: string;
   operationKey: string | null;
   isFileOperation: boolean;
-  isCommandListingOrSearch: boolean;
 }
 
 export interface ToolResultCandidate {

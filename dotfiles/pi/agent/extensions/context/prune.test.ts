@@ -143,7 +143,7 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[3]!)).toBe("new file");
   });
 
-  it("stubs old large command, listing, and search outputs", () => {
+  it("stubs old large textual tool results", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", "x".repeat(8_004)),
@@ -155,17 +155,29 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
   });
 
-  it("protects the last 20 messages", () => {
+  it("protects the last 15 messages", () => {
     const messages = [
       { role: "user", content: "older" },
-      ...tail(18),
+      ...tail(13),
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", "x".repeat(8_004)),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[20]!)).toBe("x".repeat(8_004));
+    expect(textOf(pruned[15]!)).toBe("x".repeat(8_004));
+  });
+
+  it("stubs old large textual tool results for non-command tools", () => {
+    const messages = [
+      assistantToolCall("a", "read", { path: "src/big.ts" }),
+      toolResult("a", "read", "x".repeat(6_004)),
+      ...tail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
   });
 
   it("fails open when logging throws", () => {
