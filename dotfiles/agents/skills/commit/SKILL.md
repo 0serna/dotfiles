@@ -17,8 +17,8 @@ When this skill is invoked, do not summarize the skill, explain the workflow, or
 1. Run `git diff --cached --stat` and `git diff --cached` to inspect staged changes; complete when every staged change is accounted for in the message decision.
 2. If there are no staged changes, print `No staged changes to commit` and stop.
 3. Generate a commit message that follows the required format.
-4. Run `git commit` with that message without asking for confirmation.
-5. Report the committed message or the failure cause.
+4. Run `git commit` with that message without asking for confirmation; complete only when the tool result reports success.
+5. Report success only after step 4 completes. If `git commit` was not executed, do not report success.
 
 ## Message format
 
@@ -31,7 +31,7 @@ When this skill is invoked, do not summarize the skill, explain the workflow, or
 
 ## Failure rule
 
-On failure, do not retry, amend, stage files, or modify files. Ask the user how to proceed.
+On failure, or if `git commit` cannot be executed, do not retry, amend, stage files, or modify files. Ask the user how to proceed.
 
 ## Output
 
