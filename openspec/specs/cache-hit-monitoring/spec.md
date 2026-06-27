@@ -61,12 +61,12 @@ The system SHALL display context usage, latest DCP estimated token savings, and 
 
 ### Requirement: Cache event logging
 
-The system SHALL log cache status events through the `context` extension logger and SHALL include the latest DCP pruning metrics in each cache status payload.
+The system SHALL log cache status events through the `context` extension logger and SHALL include displayed context usage plus the latest DCP pruning metrics in each cache status payload.
 
 #### Scenario: Cache status includes hit rate
 
 - **WHEN** cache status is logged
-- **THEN** the system SHALL log `cache_status` with hit rate, input token count, cache-read token count, and unavailable reason when applicable
+- **THEN** the system SHALL log `cache_status` with hit rate, input token count, cache-read token count, displayed context token count, context window size, and unavailable reason when applicable
 
 #### Scenario: Cache status includes latest DCP metrics
 

@@ -25,6 +25,7 @@ function isContextOverLimit(usage: ContextUsage | undefined): boolean {
 function logCacheStatus(
   logger: ExtensionLogger,
   cacheInfo: CacheInfo,
+  usage: ContextUsage | undefined,
   lastDcp: DcpStatusMetrics,
 ): void {
   logger.log("cache_status", {
@@ -32,6 +33,8 @@ function logCacheStatus(
     input: cacheInfo.input,
     cacheRead: cacheInfo.cacheRead,
     reason: cacheInfo.cacheUnavailableReason ?? null,
+    contextTokens: usage?.tokens ?? null,
+    contextWindow: usage?.contextWindow ?? null,
     lastDcp,
   });
 }
@@ -47,7 +50,7 @@ function publishStatus(
   const cacheInfo = formatCacheHit(entries);
 
   if (shouldLog) {
-    logCacheStatus(logger, cacheInfo, lastDcp);
+    logCacheStatus(logger, cacheInfo, usage, lastDcp);
   }
 
   const contextText = `ctx ${formatCurrentUsage(usage)}`;
