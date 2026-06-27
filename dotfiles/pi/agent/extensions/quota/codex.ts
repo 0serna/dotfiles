@@ -75,6 +75,20 @@ function getCreditsFromResponse(
   return parseCredits(credits.balance, credits.unlimited);
 }
 
+function getBankedResetCredits(
+  resetCredits: CodexUsageResponse["rate_limit_reset_credits"],
+): number | undefined {
+  if (
+    resetCredits == null ||
+    typeof resetCredits.available_count !== "number" ||
+    !Number.isFinite(resetCredits.available_count)
+  ) {
+    return undefined;
+  }
+  const count = resetCredits.available_count;
+  return count >= 0 ? Math.floor(count) : undefined;
+}
+
 function resetTimestamp(
   window: CodexUsageWindow | undefined,
 ): number | undefined {
@@ -89,6 +103,7 @@ function buildCodexData(usage: CodexUsageResponse): CodexQuotaData {
     remaining5h: toRemainingPercent(primary),
     remaining7d: toRemainingPercent(secondary),
     remainingCredits: getCreditsFromResponse(usage.credits),
+    bankedResetCredits: getBankedResetCredits(usage.rate_limit_reset_credits),
     resetAt5h: resetTimestamp(primary),
     resetAt7d: resetTimestamp(secondary),
   };
@@ -116,6 +131,7 @@ export async function fetchCodexQuotaStatus(
     has5h: data.remaining5h != null,
     has7d: data.remaining7d != null,
     hasCredits: data.remainingCredits != null,
+    hasBankedResets: data.bankedResetCredits != null,
   });
   return data;
 }

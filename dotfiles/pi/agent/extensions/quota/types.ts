@@ -24,12 +24,16 @@ export type CodexUsageResponse = {
     unlimited?: boolean;
     balance?: number | string;
   };
+  rate_limit_reset_credits?: {
+    available_count?: number;
+  } | null;
 };
 
 export type CodexQuotaData = {
   remaining5h?: number;
   remaining7d?: number;
   remainingCredits?: number;
+  bankedResetCredits?: number;
   resetAt5h?: number;
   resetAt7d?: number;
 };

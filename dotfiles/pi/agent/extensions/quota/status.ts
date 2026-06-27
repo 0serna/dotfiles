@@ -122,6 +122,11 @@ export function formatCodexQuotaStatus(
     ),
   ];
 
+  if (data.bankedResetCredits != null) {
+    const color = data.bankedResetCredits > 0 ? "accent" : "dim";
+    parts.push(ctx.ui.theme.fg(color, `R${data.bankedResetCredits}`));
+  }
+
   if (data.remainingCredits != null) {
     const color = isConsumingCredits ? "warning" : "dim";
     parts.push(ctx.ui.theme.fg(color, `C${data.remainingCredits}`));
