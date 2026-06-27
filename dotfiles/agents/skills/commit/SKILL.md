@@ -1,16 +1,20 @@
 ---
 name: commit
 disable-model-invocation: true
-description: Create a conventional commit from staged changes.
+description: Execute a conventional commit from staged changes.
 ---
 
 # Commit
 
-Create a concise, factual conventional commit from staged changes only.
+Execute a concise, factual conventional commit from staged changes only.
+
+## Invocation contract
+
+When this skill is invoked, do not summarize the skill, explain the workflow, or ask whether to proceed. Start the workflow immediately.
 
 ## Workflow
 
-1. Inspect staged changes.
+1. Run `git diff --cached --stat` and `git diff --cached` to inspect staged changes; complete when every staged change is accounted for in the message decision.
 2. If there are no staged changes, print `No staged changes to commit` and stop.
 3. Generate a commit message that follows the required format.
 4. Run `git commit` with that message without asking for confirmation.
