@@ -37,12 +37,12 @@ DCP SHALL stub only eligible `toolResult` messages that match deterministic stal
 
 #### Scenario: Old large textual tool result is stubbed after age gate
 
-- **WHEN** a textual `toolResult` is older than 20 DCP-ageable tool results, has an estimated size greater than 2500 tokens, and is not an explicit `read` result for a path ending in `SKILL.md`
+- **WHEN** a textual `toolResult` is older than 15 DCP-ageable tool results, has an estimated size greater than 2500 tokens, and is not an explicit `read` result for a path ending in `SKILL.md`
 - **THEN** DCP SHALL replace the result content with an informational stub
 
 #### Scenario: Large textual tool result inside age gate is preserved from size-only pruning
 
-- **WHEN** a textual `toolResult` is not older than 20 DCP-ageable tool results and only qualifies for old-large-output pruning
+- **WHEN** a textual `toolResult` is not older than 15 DCP-ageable tool results and only qualifies for old-large-output pruning
 - **THEN** DCP SHALL leave the result content unchanged
 
 #### Scenario: Old large skill read is preserved
@@ -57,5 +57,5 @@ DCP SHALL report size-gate protection metrics separately from pruning metrics an
 
 #### Scenario: Size-gate protection is counted
 
-- **WHEN** a DCP-ageable `toolResult` exceeds the old-large-output token threshold but is not older than 20 DCP-ageable tool results
+- **WHEN** a DCP-ageable `toolResult` exceeds the old-large-output token threshold but is not older than 15 DCP-ageable tool results
 - **THEN** DCP SHALL count the result as protected by the old-large-output age gate

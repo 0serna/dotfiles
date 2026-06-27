@@ -1,6 +1,6 @@
 import type { ExtensionLogger } from "../shared/logger.js";
 
-export const OLD_LARGE_OUTPUT_MIN_AGE = 20;
+export const OLD_LARGE_OUTPUT_MIN_AGE = 15;
 export const LARGE_OUTPUT_TOKEN_THRESHOLD = 2500;
 export const TARGET_MAX_LENGTH = 120;
 

@@ -35,7 +35,7 @@ function toolResult(
   };
 }
 
-function dcpTail(count = 21): Message[] {
+function dcpTail(count = 16): Message[] {
   return Array.from({ length: count }, (_, index) => [
     assistantToolCall(`tail-call-${index}`, "bash", {
       command: `echo ${index}`,
@@ -69,7 +69,7 @@ describe("context DCP pruning", () => {
       toolResult("a", "read", "same output"),
       assistantToolCall("b", "read", { path: "src/b.ts" }),
       toolResult("b", "read", "same output"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -91,7 +91,7 @@ describe("context DCP pruning", () => {
         options: [{ label: "Yes" }],
       }),
       toolResult("b", "question", "Yes"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages, { logger: { log } });
@@ -99,7 +99,7 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[1]!)).toBe("Yes");
     expect(textOf(pruned[3]!)).toBe("Yes");
     expect(log.mock.calls[0]?.[1]).toMatchObject({
-      processedCount: 21,
+      processedCount: 16,
       stubbedCount: 0,
     });
   });
@@ -110,7 +110,7 @@ describe("context DCP pruning", () => {
       toolResult("a", "bash", "Error: failed", true),
       assistantToolCall("b", "bash", { command: "npm test" }),
       toolResult("b", "bash", "ok"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -131,7 +131,7 @@ describe("context DCP pruning", () => {
         options: [{ label: "Yes" }],
       }),
       toolResult("b", "question", "Yes"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -146,7 +146,7 @@ describe("context DCP pruning", () => {
       toolResult("a", "read", "old file"),
       assistantToolCall("b", "read", { path: "src/a.ts" }),
       toolResult("b", "read", "new file"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -161,7 +161,7 @@ describe("context DCP pruning", () => {
       toolResult("a", "read", "old file"),
       assistantToolCall("b", "edit", { path: "src/a.ts" }),
       toolResult("b", "edit", "new file"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -175,7 +175,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", largeText),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -188,7 +188,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", largeText),
-      ...dcpTail(20),
+      ...dcpTail(15),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -202,7 +202,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", largeText),
-      ...dcpTail(20),
+      ...dcpTail(15),
       ...questionTail(5),
     ];
 
@@ -210,7 +210,7 @@ describe("context DCP pruning", () => {
 
     expect(textOf(pruned[1]!)).toBe(largeText);
     expect(log.mock.calls[0]?.[1]).toMatchObject({
-      processedCount: 21,
+      processedCount: 16,
       stubbedCount: 0,
       oldLargeProtectedCount: 1,
     });
@@ -220,7 +220,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/big.ts" }),
       toolResult("a", "read", "x".repeat(10_004)),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -235,7 +235,7 @@ describe("context DCP pruning", () => {
         path: "/home/user/.agents/skills/review/SKILL.md",
       }),
       toolResult("a", "read", skillText),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -253,7 +253,7 @@ describe("context DCP pruning", () => {
         path: "/home/user/.agents/skills/review/SKILL.md",
       }),
       toolResult("b", "read", "new skill"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -267,7 +267,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", largeText),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages, {
@@ -286,7 +286,7 @@ describe("context DCP pruning", () => {
     const user = { role: "user", content: "keep me" };
     const assistant = assistantToolCall("a", "bash", { command: "rg foo" });
     const result = toolResult("a", "bash", "x".repeat(10_004));
-    const messages = [user, assistant, result, ...dcpTail(21)];
+    const messages = [user, assistant, result, ...dcpTail(16)];
 
     const { messages: pruned } = pruneMessages(messages);
 
@@ -302,7 +302,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", secret),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { metrics } = pruneMessages(messages, {
@@ -316,7 +316,7 @@ describe("context DCP pruning", () => {
     expect(JSON.stringify(payload)).not.toContain(secret);
     expect(payload).toMatchObject({
       contextSequence: 7,
-      processedCount: 22,
+      processedCount: 17,
       stubbedCount: 1,
       oldLargeProtectedCount: 0,
       reasonCounts: {
@@ -342,7 +342,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/a.ts" }),
       toolResult("a", "read", "unique output"),
-      ...dcpTail(21),
+      ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages, {
@@ -354,7 +354,7 @@ describe("context DCP pruning", () => {
     expect(log).toHaveBeenCalledOnce();
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       contextSequence: 1,
-      processedCount: 22,
+      processedCount: 17,
       stubbedCount: 0,
       estimatedSavedTokens: 0,
       estimatedSavedTokensByTool: {},
