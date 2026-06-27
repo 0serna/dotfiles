@@ -35,11 +35,23 @@ function toolResult(
   };
 }
 
-function tail(count = 20): Message[] {
-  return Array.from({ length: count }, (_, index) => ({
-    role: "user",
-    content: `tail ${index}`,
-  }));
+function dcpTail(count = 21): Message[] {
+  return Array.from({ length: count }, (_, index) => [
+    assistantToolCall(`tail-call-${index}`, "bash", {
+      command: `echo ${index}`,
+    }),
+    toolResult(`tail-call-${index}`, "bash", `tail output ${index}`),
+  ]).flat();
+}
+
+function questionTail(count: number): Message[] {
+  return Array.from({ length: count }, (_, index) => [
+    assistantToolCall(`question-${index}`, "question", {
+      question: `question ${index}?`,
+      options: [{ label: "Yes" }],
+    }),
+    toolResult(`question-${index}`, "question", "Yes"),
+  ]).flat();
 }
 
 function textOf(message: Message): string {
@@ -57,7 +69,7 @@ describe("context DCP pruning", () => {
       toolResult("a", "read", "same output"),
       assistantToolCall("b", "read", { path: "src/b.ts" }),
       toolResult("b", "read", "same output"),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -79,7 +91,7 @@ describe("context DCP pruning", () => {
         options: [{ label: "Yes" }],
       }),
       toolResult("b", "question", "Yes"),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages, { logger: { log } });
@@ -87,7 +99,7 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[1]!)).toBe("Yes");
     expect(textOf(pruned[3]!)).toBe("Yes");
     expect(log.mock.calls[0]?.[1]).toMatchObject({
-      processedCount: 0,
+      processedCount: 21,
       stubbedCount: 0,
     });
   });
@@ -98,7 +110,7 @@ describe("context DCP pruning", () => {
       toolResult("a", "bash", "Error: failed", true),
       assistantToolCall("b", "bash", { command: "npm test" }),
       toolResult("b", "bash", "ok"),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -119,7 +131,7 @@ describe("context DCP pruning", () => {
         options: [{ label: "Yes" }],
       }),
       toolResult("b", "question", "Yes"),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -128,13 +140,13 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[3]!)).toBe("Yes");
   });
 
-  it("stubs superseded file operations targeting the same file", () => {
+  it("stubs same-tool superseded file operations targeting the same file", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/a.ts" }),
       toolResult("a", "read", "old file"),
-      assistantToolCall("b", "edit", { path: "src/a.ts" }),
-      toolResult("b", "edit", "new file"),
-      ...tail(),
+      assistantToolCall("b", "read", { path: "src/a.ts" }),
+      toolResult("b", "read", "new file"),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -143,11 +155,27 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[3]!)).toBe("new file");
   });
 
-  it("stubs old large textual tool results", () => {
+  it("does not supersede file operations from a different tool", () => {
+    const messages = [
+      assistantToolCall("a", "read", { path: "src/a.ts" }),
+      toolResult("a", "read", "old file"),
+      assistantToolCall("b", "edit", { path: "src/a.ts" }),
+      toolResult("b", "edit", "new file"),
+      ...dcpTail(21),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe("old file");
+    expect(textOf(pruned[3]!)).toBe("new file");
+  });
+
+  it("stubs old large textual tool results after the age gate", () => {
+    const largeText = "x".repeat(10_004);
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
-      toolResult("a", "bash", "x".repeat(8_004)),
-      ...tail(),
+      toolResult("a", "bash", largeText),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -155,24 +183,44 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
   });
 
-  it("protects the last 15 messages", () => {
+  it("keeps large textual tool results inside the old-large age gate", () => {
+    const largeText = "x".repeat(10_004);
     const messages = [
-      { role: "user", content: "older" },
-      ...tail(13),
       assistantToolCall("a", "bash", { command: "rg foo" }),
-      toolResult("a", "bash", "x".repeat(8_004)),
+      toolResult("a", "bash", largeText),
+      ...dcpTail(20),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[15]!)).toBe("x".repeat(8_004));
+    expect(textOf(pruned[1]!)).toBe(largeText);
+  });
+
+  it("does not count question results in old-large age or metrics", () => {
+    const log = vi.fn();
+    const largeText = "x".repeat(10_004);
+    const messages = [
+      assistantToolCall("a", "bash", { command: "rg foo" }),
+      toolResult("a", "bash", largeText),
+      ...dcpTail(20),
+      ...questionTail(5),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, { logger: { log } });
+
+    expect(textOf(pruned[1]!)).toBe(largeText);
+    expect(log.mock.calls[0]?.[1]).toMatchObject({
+      processedCount: 21,
+      stubbedCount: 0,
+      oldLargeProtectedCount: 1,
+    });
   });
 
   it("stubs old large textual tool results for non-command tools", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/big.ts" }),
-      toolResult("a", "read", "x".repeat(6_004)),
-      ...tail(),
+      toolResult("a", "read", "x".repeat(10_004)),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -181,13 +229,13 @@ describe("context DCP pruning", () => {
   });
 
   it("keeps old large skill read results", () => {
-    const skillText = "x".repeat(8_004);
+    const skillText = "x".repeat(10_004);
     const messages = [
       assistantToolCall("a", "read", {
         path: "/home/user/.agents/skills/review/SKILL.md",
       }),
       toolResult("a", "read", skillText),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -205,7 +253,7 @@ describe("context DCP pruning", () => {
         path: "/home/user/.agents/skills/review/SKILL.md",
       }),
       toolResult("b", "read", "new skill"),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -215,10 +263,11 @@ describe("context DCP pruning", () => {
   });
 
   it("fails open when logging throws", () => {
+    const largeText = "x".repeat(10_004);
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
-      toolResult("a", "bash", "x".repeat(8_004)),
-      ...tail(),
+      toolResult("a", "bash", largeText),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages, {
@@ -230,30 +279,30 @@ describe("context DCP pruning", () => {
     });
 
     expect(pruned).not.toBe(messages);
-    expect(textOf(pruned[1]!)).toBe("x".repeat(8_004));
+    expect(textOf(pruned[1]!)).toBe(largeText);
   });
 
   it("does not mutate user messages, assistant messages, or original messages", () => {
     const user = { role: "user", content: "keep me" };
     const assistant = assistantToolCall("a", "bash", { command: "rg foo" });
-    const result = toolResult("a", "bash", "x".repeat(8_004));
-    const messages = [user, assistant, result, ...tail()];
+    const result = toolResult("a", "bash", "x".repeat(10_004));
+    const messages = [user, assistant, result, ...dcpTail(21)];
 
     const { messages: pruned } = pruneMessages(messages);
 
     expect(pruned[0]!).toBe(user);
     expect(pruned[1]!).toBe(assistant);
-    expect(textOf(result)).toBe("x".repeat(8_004));
+    expect(textOf(result)).toBe("x".repeat(10_004));
     expect(textOf(pruned[2]!)).toContain("reason=old_large_output");
   });
 
   it("logs summary metrics without full original output", () => {
     const log = vi.fn();
-    const secret = `secret-${"x".repeat(8_004)}`;
+    const secret = `secret-${"x".repeat(10_004)}`;
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", secret),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { metrics } = pruneMessages(messages, {
@@ -267,9 +316,9 @@ describe("context DCP pruning", () => {
     expect(JSON.stringify(payload)).not.toContain(secret);
     expect(payload).toMatchObject({
       contextSequence: 7,
-      processedCount: 1,
+      processedCount: 22,
       stubbedCount: 1,
-      protectedRecentCount: 0,
+      oldLargeProtectedCount: 0,
       reasonCounts: {
         duplicate_output: 0,
         resolved_error: 0,
@@ -293,7 +342,7 @@ describe("context DCP pruning", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/a.ts" }),
       toolResult("a", "read", "unique output"),
-      ...tail(),
+      ...dcpTail(21),
     ];
 
     const { messages: pruned } = pruneMessages(messages, {
@@ -305,7 +354,7 @@ describe("context DCP pruning", () => {
     expect(log).toHaveBeenCalledOnce();
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       contextSequence: 1,
-      processedCount: 1,
+      processedCount: 22,
       stubbedCount: 0,
       estimatedSavedTokens: 0,
       estimatedSavedTokensByTool: {},

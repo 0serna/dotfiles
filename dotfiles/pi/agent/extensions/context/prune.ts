@@ -8,7 +8,7 @@ import {
 import { collectToolCallMetadata, metadataForToolResult } from "./metadata.js";
 import {
   LARGE_OUTPUT_TOKEN_THRESHOLD,
-  RECENT_MESSAGE_COUNT,
+  OLD_LARGE_OUTPUT_MIN_AGE,
   type PruneMetrics,
   type PruneOptions,
   type PruneReason,
@@ -41,7 +41,7 @@ function buildStub(
   toolName: string,
   target: string,
 ): string {
-  return `[DCP pruned stale tool result: reason=${reason}; tool=${toolName}; target=${target || "unknown"}. Original output omitted from transient model context only.]`;
+  return `[DCP pruned transient output: reason=${reason}; tool=${toolName}; target=${target || "unknown"}]`;
 }
 
 function emptyReasonCounts(): Record<PruneReason, number> {
@@ -83,7 +83,6 @@ function collectCandidates(
   messages: readonly unknown[],
 ): ToolResultCandidate[] {
   const toolCalls = collectToolCallMetadata(messages);
-  const recentStart = Math.max(0, messages.length - RECENT_MESSAGE_COUNT);
   const candidates: ToolResultCandidate[] = [];
 
   messages.forEach((messageValue, index) => {
@@ -102,11 +101,14 @@ function collectCandidates(
       text,
       isError: isErrorResult(message, text),
       metadata,
-      protectedRecent: index >= recentStart,
+      dcpAge: 0,
     });
   });
 
-  return candidates;
+  return candidates.map((candidate, candidateIndex) => ({
+    ...candidate,
+    dcpAge: candidates.length - candidateIndex - 1,
+  }));
 }
 
 function laterSuccessOperationsByIndex(
@@ -127,6 +129,10 @@ function laterSuccessOperationsByIndex(
   return result;
 }
 
+function fileOperationKey(candidate: ToolResultCandidate): string {
+  return `${candidate.metadata.toolName.toLowerCase()}:${candidate.metadata.target.toLowerCase()}`;
+}
+
 function laterFileTargetsByIndex(
   candidates: readonly ToolResultCandidate[],
 ): Map<number, Set<string>> {
@@ -141,7 +147,7 @@ function laterFileTargetsByIndex(
       candidate.metadata.isFileOperation &&
       candidate.metadata.operationKey !== null
     ) {
-      laterTargets.add(candidate.metadata.target.toLowerCase());
+      laterTargets.add(fileOperationKey(candidate));
     }
   }
 
@@ -158,11 +164,6 @@ function decideStubs(
 
   for (const candidate of candidates) {
     const hash = hashNormalizedContent(candidate.text);
-
-    if (candidate.protectedRecent) {
-      keptHashes.add(hash);
-      continue;
-    }
 
     let reason: PruneReason | null = null;
 
@@ -182,12 +183,13 @@ function decideStubs(
       candidate.metadata.operationKey !== null &&
       (laterFileTargets
         .get(candidate.index)
-        ?.has(candidate.metadata.target.toLowerCase()) ??
+        ?.has(fileOperationKey(candidate)) ??
         false)
     ) {
       reason = "superseded_file_operation";
     } else if (
       !candidate.metadata.isSkillRead &&
+      candidate.dcpAge > OLD_LARGE_OUTPUT_MIN_AGE &&
       estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
         LARGE_OUTPUT_TOKEN_THRESHOLD
     ) {
@@ -236,8 +238,12 @@ function metricsFor(
     contextSequence,
     processedCount: candidates.length,
     stubbedCount: decisions.length,
-    protectedRecentCount: candidates.filter(
-      (candidate) => candidate.protectedRecent,
+    oldLargeProtectedCount: candidates.filter(
+      (candidate) =>
+        !candidate.metadata.isSkillRead &&
+        candidate.dcpAge <= OLD_LARGE_OUTPUT_MIN_AGE &&
+        estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
+          LARGE_OUTPUT_TOKEN_THRESHOLD,
     ).length,
     reasonCounts,
     estimatedSavedTokens: totalEstimatedSavedTokens,
@@ -296,7 +302,7 @@ export function pruneMessages<T>(
         contextSequence: options.contextSequence,
         processedCount: 0,
         stubbedCount: 0,
-        protectedRecentCount: 0,
+        oldLargeProtectedCount: 0,
         reasonCounts: emptyReasonCounts(),
         estimatedSavedTokens: 0,
         estimatedSavedTokensByReason: emptyReasonCounts(),

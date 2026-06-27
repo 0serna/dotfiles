@@ -1,7 +1,7 @@
 import type { ExtensionLogger } from "../shared/logger.js";
 
-export const RECENT_MESSAGE_COUNT = 15;
-export const LARGE_OUTPUT_TOKEN_THRESHOLD = 1500;
+export const OLD_LARGE_OUTPUT_MIN_AGE = 20;
+export const LARGE_OUTPUT_TOKEN_THRESHOLD = 2500;
 export const TARGET_MAX_LENGTH = 120;
 
 export type PruneReason =
@@ -25,7 +25,7 @@ export interface ToolResultCandidate {
   text: string;
   isError: boolean;
   metadata: ToolMetadata;
-  protectedRecent: boolean;
+  dcpAge: number;
 }
 
 export interface StubDecision {
@@ -37,7 +37,7 @@ export interface PruneMetrics {
   contextSequence?: number;
   processedCount: number;
   stubbedCount: number;
-  protectedRecentCount: number;
+  oldLargeProtectedCount: number;
   reasonCounts: Record<PruneReason, number>;
   estimatedSavedTokens: number;
   estimatedSavedTokensByReason: Record<PruneReason, number>;

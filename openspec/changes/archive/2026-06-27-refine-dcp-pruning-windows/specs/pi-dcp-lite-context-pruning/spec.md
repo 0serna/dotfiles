@@ -1,10 +1,11 @@
-# pi-dcp-lite-context-pruning Specification
+## REMOVED Requirements
 
-## Purpose
+### Requirement: Recent message protection
 
-Automatically reduce stale tool result content in transient context to improve cache stability and reduce token consumption in long tool-heavy sessions.
+**Reason**: DCP no longer uses a global recent-message protection window; semantic pruning rules can apply immediately, and size-based pruning has its own dedicated age gate.
+**Migration**: Use the dedicated old-large-output age gate for size-only pruning protection.
 
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 
@@ -50,6 +51,8 @@ DCP SHALL stub only eligible `toolResult` messages that match deterministic stal
 - **WHEN** a `read` `toolResult` targets a path ending in `SKILL.md`
 - **AND** the result only qualifies for size-based pruning
 - **THEN** DCP SHALL leave the result content unchanged
+
+## ADDED Requirements
 
 ### Requirement: Old-large-output age metrics
 
