@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatCodexQuotaStatus, parseCredits } from "./status.js";
+import {
+  formatCodexQuotaStatus,
+  formatResetTime,
+  parseCredits,
+} from "./status.js";
 import type { CodexQuotaData, ExtensionContext } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +48,19 @@ describe("parseCredits", () => {
 
   it("returns undefined for invalid balance", () => {
     expect(parseCredits(undefined, false)).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatResetTime
+// ---------------------------------------------------------------------------
+
+describe("formatResetTime", () => {
+  it("formats today's reset time with 24-hour hours", () => {
+    const reset = new Date();
+    reset.setHours(13, 5, 0, 0);
+
+    expect(formatResetTime(Math.floor(reset.getTime() / 1000))).toBe("13:05");
   });
 });
 

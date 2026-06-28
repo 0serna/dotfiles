@@ -56,9 +56,9 @@ export function parseCredits(
 
 export function formatResetTime(resetAt: number): string {
   const date = new Date(resetAt * 1000);
-  const h12 = date.getHours() % 12 || 12;
+  const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-  const timeStr = `${h12}:${minutes}`;
+  const timeStr = `${hours}:${minutes}`;
 
   if (date.toDateString() === new Date().toDateString()) return timeStr;
   const days = Math.max(
