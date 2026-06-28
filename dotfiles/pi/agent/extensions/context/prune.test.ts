@@ -74,12 +74,12 @@ function textOf(message: Message): string {
 }
 
 describe("context DCP pruning", () => {
-  it("stubs duplicate non-recent tool results", () => {
+  it("stubs duplicate non-recent command results", () => {
     const messages = [
-      assistantToolCall("a", "read", { path: "src/a.ts" }),
-      toolResult("a", "read", "same output"),
-      assistantToolCall("b", "read", { path: "src/b.ts" }),
-      toolResult("b", "read", "same output"),
+      assistantToolCall("a", "bash", { command: "echo same" }),
+      toolResult("a", "bash", "same output"),
+      assistantToolCall("b", "bash", { command: "printf same" }),
+      toolResult("b", "bash", "same output"),
       ...dcpTail(16),
     ];
 
@@ -87,6 +87,30 @@ describe("context DCP pruning", () => {
 
     expect(textOf(pruned[1]!)).toBe("same output");
     expect(textOf(pruned[3]!)).toContain("reason=duplicate");
+  });
+
+  it("keeps duplicate file tool results", () => {
+    const messages = [
+      assistantToolCall("a", "read", { path: "src/a.ts" }),
+      toolResult("a", "read", "same output"),
+      assistantToolCall("b", "read", { path: "src/b.ts" }),
+      toolResult("b", "read", "same output"),
+      assistantToolCall("c", "edit", {
+        path: "src/c.ts",
+        edits: [{ oldText: "a", newText: "b" }],
+      }),
+      toolResult("c", "edit", "same output"),
+      assistantToolCall("d", "write", { path: "src/d.ts", content: "x" }),
+      toolResult("d", "write", "same output"),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe("same output");
+    expect(textOf(pruned[3]!)).toBe("same output");
+    expect(textOf(pruned[5]!)).toBe("same output");
+    expect(textOf(pruned[7]!)).toBe("same output");
   });
 
   it("ignores question results entirely", () => {

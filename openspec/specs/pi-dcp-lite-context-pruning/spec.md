@@ -8,7 +8,7 @@ Automatically reduce stale tool result content in transient context to improve c
 
 ### Requirement: Balance-oriented pruning rules
 
-DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mechanism pruning policy entries. The allowed pruning mechanisms are `duplicate`, `resolved`, `superseded`, and `stale_large`. Tools without an explicit pruning policy entry SHALL be excluded from pruning, pruning metrics, and DCP age calculations. Explicit `read` results SHALL NOT be stubbed by the `stale_large` rule, but MAY still be stubbed by `duplicate`, `resolved`, or `superseded` rules. DCP SHALL use non-truncated semantic operation identities for `resolved` and `superseded` decisions, while display targets MAY be truncated for logs and stubs. DCP SHALL treat `duplicate` as a global normalized-text mechanism independent of operation identity.
+DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mechanism pruning policy entries. The allowed pruning mechanisms are `duplicate`, `resolved`, `superseded`, and `stale_large`. Tools without an explicit pruning policy entry SHALL be excluded from pruning, pruning metrics, and DCP age calculations. Explicit `read` results SHALL NOT be stubbed by the `stale_large` rule, but MAY still be stubbed by `resolved` or `superseded` rules. File operation tools SHALL NOT be stubbed by the `duplicate` rule. DCP SHALL use non-truncated semantic operation identities for `resolved` and `superseded` decisions, while display targets MAY be truncated for logs and stubs. DCP SHALL treat `duplicate` as a global normalized-text mechanism independent of operation identity for non-file tools that allow it.
 
 #### Scenario: Tool without pruning policy is excluded from DCP
 
@@ -31,6 +31,11 @@ DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mech
 - **WHEN** a `toolResult` has the same normalized content as an earlier kept tool result
 - **AND** the tool policy does not allow `duplicate`
 - **THEN** DCP SHALL leave the result content unchanged
+
+#### Scenario: Duplicate file tool output is preserved
+
+- **WHEN** a `read`, `edit`, or `write` `toolResult` has the same normalized content as an earlier kept tool result
+- **THEN** DCP SHALL leave the result content unchanged for the `duplicate` reason
 
 #### Scenario: Resolved error is stubbed for allowlisted tool
 

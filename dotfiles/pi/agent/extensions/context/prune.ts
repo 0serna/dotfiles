@@ -22,14 +22,9 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
   ReadonlySet<PruneReason>
 > = new Map<string, ReadonlySet<PruneReason>>(
   Object.entries({
-    read: new Set<PruneReason>(["duplicate", "resolved", "superseded"]),
-    edit: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
-    write: new Set<PruneReason>([
-      "duplicate",
-      "resolved",
-      "superseded",
-      "stale_large",
-    ]),
+    read: new Set<PruneReason>(["resolved", "superseded"]),
+    edit: new Set<PruneReason>(["resolved", "stale_large"]),
+    write: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
     bash: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     web_fetch: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     web_search: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
