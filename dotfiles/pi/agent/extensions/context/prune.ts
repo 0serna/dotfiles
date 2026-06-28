@@ -23,12 +23,7 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
 > = new Map<string, ReadonlySet<PruneReason>>(
   Object.entries({
     read: new Set<PruneReason>(["duplicate", "resolved", "superseded"]),
-    edit: new Set<PruneReason>([
-      "duplicate",
-      "resolved",
-      "superseded",
-      "stale_large",
-    ]),
+    edit: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     write: new Set<PruneReason>([
       "duplicate",
       "resolved",
@@ -156,19 +151,18 @@ function laterSuccessOperationsByIndex(
     const candidate = candidates[index];
     if (candidate === undefined) continue;
     result.set(candidate.index, new Set(laterSuccesses));
-    if (!candidate.isError && candidate.metadata.operationKey !== null) {
-      laterSuccesses.add(candidate.metadata.operationKey);
+    if (
+      !candidate.isError &&
+      candidate.metadata.semanticOperationKey !== null
+    ) {
+      laterSuccesses.add(candidate.metadata.semanticOperationKey);
     }
   }
 
   return result;
 }
 
-function fileOperationKey(candidate: ToolResultCandidate): string {
-  return `${candidate.metadata.toolName.toLowerCase()}:${candidate.metadata.target.toLowerCase()}`;
-}
-
-function laterFileTargetsByIndex(
+function laterSupersedeTargetsByIndex(
   candidates: readonly ToolResultCandidate[],
 ): Map<number, Set<string>> {
   const result = new Map<number, Set<string>>();
@@ -180,9 +174,9 @@ function laterFileTargetsByIndex(
     result.set(candidate.index, new Set(laterTargets));
     if (
       candidate.metadata.isFileOperation &&
-      candidate.metadata.operationKey !== null
+      candidate.metadata.supersedeKey !== null
     ) {
-      laterTargets.add(fileOperationKey(candidate));
+      laterTargets.add(candidate.metadata.supersedeKey);
     }
   }
 
@@ -195,7 +189,7 @@ function decideStubs(
   const decisions: StubDecision[] = [];
   const keptHashes = new Set<string>();
   const laterSuccessfulOperations = laterSuccessOperationsByIndex(candidates);
-  const laterFileTargets = laterFileTargetsByIndex(candidates);
+  const laterSupersedeTargets = laterSupersedeTargetsByIndex(candidates);
 
   for (const candidate of candidates) {
     const hash = hashNormalizedContent(candidate.text);
@@ -206,20 +200,20 @@ function decideStubs(
       reason = "duplicate";
     } else if (
       candidate.isError &&
-      candidate.metadata.operationKey !== null &&
+      candidate.metadata.semanticOperationKey !== null &&
       (laterSuccessfulOperations
         .get(candidate.index)
-        ?.has(candidate.metadata.operationKey) ??
+        ?.has(candidate.metadata.semanticOperationKey) ??
         false) &&
       candidate.policy.has("resolved")
     ) {
       reason = "resolved";
     } else if (
       candidate.metadata.isFileOperation &&
-      candidate.metadata.operationKey !== null &&
-      (laterFileTargets
+      candidate.metadata.supersedeKey !== null &&
+      (laterSupersedeTargets
         .get(candidate.index)
-        ?.has(fileOperationKey(candidate)) ??
+        ?.has(candidate.metadata.supersedeKey) ??
         false) &&
       candidate.policy.has("superseded")
     ) {

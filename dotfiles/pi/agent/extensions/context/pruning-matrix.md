@@ -7,7 +7,7 @@ Tools without an explicit policy entry are excluded from all pruning mechanisms.
 | `question`                |        No |       No |         No |          No |
 | `multi_tool_use.parallel` |        No |       No |         No |          No |
 | `read`                    |       Yes |      Yes |        Yes |          No |
-| `edit`                    |       Yes |      Yes |        Yes |         Yes |
+| `edit`                    |       Yes |      Yes |         No |         Yes |
 | `write`                   |       Yes |      Yes |        Yes |         Yes |
 | `bash`                    |       Yes |      Yes |         No |         Yes |
 | `web_fetch`               |       Yes |      Yes |         No |         Yes |
@@ -15,7 +15,7 @@ Tools without an explicit policy entry are excluded from all pruning mechanisms.
 
 ## Mechanisms
 
-- `duplicate`: prunes later repeated normalized text.
-- `resolved`: prunes an error when a later success exists for the same operation target.
-- `superseded`: prunes older same-tool file results for the same target.
+- `duplicate`: prunes later repeated normalized text globally.
+- `resolved`: prunes an error when a later success exists for the same semantic operation identity.
+- `superseded`: prunes an older result when a later operation truly replaces it by tool-specific semantic identity.
 - `stale_large`: prunes textual results above the token threshold after the age gate.

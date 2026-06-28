@@ -1,10 +1,4 @@
-# pi-dcp-lite-context-pruning Specification
-
-## Purpose
-
-Automatically reduce stale tool result content in transient context to improve cache stability and reduce token consumption in long tool-heavy sessions, using an explicit tool/mechanism pruning policy allowlist.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 
@@ -104,19 +98,3 @@ DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mech
 
 - **WHEN** a `read` `toolResult` only qualifies for size-based pruning
 - **THEN** DCP SHALL leave the result content unchanged
-
-### Requirement: Stale-large age metrics
-
-DCP SHALL report size-gate protection metrics separately from pruning metrics and SHALL NOT report a global recent-protection count. DCP SHALL only count size-gate protection for tools whose pruning policy allows `stale_large`.
-
-#### Scenario: Size-gate protection is counted for allowlisted tool
-
-- **WHEN** a DCP-ageable `toolResult` exceeds the `stale_large` token threshold but is not older than 15 DCP-ageable tool results
-- **AND** the tool policy allows `stale_large`
-- **THEN** DCP SHALL count the result as protected by the `stale_large` age gate
-
-#### Scenario: Size-gate protection is not counted without policy
-
-- **WHEN** a textual `toolResult` exceeds the `stale_large` token threshold but is not older than 15 DCP-ageable tool results
-- **AND** the tool policy does not allow `stale_large`
-- **THEN** DCP SHALL NOT count the result as protected by the `stale_large` age gate
