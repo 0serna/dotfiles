@@ -26,6 +26,7 @@ export interface ToolResultCandidate {
   isError: boolean;
   metadata: ToolMetadata;
   dcpAge: number;
+  policy: ReadonlySet<PruneReason>;
 }
 
 export interface StubDecision {

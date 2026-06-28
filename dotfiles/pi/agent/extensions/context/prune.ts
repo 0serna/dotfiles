@@ -17,6 +17,36 @@ import {
   type ToolResultCandidate,
 } from "./types.js";
 
+const TOOL_PRUNING_POLICY: ReadonlyMap<
+  string,
+  ReadonlySet<PruneReason>
+> = new Map<string, ReadonlySet<PruneReason>>(
+  Object.entries({
+    read: new Set<PruneReason>(["duplicate", "resolved", "superseded"]),
+    edit: new Set<PruneReason>([
+      "duplicate",
+      "resolved",
+      "superseded",
+      "stale_large",
+    ]),
+    write: new Set<PruneReason>([
+      "duplicate",
+      "resolved",
+      "superseded",
+      "stale_large",
+    ]),
+    bash: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
+    web_fetch: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
+    web_search: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
+  }),
+);
+
+function pruningPolicyFor(
+  toolName: string,
+): ReadonlySet<PruneReason> | undefined {
+  return TOOL_PRUNING_POLICY.get(normalizedToolName(toolName));
+}
+
 function isToolResult(message: Record<string, unknown>): boolean {
   return message.role === "toolResult";
 }
@@ -32,14 +62,9 @@ function isErrorResult(
 }
 
 const IGNORED_TOOL_NAMES = new Set(["question", "multi_tool_use.parallel"]);
-const STALE_LARGE_EXCLUDED_TOOL_NAMES = new Set(["read"]);
 
 function isIgnoredTool(toolName: string): boolean {
   return IGNORED_TOOL_NAMES.has(normalizedToolName(toolName));
-}
-
-function isExcludedFromStaleLarge(toolName: string): boolean {
-  return STALE_LARGE_EXCLUDED_TOOL_NAMES.has(normalizedToolName(toolName));
 }
 
 function buildStub(
@@ -101,6 +126,9 @@ function collectCandidates(
     const metadata = metadataForToolResult(message, toolCalls);
     if (metadata === null || isIgnoredTool(metadata.toolName)) return;
 
+    const policy = pruningPolicyFor(metadata.toolName);
+    if (policy === undefined) return;
+
     candidates.push({
       index,
       message,
@@ -108,6 +136,7 @@ function collectCandidates(
       isError: isErrorResult(message, text),
       metadata,
       dcpAge: 0,
+      policy,
     });
   });
 
@@ -173,7 +202,7 @@ function decideStubs(
 
     let reason: PruneReason | null = null;
 
-    if (keptHashes.has(hash)) {
+    if (keptHashes.has(hash) && candidate.policy.has("duplicate")) {
       reason = "duplicate";
     } else if (
       candidate.isError &&
@@ -181,7 +210,8 @@ function decideStubs(
       (laterSuccessfulOperations
         .get(candidate.index)
         ?.has(candidate.metadata.operationKey) ??
-        false)
+        false) &&
+      candidate.policy.has("resolved")
     ) {
       reason = "resolved";
     } else if (
@@ -190,15 +220,16 @@ function decideStubs(
       (laterFileTargets
         .get(candidate.index)
         ?.has(fileOperationKey(candidate)) ??
-        false)
+        false) &&
+      candidate.policy.has("superseded")
     ) {
       reason = "superseded";
     } else if (
       !candidate.metadata.isSkillRead &&
-      !isExcludedFromStaleLarge(candidate.metadata.toolName) &&
       candidate.dcpAge > STALE_LARGE_MIN_AGE &&
       estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-        STALE_LARGE_TOKEN_THRESHOLD
+        STALE_LARGE_TOKEN_THRESHOLD &&
+      candidate.policy.has("stale_large")
     ) {
       reason = "stale_large";
     }
@@ -248,7 +279,7 @@ function metricsFor(
     staleLargeProtectedCount: candidates.filter(
       (candidate) =>
         !candidate.metadata.isSkillRead &&
-        !isExcludedFromStaleLarge(candidate.metadata.toolName) &&
+        candidate.policy.has("stale_large") &&
         candidate.dcpAge <= STALE_LARGE_MIN_AGE &&
         estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
           STALE_LARGE_TOKEN_THRESHOLD,

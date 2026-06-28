@@ -406,4 +406,70 @@ describe("context DCP pruning", () => {
       estimatedSavedTokensByTool: {},
     });
   });
+
+  it("does not prune unlisted textual tool by duplicate", () => {
+    const messages = [
+      assistantToolCall("a", "custom_tool", { input: "x" }),
+      toolResult("a", "custom_tool", "same output"),
+      assistantToolCall("b", "custom_tool", { input: "y" }),
+      toolResult("b", "custom_tool", "same output"),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe("same output");
+    expect(textOf(pruned[3]!)).toBe("same output");
+  });
+
+  it("does not prune unlisted textual tool by resolved", () => {
+    const messages = [
+      assistantToolCall("a", "custom_tool", { input: "x" }),
+      toolResult("a", "custom_tool", "Error: failed", true),
+      assistantToolCall("b", "custom_tool", { input: "x" }),
+      toolResult("b", "custom_tool", "ok"),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe("Error: failed");
+    expect(textOf(pruned[3]!)).toBe("ok");
+  });
+
+  it("does not prune unlisted textual tool by superseded", () => {
+    const messages = [
+      assistantToolCall("a", "custom_tool", { path: "file.txt" }),
+      toolResult("a", "custom_tool", "old content"),
+      assistantToolCall("b", "custom_tool", { path: "file.txt" }),
+      toolResult("b", "custom_tool", "new content"),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe("old content");
+    expect(textOf(pruned[3]!)).toBe("new content");
+  });
+
+  it("does not prune or count unlisted textual tool by stale_large", () => {
+    const log = vi.fn();
+    const largeText = "x".repeat(10_004);
+    const messages = [
+      assistantToolCall("a", "custom_tool", { input: "x" }),
+      toolResult("a", "custom_tool", largeText),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, {
+      logger: { log },
+    });
+
+    expect(textOf(pruned[1]!)).toBe(largeText);
+    expect(log.mock.calls[0]?.[1]).toMatchObject({
+      processedCount: 16,
+      stubbedCount: 0,
+      staleLargeProtectedCount: 0,
+    });
+  });
 });

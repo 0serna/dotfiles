@@ -1,10 +1,4 @@
-# pi-dcp-lite-context-pruning Specification
-
-## Purpose
-
-Automatically reduce stale tool result content in transient context to improve cache stability and reduce token consumption in long tool-heavy sessions, using an explicit tool/mechanism pruning policy allowlist.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 
