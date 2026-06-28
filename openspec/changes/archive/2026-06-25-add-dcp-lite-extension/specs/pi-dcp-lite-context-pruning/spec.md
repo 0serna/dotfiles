@@ -53,7 +53,7 @@ DCP SHALL preserve the last 20 messages in the context without stubbing them.
 
 ### Requirement: Balance-oriented pruning rules
 
-DCP SHALL stub only non-recent `toolResult` messages that match deterministic stale-output rules: duplicate output, resolved error, superseded file operation, or old large command/listing output over a 2000-token estimate.
+DCP SHALL stub only non-recent `toolResult` messages that match deterministic stale-output rules: duplicate output, resolved error, superseded file operation, or `stale_large` command/listing output over a 2000-token estimate.
 
 #### Scenario: Duplicate output is stubbed
 
@@ -70,7 +70,7 @@ DCP SHALL stub only non-recent `toolResult` messages that match deterministic st
 - **WHEN** a non-recent read, write, or edit `toolResult` targets a file that is targeted by a later read, write, or edit operation
 - **THEN** DCP SHALL replace the older result content with an informational stub
 
-#### Scenario: Old large command output is stubbed
+#### Scenario: Stale large command output is stubbed
 
 - **WHEN** a non-recent command, listing, or search `toolResult` has an estimated size greater than 2000 tokens
 - **THEN** DCP SHALL replace the result content with an informational stub

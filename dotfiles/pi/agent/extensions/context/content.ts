@@ -46,6 +46,10 @@ export function normalizeContent(text: string): string {
   return text.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+export function normalizedToolName(name: string): string {
+  return name.toLowerCase().replace(/^functions[._-]/, "");
+}
+
 export function hashNormalizedContent(text: string): string {
   return createHash("sha256").update(normalizeContent(text)).digest("hex");
 }

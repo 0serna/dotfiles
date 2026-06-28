@@ -40,7 +40,7 @@ Pi exposes a `context` event before each model request, allowing extensions to r
    - Alternative considered: Also pruning old assistant narrative. Rejected to keep behavior simple and safe.
 
 4. **Use fixed balance-oriented defaults**
-   - Decision: DCP will always protect the last 20 messages and prune old large command/listing outputs only above a 2000-token estimate.
+   - Decision: DCP will always protect the last 20 messages and prune `stale_large` command/listing outputs only above a 2000-token estimate.
    - Rationale: Zero-config requires conservative defaults that still produce meaningful token savings.
    - Alternative considered: Config files or commands. Rejected because the extension should remain invisible.
 

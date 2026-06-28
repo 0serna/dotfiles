@@ -3,12 +3,13 @@ import {
   asRecord,
   extractTextContent,
   hashNormalizedContent,
+  normalizedToolName,
   replaceTextContent,
 } from "./content.js";
 import { collectToolCallMetadata, metadataForToolResult } from "./metadata.js";
 import {
-  LARGE_OUTPUT_TOKEN_THRESHOLD,
-  OLD_LARGE_OUTPUT_MIN_AGE,
+  STALE_LARGE_MIN_AGE,
+  STALE_LARGE_TOKEN_THRESHOLD,
   type PruneMetrics,
   type PruneOptions,
   type PruneReason,
@@ -30,10 +31,15 @@ function isErrorResult(
   );
 }
 
-const IGNORED_TOOL_NAMES = new Set(["question"]);
+const IGNORED_TOOL_NAMES = new Set(["question", "multi_tool_use.parallel"]);
+const STALE_LARGE_EXCLUDED_TOOL_NAMES = new Set(["read"]);
 
 function isIgnoredTool(toolName: string): boolean {
-  return IGNORED_TOOL_NAMES.has(toolName.toLowerCase());
+  return IGNORED_TOOL_NAMES.has(normalizedToolName(toolName));
+}
+
+function isExcludedFromStaleLarge(toolName: string): boolean {
+  return STALE_LARGE_EXCLUDED_TOOL_NAMES.has(normalizedToolName(toolName));
 }
 
 function buildStub(
@@ -46,10 +52,10 @@ function buildStub(
 
 function emptyReasonCounts(): Record<PruneReason, number> {
   return {
-    duplicate_output: 0,
-    resolved_error: 0,
-    superseded_file_operation: 0,
-    old_large_output: 0,
+    duplicate: 0,
+    resolved: 0,
+    superseded: 0,
+    stale_large: 0,
   };
 }
 
@@ -168,7 +174,7 @@ function decideStubs(
     let reason: PruneReason | null = null;
 
     if (keptHashes.has(hash)) {
-      reason = "duplicate_output";
+      reason = "duplicate";
     } else if (
       candidate.isError &&
       candidate.metadata.operationKey !== null &&
@@ -177,7 +183,7 @@ function decideStubs(
         ?.has(candidate.metadata.operationKey) ??
         false)
     ) {
-      reason = "resolved_error";
+      reason = "resolved";
     } else if (
       candidate.metadata.isFileOperation &&
       candidate.metadata.operationKey !== null &&
@@ -186,14 +192,15 @@ function decideStubs(
         ?.has(fileOperationKey(candidate)) ??
         false)
     ) {
-      reason = "superseded_file_operation";
+      reason = "superseded";
     } else if (
       !candidate.metadata.isSkillRead &&
-      candidate.dcpAge > OLD_LARGE_OUTPUT_MIN_AGE &&
+      !isExcludedFromStaleLarge(candidate.metadata.toolName) &&
+      candidate.dcpAge > STALE_LARGE_MIN_AGE &&
       estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-        LARGE_OUTPUT_TOKEN_THRESHOLD
+        STALE_LARGE_TOKEN_THRESHOLD
     ) {
-      reason = "old_large_output";
+      reason = "stale_large";
     }
 
     if (reason === null) {
@@ -238,12 +245,13 @@ function metricsFor(
     contextSequence,
     processedCount: candidates.length,
     stubbedCount: decisions.length,
-    oldLargeProtectedCount: candidates.filter(
+    staleLargeProtectedCount: candidates.filter(
       (candidate) =>
         !candidate.metadata.isSkillRead &&
-        candidate.dcpAge <= OLD_LARGE_OUTPUT_MIN_AGE &&
+        !isExcludedFromStaleLarge(candidate.metadata.toolName) &&
+        candidate.dcpAge <= STALE_LARGE_MIN_AGE &&
         estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-          LARGE_OUTPUT_TOKEN_THRESHOLD,
+          STALE_LARGE_TOKEN_THRESHOLD,
     ).length,
     reasonCounts,
     estimatedSavedTokens: totalEstimatedSavedTokens,
@@ -302,7 +310,7 @@ export function pruneMessages<T>(
         contextSequence: options.contextSequence,
         processedCount: 0,
         stubbedCount: 0,
-        oldLargeProtectedCount: 0,
+        staleLargeProtectedCount: 0,
         reasonCounts: emptyReasonCounts(),
         estimatedSavedTokens: 0,
         estimatedSavedTokensByReason: emptyReasonCounts(),

@@ -3,13 +3,13 @@
 ### Requirement: Recent message protection
 
 **Reason**: DCP no longer uses a global recent-message protection window; semantic pruning rules can apply immediately, and size-based pruning has its own dedicated age gate.
-**Migration**: Use the dedicated old-large-output age gate for size-only pruning protection.
+**Migration**: Use the dedicated stale_large age gate for size-only pruning protection.
 
 ## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 
-DCP SHALL stub only eligible `toolResult` messages that match deterministic stale-output rules: duplicate output, resolved error, superseded file operation, or old large textual tool result output. Ignored tools SHALL be excluded from pruning, pruning metrics, and DCP age calculations. Explicit `read` results for paths ending in `SKILL.md` SHALL NOT be stubbed by the old-large-output rule, but MAY still be stubbed by duplicate output, resolved error, or superseded file operation rules.
+DCP SHALL stub only eligible `toolResult` messages that match deterministic stale-output rules: duplicate output, resolved error, superseded file operation, or `stale_large` textual tool result output. Ignored tools SHALL be excluded from pruning, pruning metrics, and DCP age calculations. Explicit `read` results for paths ending in `SKILL.md` SHALL NOT be stubbed by the stale_large rule, but MAY still be stubbed by duplicate output, resolved error, or superseded file operation rules.
 
 #### Scenario: Ignored tool is excluded from DCP
 
@@ -34,19 +34,19 @@ DCP SHALL stub only eligible `toolResult` messages that match deterministic stal
 #### Scenario: Different-tool file operation is not superseded
 
 - **WHEN** a file `toolResult` targets a file that is targeted by a later file operation with a different normalized tool
-- **THEN** DCP SHALL NOT replace the older result content for the superseded-file-operation reason
+- **THEN** DCP SHALL NOT replace the older result content for the superseded reason
 
-#### Scenario: Old large textual tool result is stubbed after age gate
+#### Scenario: Stale large textual tool result is stubbed after age gate
 
 - **WHEN** a textual `toolResult` is older than 20 DCP-ageable tool results, has an estimated size greater than 2500 tokens, and is not an explicit `read` result for a path ending in `SKILL.md`
 - **THEN** DCP SHALL replace the result content with an informational stub
 
 #### Scenario: Large textual tool result inside age gate is preserved from size-only pruning
 
-- **WHEN** a textual `toolResult` is not older than 20 DCP-ageable tool results and only qualifies for old-large-output pruning
+- **WHEN** a textual `toolResult` is not older than 20 DCP-ageable tool results and only qualifies for stale_large pruning
 - **THEN** DCP SHALL leave the result content unchanged
 
-#### Scenario: Old large skill read is preserved
+#### Scenario: Stale large skill read is preserved
 
 - **WHEN** a `read` `toolResult` targets a path ending in `SKILL.md`
 - **AND** the result only qualifies for size-based pruning
@@ -54,11 +54,11 @@ DCP SHALL stub only eligible `toolResult` messages that match deterministic stal
 
 ## ADDED Requirements
 
-### Requirement: Old-large-output age metrics
+### Requirement: Stale-large age metrics
 
 DCP SHALL report size-gate protection metrics separately from pruning metrics and SHALL NOT report a global recent-protection count.
 
 #### Scenario: Size-gate protection is counted
 
-- **WHEN** a DCP-ageable `toolResult` exceeds the old-large-output token threshold but is not older than 20 DCP-ageable tool results
-- **THEN** DCP SHALL count the result as protected by the old-large-output age gate
+- **WHEN** a DCP-ageable `toolResult` exceeds the stale_large token threshold but is not older than 20 DCP-ageable tool results
+- **THEN** DCP SHALL count the result as protected by the stale_large age gate

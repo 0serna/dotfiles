@@ -54,6 +54,17 @@ function questionTail(count: number): Message[] {
   ]).flat();
 }
 
+function parallelToolCall(id: string): Message {
+  return assistantToolCall(id, "multi_tool_use.parallel", {
+    tool_uses: [
+      {
+        recipient_name: "functions.read",
+        parameters: { path: "src/a.ts" },
+      },
+    ],
+  });
+}
+
 function textOf(message: Message): string {
   const content = message.content;
   if (typeof content === "string") return content;
@@ -75,7 +86,7 @@ describe("context DCP pruning", () => {
     const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toBe("same output");
-    expect(textOf(pruned[3]!)).toContain("reason=duplicate_output");
+    expect(textOf(pruned[3]!)).toContain("reason=duplicate");
   });
 
   it("ignores question results entirely", () => {
@@ -104,6 +115,27 @@ describe("context DCP pruning", () => {
     });
   });
 
+  it("ignores multi_tool_use.parallel results entirely", () => {
+    const log = vi.fn();
+    const largeText = "x".repeat(10_004);
+    const messages = [
+      parallelToolCall("a"),
+      toolResult("a", "multi_tool_use.parallel", largeText),
+      parallelToolCall("b"),
+      toolResult("b", "multi_tool_use.parallel", largeText),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, { logger: { log } });
+
+    expect(textOf(pruned[1]!)).toBe(largeText);
+    expect(textOf(pruned[3]!)).toBe(largeText);
+    expect(log.mock.calls[0]?.[1]).toMatchObject({
+      processedCount: 16,
+      stubbedCount: 0,
+    });
+  });
+
   it("stubs resolved errors only when followed by later success for the same operation", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "npm test" }),
@@ -115,7 +147,7 @@ describe("context DCP pruning", () => {
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=resolved_error");
+    expect(textOf(pruned[1]!)).toContain("reason=resolved");
     expect(textOf(pruned[3]!)).toBe("ok");
   });
 
@@ -151,7 +183,7 @@ describe("context DCP pruning", () => {
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=superseded_file_operation");
+    expect(textOf(pruned[1]!)).toContain("reason=superseded");
     expect(textOf(pruned[3]!)).toBe("new file");
   });
 
@@ -170,7 +202,7 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[3]!)).toBe("new file");
   });
 
-  it("stubs old large textual tool results after the age gate", () => {
+  it("stubs stale large textual tool results after the age gate", () => {
     const largeText = "x".repeat(10_004);
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
@@ -180,10 +212,10 @@ describe("context DCP pruning", () => {
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
+    expect(textOf(pruned[1]!)).toContain("reason=stale_large");
   });
 
-  it("keeps large textual tool results inside the old-large age gate", () => {
+  it("keeps large textual tool results inside the stale_large age gate", () => {
     const largeText = "x".repeat(10_004);
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
@@ -196,7 +228,7 @@ describe("context DCP pruning", () => {
     expect(textOf(pruned[1]!)).toBe(largeText);
   });
 
-  it("does not count question results in old-large age or metrics", () => {
+  it("does not count question results in stale_large age or metrics", () => {
     const log = vi.fn();
     const largeText = "x".repeat(10_004);
     const messages = [
@@ -212,23 +244,37 @@ describe("context DCP pruning", () => {
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       processedCount: 16,
       stubbedCount: 0,
-      oldLargeProtectedCount: 1,
+      staleLargeProtectedCount: 1,
     });
   });
 
-  it("stubs old large textual tool results for non-command tools", () => {
+  it("stubs stale large textual tool results for non-command tools", () => {
     const messages = [
-      assistantToolCall("a", "read", { path: "src/big.ts" }),
-      toolResult("a", "read", "x".repeat(10_004)),
+      assistantToolCall("a", "web_fetch", { url: "https://example.com" }),
+      toolResult("a", "web_fetch", "x".repeat(10_004)),
       ...dcpTail(16),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=old_large_output");
+    expect(textOf(pruned[1]!)).toContain("reason=stale_large");
   });
 
-  it("keeps old large skill read results", () => {
+  it("keeps stale large read results", () => {
+    const readText = "x".repeat(10_004);
+    const messages = [
+      assistantToolCall("a", "read", { path: "src/big.ts" }),
+      toolResult("a", "read", readText),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned, metrics } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(readText);
+    expect(metrics.staleLargeProtectedCount).toBe(0);
+  });
+
+  it("keeps stale large skill read results", () => {
     const skillText = "x".repeat(10_004);
     const messages = [
       assistantToolCall("a", "read", {
@@ -258,7 +304,7 @@ describe("context DCP pruning", () => {
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=superseded_file_operation");
+    expect(textOf(pruned[1]!)).toContain("reason=superseded");
     expect(textOf(pruned[3]!)).toBe("new skill");
   });
 
@@ -293,7 +339,7 @@ describe("context DCP pruning", () => {
     expect(pruned[0]!).toBe(user);
     expect(pruned[1]!).toBe(assistant);
     expect(textOf(result)).toBe("x".repeat(10_004));
-    expect(textOf(pruned[2]!)).toContain("reason=old_large_output");
+    expect(textOf(pruned[2]!)).toContain("reason=stale_large");
   });
 
   it("logs summary metrics without full original output", () => {
@@ -318,19 +364,19 @@ describe("context DCP pruning", () => {
       contextSequence: 7,
       processedCount: 17,
       stubbedCount: 1,
-      oldLargeProtectedCount: 0,
+      staleLargeProtectedCount: 0,
       reasonCounts: {
-        duplicate_output: 0,
-        resolved_error: 0,
-        superseded_file_operation: 0,
-        old_large_output: 1,
+        duplicate: 0,
+        resolved: 0,
+        superseded: 0,
+        stale_large: 1,
       },
     });
     expect(metrics).toStrictEqual(payload);
     expect(payload.estimatedSavedTokens).toEqual(expect.any(Number));
     expect(payload.estimatedSavedTokens).toBeGreaterThan(0);
     expect(payload.estimatedSavedTokensByReason).toMatchObject({
-      old_large_output: payload.estimatedSavedTokens,
+      stale_large: payload.estimatedSavedTokens,
     });
     expect(payload.estimatedSavedTokensByTool).toMatchObject({
       bash: payload.estimatedSavedTokens,

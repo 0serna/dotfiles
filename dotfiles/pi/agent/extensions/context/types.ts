@@ -1,14 +1,14 @@
 import type { ExtensionLogger } from "../shared/logger.js";
 
-export const OLD_LARGE_OUTPUT_MIN_AGE = 15;
-export const LARGE_OUTPUT_TOKEN_THRESHOLD = 2500;
+export const STALE_LARGE_MIN_AGE = 15;
+export const STALE_LARGE_TOKEN_THRESHOLD = 2500;
 export const TARGET_MAX_LENGTH = 120;
 
 export type PruneReason =
-  | "duplicate_output"
-  | "resolved_error"
-  | "superseded_file_operation"
-  | "old_large_output";
+  | "duplicate"
+  | "resolved"
+  | "superseded"
+  | "stale_large";
 
 export interface ToolMetadata {
   toolCallId: string | null;
@@ -37,7 +37,7 @@ export interface PruneMetrics {
   contextSequence?: number;
   processedCount: number;
   stubbedCount: number;
-  oldLargeProtectedCount: number;
+  staleLargeProtectedCount: number;
   reasonCounts: Record<PruneReason, number>;
   estimatedSavedTokens: number;
   estimatedSavedTokensByReason: Record<PruneReason, number>;

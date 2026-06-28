@@ -5,9 +5,9 @@
 
 ## 2. Large Output Rule
 
-- [x] 2.1 Update `old_large_output` pruning to apply to any non-recent textual `toolResult` over the threshold.
+- [x] 2.1 Update `stale_large` pruning to apply to any non-recent textual `toolResult` over the threshold.
 - [x] 2.2 Preserve the existing `question` exclusion.
-- [x] 2.3 Preserve existing duplicate, resolved-error, and superseded file-operation behavior.
+- [x] 2.3 Preserve existing duplicate, resolved, and superseded file-operation behavior.
 
 ## 3. Tests and Validation
 

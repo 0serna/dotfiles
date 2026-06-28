@@ -15,9 +15,9 @@
 
 - [x] 3.1 Implement recent-message protection for the last 20 messages.
 - [x] 3.2 Implement duplicate-output detection for non-recent `toolResult` messages.
-- [x] 3.3 Implement resolved-error detection based on later successful results for the same operation.
+- [x] 3.3 Implement resolved detection based on later successful results for the same operation.
 - [x] 3.4 Implement superseded file-operation detection for read/write/edit results targeting the same file.
-- [x] 3.5 Implement old large command/listing/search detection above a 2000-token estimate.
+- [x] 3.5 Implement stale large command/listing/search detection above a 2000-token estimate.
 
 ## 4. Stubbing and Logging
 
@@ -28,7 +28,7 @@
 
 ## 5. Verification
 
-- [x] 5.1 Add Vitest coverage for duplicate, resolved-error, superseded-file, large-output, recent-protection, and fail-open behavior.
+- [x] 5.1 Add Vitest coverage for duplicate, resolved, superseded, large-output, recent-protection, and fail-open behavior.
 - [x] 5.2 Add tests confirming no tools, commands, prompt injection, user messages, or assistant messages are modified.
 - [x] 5.3 Run `npm test` and fix failures.
 - [x] 5.4 Run `npm run check` and fix all reported issues.

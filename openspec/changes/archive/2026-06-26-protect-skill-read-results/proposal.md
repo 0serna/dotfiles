@@ -11,5 +11,5 @@ Skill files contain operational instructions. Treating a stale, large `SKILL.md`
 ## Scope
 
 - Detect `read` tool results whose target path ends with `SKILL.md`.
-- Exclude those results from `old_large_output` pruning.
-- Preserve duplicate, resolved-error, and superseded-file pruning behavior.
+- Exclude those results from `stale_large` pruning.
+- Preserve duplicate, resolved, and superseded pruning behavior.

@@ -30,7 +30,7 @@ Session analysis showed that this works well but leaves additional stale medium-
   - Rationale: several stale outputs in the 1500-2000 token range contributed context bulk but were old enough to stub safely.
   - Alternative considered: keep 2000. Rejected because it left measurable stale context in the analyzed session.
 
-- Make `old_large_output` apply to any textual `toolResult` outside the protected window that exceeds the threshold.
+- Make `stale_large` apply to any textual `toolResult` outside the protected window that exceeds the threshold.
   - Rationale: DCP should be tool-agnostic. Size and age are the relevant pruning signals for this rule.
   - Alternative considered: add explicit Playwriter or project command rules. Rejected because those couple DCP to session/project behavior.
 

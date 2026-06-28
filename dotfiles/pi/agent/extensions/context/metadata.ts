@@ -1,4 +1,4 @@
-import { asRecord, truncateTarget } from "./content.js";
+import { asRecord, normalizedToolName, truncateTarget } from "./content.js";
 import { TARGET_MAX_LENGTH, type ToolMetadata } from "./types.js";
 
 interface ToolCallMetadata {
@@ -10,10 +10,6 @@ interface ToolCallMetadata {
 }
 
 const FILE_TOOL_NAMES = new Set(["read", "write", "edit"]);
-
-function normalizedToolName(name: string): string {
-  return name.toLowerCase().replace(/^functions[._-]/, "");
-}
 
 function stringArg(
   args: Record<string, unknown>,
