@@ -22,7 +22,7 @@ Run a confirmed-only review: every reported finding must be introduced or worsen
 
 ## Review Lenses
 
-Check correctness, security, authorization, permissions, input validation, secrets, data integrity, state transitions, idempotency, performance, unbounded work, N+1 behavior, blocking operations, reliability, retries, cleanup, timeouts, concurrency, contracts, schemas, APIs, typing, backward compatibility, and pattern regressions that create concrete risk.
+Check correctness, security, authorization, permissions, input validation, secrets, data integrity, state transitions, idempotency, performance, unbounded work, N+1 behavior, blocking operations, reliability, retries, cleanup, timeouts, concurrency, contracts, schemas, APIs, typing, backward compatibility, quality-tool suppressions, and pattern regressions that create concrete risk.
 
 ## Rules
 
@@ -32,6 +32,7 @@ Check correctness, security, authorization, permissions, input validation, secre
 - Provide concrete evidence and a realistic failure scenario.
 - For security findings, identify a plausible trust boundary, attacker path, or missing guard when it creates concrete risk.
 - For performance findings, identify the trigger and scaling behavior.
+- For quality-tool suppressions, report only comments or configuration changes that bypass linters, type checks, tests, coverage, or other required gates while hiding an actionable defect or concrete risk.
 - For pattern-risk findings, explain what established pattern was broken and why it creates concrete risk.
 - If evidence is weak, speculative, or not tied to changed code, discard the candidate.
 - Never report pure style feedback, theoretical concerns without evidence, pre-existing issues not introduced or worsened by current changes, or vague pattern complaints without a concrete defect risk.

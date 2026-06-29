@@ -1,4 +1,10 @@
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
@@ -7,14 +13,15 @@ import { join } from "path";
 // ---------------------------------------------------------------------------
 
 const BASE_DIR = join(homedir(), ".local/state/pi");
-const MAX_LOG_LINES = 2000;
+const MAX_LOG_BYTES = 10 * 1024 * 1024;
+const TRUNCATE_TO_BYTES = MAX_LOG_BYTES / 2;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 /** Minimal shape of the pi extension context needed by the logger. */
-interface LoggerContext {
+export interface LoggerContext {
   sessionManager: { getSessionId(): string | null | undefined };
   model?: { id?: string } | null;
 }
@@ -25,7 +32,7 @@ export interface ExtensionLogger {
    * Write a log entry with extension and context pre-bound.
    *
    * @param event  Short event identifier (e.g. `hint`, `fetch_succeeded`).
-   * @param data   Optional structured payload merged with auto-injected fields.
+   * @param data   Optional structured payload written under `data`.
    */
   log(event: string, data?: Record<string, unknown>): void;
 }
@@ -34,83 +41,68 @@ export interface ExtensionLogger {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function mergeData(
-  autoFields: Record<string, unknown>,
-  data: Record<string, unknown> | undefined,
-): Record<string, unknown> {
-  return { ...autoFields, ...data, ...autoFields };
-}
-
 function formatEntry(
   extension: string,
   event: string,
+  sessionId: string | null,
+  model: string | null,
   data?: Record<string, unknown>,
 ): string {
   const entry: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     extension,
     event,
+    sessionId,
+    model,
+    data: data ?? {},
   };
 
-  if (data !== undefined) {
-    try {
-      return JSON.stringify({ ...entry, ...data }) + "\n";
-    } catch {
-      // Serialization failure — omit data, write minimal entry.
-    }
+  try {
+    return JSON.stringify(entry) + "\n";
+  } catch {
+    entry.data = {};
+    return JSON.stringify(entry) + "\n";
   }
-
-  return JSON.stringify(entry) + "\n";
 }
 
-function truncateLines(filePath: string): void {
-  const content = readFileSync(filePath, "utf-8");
-  const lines = content.split("\n");
-  if (lines.length > MAX_LOG_LINES) {
-    writeFileSync(filePath, lines.slice(-MAX_LOG_LINES).join("\n"));
+function truncateFile(filePath: string): void {
+  if (statSync(filePath).size <= MAX_LOG_BYTES) return;
+
+  const content = readFileSync(filePath);
+  const start = Math.max(0, content.length - TRUNCATE_TO_BYTES);
+  const tail = content.subarray(start);
+  const startsAtLineBoundary = start === 0 || content[start - 1] === 0x0a;
+
+  if (startsAtLineBoundary) {
+    writeFileSync(filePath, tail);
+    return;
   }
+
+  const firstNewline = tail.indexOf(0x0a);
+  writeFileSync(
+    filePath,
+    firstNewline === -1 ? Buffer.alloc(0) : tail.subarray(firstNewline + 1),
+  );
 }
 
 function writeEntry(
   extension: string,
   event: string,
+  sessionId: string | null,
+  model: string | null,
   data?: Record<string, unknown>,
 ): void {
   const logFile = join(BASE_DIR, `${extension}.log`);
-  const line = formatEntry(extension, event, data);
+  const line = formatEntry(extension, event, sessionId, model, data);
 
   mkdirSync(BASE_DIR, { recursive: true });
   appendFileSync(logFile, line);
-  truncateLines(logFile);
+  truncateFile(logFile);
 }
 
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
-
-/**
- * Write a structured log entry to `~/.local/state/pi/<extension>.log`.
- *
- * Format (one JSON object per line):
- *   {\"timestamp\":\"...\",\"extension\":\"...\",\"event\":\"...\",...}\n
- *
- * Logging is best-effort and silent on failure — it never throws.
- *
- * @param extension  Extension name (becomes the filename).
- * @param event   Short event identifier (e.g. `hint`, `fetch_succeeded`).
- * @param data    Optional structured payload serialized as JSON.
- */
-export function log(
-  extension: string,
-  event: string,
-  data?: Record<string, unknown>,
-): void {
-  try {
-    writeEntry(extension, event, data);
-  } catch {
-    // Silent — logging must never break the extension.
-  }
-}
 
 /**
  * Create a bound logger for an extension.
@@ -119,10 +111,11 @@ export function log(
  * - Writes to `~/.local/state/pi/<extension>.log`
  * - Includes `sessionId` (snapshot from context creation)
  * - Includes `model` (read live from context on each call)
+ * - Nests user payload under `data`
  *
- * Auto-injected fields (`sessionId`, `model`) take precedence over
- * any user-supplied keys in the data argument — they cannot be
- * overwritten.
+ * Reserved metadata fields (`timestamp`, `extension`, `event`, `sessionId`,
+ * `model`, `data`) always appear at the top level and cannot be overwritten
+ * by user-supplied payload keys.
  *
  * Logging is best-effort and silent on failure — it never throws.
  *
@@ -138,12 +131,7 @@ export function createExtensionLogger(
   return {
     log(event: string, data?: Record<string, unknown>): void {
       try {
-        const autoFields = {
-          sessionId,
-          model: ctx.model?.id ?? null,
-        };
-
-        writeEntry(extension, event, mergeData(autoFields, data));
+        writeEntry(extension, event, sessionId, ctx.model?.id ?? null, data);
       } catch {
         // Silent — logging must never break the extension.
       }
