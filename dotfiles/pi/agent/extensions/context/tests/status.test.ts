@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { emptyDcpMetrics } from "./format.ts";
-import { computeAndPublishStatus } from "./status.ts";
+import { emptyDcpMetrics } from "../format.ts";
+import { computeAndPublishStatus } from "../status.ts";
 
 type StatusContext = Parameters<typeof computeAndPublishStatus>[0];
 type StatusLogger = Parameters<typeof computeAndPublishStatus>[1];

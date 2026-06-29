@@ -6,7 +6,7 @@ import {
   formatPercent,
   isCacheBelowThreshold,
   type CacheUsageEntry,
-} from "./format.ts";
+} from "../format.ts";
 
 function assistantUsageEntry(
   input: number,

@@ -1,4 +1,7 @@
 import { estimateTokens as estimateMessageTokens } from "@earendil-works/pi-coding-agent";
+import { chmodSync, mkdirSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import {
   asRecord,
   extractTextContent,
@@ -8,8 +11,8 @@ import {
 } from "./content.js";
 import { collectToolCallMetadata, metadataForToolResult } from "./metadata.js";
 import {
+  PRUNE_TOKEN_THRESHOLD,
   STALE_LARGE_MIN_AGE,
-  STALE_LARGE_TOKEN_THRESHOLD,
   type PruneMetrics,
   type PruneOptions,
   type PruneReason,
@@ -22,9 +25,9 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
   ReadonlySet<PruneReason>
 > = new Map<string, ReadonlySet<PruneReason>>(
   Object.entries({
-    read: new Set<PruneReason>(["resolved", "superseded"]),
-    edit: new Set<PruneReason>(["resolved"]),
-    write: new Set<PruneReason>(["resolved", "superseded"]),
+    read: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
+    edit: new Set<PruneReason>(["resolved", "stale_large"]),
+    write: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
     bash: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     web_fetch: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     web_search: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
@@ -52,17 +55,17 @@ function isErrorResult(
 }
 
 const IGNORED_TOOL_NAMES = new Set(["question", "multi_tool_use.parallel"]);
+const DCP_DIRECTORY_MODE = 0o700;
+const DCP_FILE_MODE = 0o600;
 
 function isIgnoredTool(toolName: string): boolean {
   return IGNORED_TOOL_NAMES.has(normalizedToolName(toolName));
 }
 
-function buildStub(
-  reason: PruneReason,
-  toolName: string,
-  target: string,
-): string {
-  return `[DCP pruned transient output: reason=${reason}; tool=${toolName}; target=${target || "unknown"}]`;
+function buildStub(reason: PruneReason, savedPath?: string): string {
+  return savedPath
+    ? `[DCP pruned transient output: reason=${reason}; saved=${savedPath}]`
+    : `[DCP pruned transient output: reason=${reason}]`;
 }
 
 function emptyReasonCounts(): Record<PruneReason, number> {
@@ -87,11 +90,7 @@ function estimateToolResultTokens(text: string, toolName: string): number {
 
 function estimatedSavedTokens(decision: StubDecision): number {
   const toolName = decision.candidate.metadata.toolName;
-  const stubText = buildStub(
-    decision.reason,
-    toolName,
-    decision.candidate.metadata.target,
-  );
+  const stubText = buildStub(decision.reason);
 
   return Math.max(
     0,
@@ -203,6 +202,13 @@ function decideStubs(
   const laterSupersedeTargets = laterSupersedeTargetsByIndex(candidates);
 
   for (const candidate of candidates) {
+    const tokenEstimate = estimateToolResultTokens(
+      candidate.text,
+      candidate.metadata.toolName,
+    );
+
+    if (tokenEstimate <= PRUNE_TOKEN_THRESHOLD) continue;
+
     const hash = hashNormalizedContent(candidate.text);
 
     let reason: PruneReason | null = null;
@@ -235,8 +241,6 @@ function decideStubs(
     } else if (
       !candidate.metadata.isSkillRead &&
       candidate.dcpAge > STALE_LARGE_MIN_AGE &&
-      estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-        STALE_LARGE_TOKEN_THRESHOLD &&
       candidate.policy.has("stale_large")
     ) {
       reason = "stale_large";
@@ -288,7 +292,7 @@ function metricsFor(
         candidate.policy.has("stale_large") &&
         candidate.dcpAge <= STALE_LARGE_MIN_AGE &&
         estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-          STALE_LARGE_TOKEN_THRESHOLD,
+          PRUNE_TOKEN_THRESHOLD,
     ).length,
     reasonCounts,
     estimatedSavedTokens: totalEstimatedSavedTokens,
@@ -303,32 +307,69 @@ export type PruneResult<T> = {
   metrics: PruneMetrics;
 };
 
+function ensurePrivateDirectory(path: string): void {
+  mkdirSync(path, { recursive: true, mode: DCP_DIRECTORY_MODE });
+  chmodSync(path, DCP_DIRECTORY_MODE);
+}
+
+function externalizeOutput(
+  text: string,
+  sessionId: string,
+  sequenceNumber: number,
+): string {
+  const baseDir = join(tmpdir(), "pi-dcp");
+  const dir = join(baseDir, sessionId);
+  ensurePrivateDirectory(baseDir);
+  ensurePrivateDirectory(dir);
+
+  const filePath = join(dir, `${String(sequenceNumber).padStart(4, "0")}.txt`);
+  writeFileSync(filePath, text, { encoding: "utf8", mode: DCP_FILE_MODE });
+  chmodSync(filePath, DCP_FILE_MODE);
+  return filePath;
+}
+
 export function pruneMessages<T>(
   messages: readonly T[],
   options: PruneOptions = {},
 ): PruneResult<T> {
   try {
     const candidates = collectCandidates(messages);
-    const decisions = decideStubs(candidates);
-    const metrics = metricsFor(candidates, decisions, options.contextSequence);
+    const appliedDecisions = decideStubs(candidates).filter(
+      (decision) => estimatedSavedTokens(decision) > 0,
+    );
+
+    const metrics = metricsFor(
+      candidates,
+      appliedDecisions,
+      options.contextSequence,
+    );
 
     options.logger?.log("context_pruned", { ...metrics });
 
-    if (decisions.length === 0) {
+    if (appliedDecisions.length === 0) {
       return { messages: [...messages], metrics };
     }
 
+    const sessionId = options.sessionId ?? "unknown";
     const replacements = new Map<number, Record<string, unknown>>();
-    for (const decision of decisions) {
+
+    for (const decision of appliedDecisions) {
+      let savedPath: string | undefined;
+      try {
+        savedPath = externalizeOutput(
+          decision.candidate.text,
+          sessionId,
+          decision.candidate.index,
+        );
+      } catch {
+        savedPath = undefined;
+      }
+
       replacements.set(
         decision.candidate.index,
         replaceTextContent(
           decision.candidate.message,
-          buildStub(
-            decision.reason,
-            decision.candidate.metadata.toolName,
-            decision.candidate.metadata.target,
-          ),
+          buildStub(decision.reason, savedPath),
         ),
       );
     }

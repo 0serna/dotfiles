@@ -9,6 +9,7 @@ import { computeAndPublishStatus } from "./status.js";
 
 let logger: ExtensionLogger | undefined;
 let contextSequence = 0;
+let sessionId: string | undefined;
 let lastDcp: DcpStatusMetrics = emptyDcpMetrics();
 
 export default function (pi: ExtensionAPI) {
@@ -16,6 +17,7 @@ export default function (pi: ExtensionAPI) {
     logger = createExtensionLogger(ctx, "context");
     contextSequence = 0;
     lastDcp = emptyDcpMetrics();
+    sessionId = ctx.sessionManager.getSessionId() ?? undefined;
     computeAndPublishStatus(ctx, logger, lastDcp);
   });
 
@@ -31,7 +33,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("agent_end", (_event, ctx) => {
     if (logger === undefined) return;
-    computeAndPublishStatus(ctx, logger, lastDcp, true);
+    computeAndPublishStatus(ctx, logger, lastDcp);
   });
 
   pi.on("context", (event) => {
@@ -40,6 +42,7 @@ export default function (pi: ExtensionAPI) {
       const pruneResult = pruneMessages(event.messages, {
         logger,
         contextSequence,
+        sessionId,
       });
 
       event.messages = pruneResult.messages;

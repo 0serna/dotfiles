@@ -1,7 +1,7 @@
 import type { ExtensionLogger } from "../shared/logger.js";
 
-export const STALE_LARGE_MIN_AGE = 15;
-export const STALE_LARGE_TOKEN_THRESHOLD = 2500;
+export const STALE_LARGE_MIN_AGE = 30;
+export const PRUNE_TOKEN_THRESHOLD = 1000;
 export const TARGET_MAX_LENGTH = 120;
 
 export type PruneReason =
@@ -55,4 +55,5 @@ export interface PruneMetrics {
 export interface PruneOptions {
   logger?: ExtensionLogger;
   contextSequence?: number;
+  sessionId?: string;
 }
