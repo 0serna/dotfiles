@@ -23,8 +23,8 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
 > = new Map<string, ReadonlySet<PruneReason>>(
   Object.entries({
     read: new Set<PruneReason>(["resolved", "superseded"]),
-    edit: new Set<PruneReason>(["resolved", "stale_large"]),
-    write: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
+    edit: new Set<PruneReason>(["resolved"]),
+    write: new Set<PruneReason>(["resolved", "superseded"]),
     bash: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     web_fetch: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
     web_search: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
@@ -178,11 +178,27 @@ function laterSupersedeTargetsByIndex(
   return result;
 }
 
+function laterContentHashesByIndex(
+  candidates: readonly ToolResultCandidate[],
+): Map<number, Set<string>> {
+  const result = new Map<number, Set<string>>();
+  const laterHashes = new Set<string>();
+
+  for (let index = candidates.length - 1; index >= 0; index -= 1) {
+    const candidate = candidates[index];
+    if (candidate === undefined) continue;
+    result.set(candidate.index, new Set(laterHashes));
+    laterHashes.add(hashNormalizedContent(candidate.text));
+  }
+
+  return result;
+}
+
 function decideStubs(
   candidates: readonly ToolResultCandidate[],
 ): StubDecision[] {
   const decisions: StubDecision[] = [];
-  const keptHashes = new Set<string>();
+  const laterContentHashes = laterContentHashesByIndex(candidates);
   const laterSuccessfulOperations = laterSuccessOperationsByIndex(candidates);
   const laterSupersedeTargets = laterSupersedeTargetsByIndex(candidates);
 
@@ -191,7 +207,10 @@ function decideStubs(
 
     let reason: PruneReason | null = null;
 
-    if (keptHashes.has(hash) && candidate.policy.has("duplicate")) {
+    if (
+      (laterContentHashes.get(candidate.index)?.has(hash) ?? false) &&
+      candidate.policy.has("duplicate")
+    ) {
       reason = "duplicate";
     } else if (
       candidate.isError &&
@@ -223,9 +242,7 @@ function decideStubs(
       reason = "stale_large";
     }
 
-    if (reason === null) {
-      keptHashes.add(hash);
-    } else {
+    if (reason !== null) {
       decisions.push({ candidate, reason });
     }
   }

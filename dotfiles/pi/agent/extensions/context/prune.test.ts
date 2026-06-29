@@ -74,7 +74,7 @@ function textOf(message: Message): string {
 }
 
 describe("context DCP pruning", () => {
-  it("stubs duplicate non-recent command results", () => {
+  it("stubs older duplicate command results", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "echo same" }),
       toolResult("a", "bash", "same output"),
@@ -85,8 +85,8 @@ describe("context DCP pruning", () => {
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toBe("same output");
-    expect(textOf(pruned[3]!)).toContain("reason=duplicate");
+    expect(textOf(pruned[1]!)).toContain("reason=duplicate");
+    expect(textOf(pruned[3]!)).toBe("same output");
   });
 
   it("keeps duplicate file tool results", () => {
@@ -282,6 +282,35 @@ describe("context DCP pruning", () => {
     const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toContain("reason=stale_large");
+  });
+
+  it("keeps stale large edit results", () => {
+    const editText = "x".repeat(10_004);
+    const messages = [
+      assistantToolCall("a", "edit", {
+        path: "src/app.ts",
+        edits: [{ oldText: "a", newText: "b" }],
+      }),
+      toolResult("a", "edit", editText),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(editText);
+  });
+
+  it("keeps stale large write results", () => {
+    const writeText = "x".repeat(10_004);
+    const messages = [
+      assistantToolCall("a", "write", { path: "src/app.ts", content: "x" }),
+      toolResult("a", "write", writeText),
+      ...dcpTail(16),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(writeText);
   });
 
   it("keeps stale large read results", () => {
