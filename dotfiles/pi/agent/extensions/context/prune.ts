@@ -1,7 +1,7 @@
 import { estimateTokens as estimateMessageTokens } from "@earendil-works/pi-coding-agent";
-import { chmodSync, mkdirSync, writeFileSync } from "fs";
+import { accessSync, chmodSync, constants, mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { basename, dirname, join } from "path";
 import {
   asRecord,
   extractTextContent,
@@ -60,6 +60,28 @@ const DCP_FILE_MODE = 0o600;
 
 function isIgnoredTool(toolName: string): boolean {
   return IGNORED_TOOL_NAMES.has(normalizedToolName(toolName));
+}
+
+const PI_BASH_FULL_OUTPUT_FILE_PATTERN = /^pi-bash-[A-Za-z0-9]+\.log$/;
+
+function isReusableFullOutputPath(filePath: string): boolean {
+  if (dirname(filePath) !== tmpdir()) return false;
+  if (!PI_BASH_FULL_OUTPUT_FILE_PATTERN.test(basename(filePath))) return false;
+
+  try {
+    accessSync(filePath, constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function extractFullOutputPath(text: string): string | null {
+  const match = text.match(/Full output:\s*([^\s\]]+)/);
+  const filePath = match?.[1];
+  return filePath !== undefined && isReusableFullOutputPath(filePath)
+    ? filePath
+    : null;
 }
 
 function buildStub(reason: PruneReason, savedPath?: string): string {
@@ -354,15 +376,20 @@ export function pruneMessages<T>(
     const replacements = new Map<number, Record<string, unknown>>();
 
     for (const decision of appliedDecisions) {
+      const existingPath = extractFullOutputPath(decision.candidate.text);
       let savedPath: string | undefined;
-      try {
-        savedPath = externalizeOutput(
-          decision.candidate.text,
-          sessionId,
-          decision.candidate.index,
-        );
-      } catch {
-        savedPath = undefined;
+      if (existingPath !== null) {
+        savedPath = existingPath;
+      } else {
+        try {
+          savedPath = externalizeOutput(
+            decision.candidate.text,
+            sessionId,
+            decision.candidate.index,
+          );
+        } catch {
+          savedPath = undefined;
+        }
       }
 
       replacements.set(

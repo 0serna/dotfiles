@@ -1,5 +1,6 @@
-import { readFileSync, statSync } from "fs";
-import { dirname } from "path";
+import { existsSync, readFileSync, statSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { dirname, join } from "path";
 import { describe, expect, it } from "vitest";
 import { pruneMessages } from "../prune.ts";
 import {
@@ -33,5 +34,78 @@ describe("context DCP pruning externalization", () => {
     expect(fileContent).toBe(big());
     expect(statSync(dirname(savedPath)).mode & 0o777).toBe(0o700);
     expect(statSync(savedPath).mode & 0o777).toBe(0o600);
+  });
+
+  it("reuses existing Pi bash full-output path instead of creating DCP-owned copy", () => {
+    const existingPath = join(tmpdir(), "pi-bash-testreuse.log");
+    writeFileSync(existingPath, "full original output content", {
+      encoding: "utf8",
+      mode: 0o644,
+    });
+
+    const truncatedText = `[Showing lines 1-20 of 200. Full output: ${existingPath}]`;
+    const messages = [
+      assistantToolCall("a", "bash", { command: "rg foo" }),
+      toolResult("a", "bash", big() + truncatedText),
+      ...dcpTail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, {
+      sessionId: "test-reuse-session",
+    });
+
+    const stubText = textOf(pruned[1]!);
+    expect(stubText).toContain("reason=stale_large");
+    expect(stubText).toContain(`saved=${existingPath}`);
+    expect(stubText).not.toContain("saved=/tmp/pi-dcp/test-reuse-session/");
+    expect(readFileSync(existingPath, "utf8")).toBe(
+      "full original output content",
+    );
+    expect(statSync(existingPath).mode & 0o777).toBe(0o644);
+  });
+
+  it("falls back to DCP-owned file when full-output path is missing", () => {
+    const missingPath = "/tmp/pi-bash-nonexistent-12345.log";
+    const truncatedText = `[Showing lines 1-20 of 200. Full output: ${missingPath}]`;
+    const messages = [
+      assistantToolCall("a", "bash", { command: "rg foo" }),
+      toolResult("a", "bash", big() + truncatedText),
+      ...dcpTail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, {
+      sessionId: "test-fallback-session",
+    });
+
+    const stubText = textOf(pruned[1]!);
+    expect(stubText).toContain("reason=stale_large");
+    expect(stubText).toContain("saved=/tmp/pi-dcp/test-fallback-session/");
+    expect(stubText).not.toContain(missingPath);
+
+    const pathMatch = stubText.match(/saved=([^"\]]+)/);
+    expect(pathMatch).not.toBeNull();
+    const savedPath = pathMatch![1]!;
+    expect(existsSync(savedPath)).toBe(true);
+  });
+
+  it("DCP-owned fallback files keep private permissions", () => {
+    const missingPath = "/tmp/pi-bash-nonexistent-perms.log";
+    const truncatedText = `[Showing lines 1-20 of 200. Full output: ${missingPath}]`;
+    const messages = [
+      assistantToolCall("a", "bash", { command: "rg foo" }),
+      toolResult("a", "bash", big() + truncatedText),
+      ...dcpTail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, {
+      sessionId: "test-perms-session",
+    });
+
+    const stubText = textOf(pruned[1]!);
+    const pathMatch = stubText.match(/saved=([^"\]]+)/);
+    expect(pathMatch).not.toBeNull();
+    const savedPath = pathMatch![1]!;
+    expect(statSync(savedPath).mode & 0o777).toBe(0o600);
+    expect(statSync(dirname(savedPath)).mode & 0o777).toBe(0o700);
   });
 });

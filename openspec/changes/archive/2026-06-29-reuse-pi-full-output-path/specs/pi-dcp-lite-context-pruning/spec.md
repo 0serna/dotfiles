@@ -1,14 +1,8 @@
-# pi-dcp-lite-context-pruning Specification
-
-## Purpose
-
-Automatically reduce stale tool result content in transient context to improve cache stability and reduce token consumption in long tool-heavy sessions, using an explicit tool/mechanism pruning policy allowlist.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 
-DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mechanism pruning policy entries and whose estimated original output size is greater than 1000 tokens. The allowed pruning mechanisms are `duplicate`, `resolved`, `superseded`, and `stale_large`. Tools without an explicit pruning policy entry SHALL be excluded from pruning, pruning metrics, and DCP age calculations. File operation tools MAY be stubbed by the `stale_large` rule when their policy allows it, except explicit skill reads (`SKILL.md`) SHALL NOT be stubbed by `stale_large`. File operation tools SHALL NOT be stubbed by the `duplicate` rule. DCP SHALL use non-truncated semantic operation identities for `resolved` and `superseded` decisions, while display targets MAY be truncated for logs. DCP SHALL treat `duplicate` as a global normalized-text mechanism independent of operation identity for non-file tools that allow it. DCP SHALL replace the result content with a minimal stub containing the pruning reason and a saved file path. When a bash result text contains a Pi `Full output:` path for a readable `/tmp/pi-bash-*.log` file, DCP SHALL use that existing path as the saved file path without creating a DCP-owned copy or changing that file's permissions. Otherwise, DCP SHALL write the original result content to a temporary per-session file and use that DCP-owned file as the saved path. DCP SHALL NOT apply a pruning decision when the replacement stub would not reduce the estimated token count.
+DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mechanism pruning policy entries and whose estimated original output size is greater than 1000 tokens. The allowed pruning mechanisms are `duplicate`, `resolved`, `superseded`, and `stale_large`. Tools without an explicit pruning policy entry SHALL be excluded from pruning, pruning metrics, and DCP age calculations. File operation tools MAY be stubbed by the `stale_large` rule when their policy allows it, except explicit skill reads (`SKILL.md`) SHALL NOT be stubbed by `stale_large`. File operation tools SHALL NOT be stubbed by the `duplicate` rule. DCP SHALL use non-truncated semantic operation identities for `resolved` and `superseded` decisions, while display targets MAY be truncated for logs. DCP SHALL treat `duplicate` as a global normalized-text mechanism independent of operation identity for non-file tools that allow it. For every applied pruning decision, DCP SHALL replace the result content with a minimal stub containing the pruning reason and a saved file path. When a bash result text contains a Pi `Full output:` path for a readable `/tmp/pi-bash-*.log` file, DCP SHALL use that existing path as the saved file path without creating a DCP-owned copy or changing that file's permissions. Otherwise, DCP SHALL write the original result content to a temporary per-session file and use that DCP-owned file as the saved path. DCP SHALL NOT apply a pruning decision when the replacement stub would not reduce the estimated token count.
 
 #### Scenario: Tool without pruning policy is excluded from DCP
 
@@ -173,25 +167,3 @@ DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mech
 - **AND** the replacement stub would not reduce the estimated token count
 - **THEN** DCP SHALL leave the result content unchanged
 - **AND** DCP SHALL NOT count the decision as stubbed in pruning metrics
-
-### Requirement: Stale-large age metrics
-
-DCP SHALL report size-gate protection metrics separately from pruning metrics and SHALL NOT report a global recent-protection count. DCP SHALL only count size-gate protection for tools whose pruning policy allows `stale_large` and whose estimated original output size is greater than 1000 tokens.
-
-#### Scenario: Size-gate protection is counted for allowlisted tool
-
-- **WHEN** a DCP-ageable `toolResult` exceeds the 1000-token pruning threshold but is not older than 30 DCP-ageable tool results
-- **AND** the tool policy allows `stale_large`
-- **THEN** DCP SHALL count the result as protected by the `stale_large` age gate
-
-#### Scenario: Size-gate protection is not counted without policy
-
-- **WHEN** a textual `toolResult` exceeds the 1000-token pruning threshold but is not older than 30 DCP-ageable tool results
-- **AND** the tool policy does not allow `stale_large`
-- **THEN** DCP SHALL NOT count the result as protected by the `stale_large` age gate
-
-#### Scenario: Below-threshold result is not counted as age protected
-
-- **WHEN** a textual `toolResult` has an estimated original output size of 1000 tokens or less
-- **AND** the tool policy allows `stale_large`
-- **THEN** DCP SHALL NOT count the result as protected by the `stale_large` age gate
