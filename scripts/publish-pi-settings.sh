@@ -18,6 +18,14 @@ cd "$(git rev-parse --show-toplevel)"
 git update-index --no-skip-worktree "$FILE"
 
 git add "$FILE"
+
+# Exit cleanly if there are no actual changes
+if git diff --cached --quiet -- "$FILE"; then
+  git update-index --skip-worktree "$FILE"
+  echo "⏭️  No changes in $FILE, skipping commit."
+  exit 0
+fi
+
 git commit -m "$MESSAGE" -- "$FILE"
 
 # Re-apply skip-worktree
