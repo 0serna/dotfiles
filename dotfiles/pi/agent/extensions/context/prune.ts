@@ -26,11 +26,11 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
 > = new Map<string, ReadonlySet<PruneReason>>(
   Object.entries({
     read: new Set<PruneReason>(["superseded"]),
-    edit: new Set<PruneReason>(["resolved", "stale_large"]),
-    write: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
+    edit: new Set<PruneReason>(["stale_large"]),
+    write: new Set<PruneReason>(["superseded", "stale_large"]),
     bash: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
-    web_fetch: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
-    web_search: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
+    web_fetch: new Set<PruneReason>(["duplicate", "stale_large"]),
+    web_search: new Set<PruneReason>(["stale_large"]),
   }),
 );
 

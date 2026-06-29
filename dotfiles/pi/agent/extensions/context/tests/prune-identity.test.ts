@@ -48,6 +48,29 @@ describe("context DCP semantic identity", () => {
     expect(textOf(pruned[3]!)).toBe("lines 251+");
   });
 
+  it("does not supersede same-path read with different limit", () => {
+    const messages = [
+      assistantToolCall("a", "read", {
+        path: "src/app.ts",
+        offset: 1,
+        limit: 50,
+      }),
+      toolResult("a", "read", "lines 1-50"),
+      assistantToolCall("b", "read", {
+        path: "src/app.ts",
+        offset: 1,
+        limit: 100,
+      }),
+      toolResult("b", "read", "lines 1-100"),
+      ...dcpTail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe("lines 1-50");
+    expect(textOf(pruned[3]!)).toBe("lines 1-100");
+  });
+
   it("does not resolve read errors when later read covers different range", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/app.ts" }),
@@ -107,26 +130,20 @@ describe("context DCP semantic identity", () => {
     expect(textOf(pruned[3]!)).toBe("second edit output");
   });
 
-  it("resolves edit errors only with identical edit payload", () => {
+  it("does not resolve edit errors", () => {
     const edits = [{ oldText: "old", newText: "new" }];
     const messages = [
       assistantToolCall("a", "edit", { path: "src/app.ts", edits }),
       toolResult("a", "edit", `Error: ${big()}`, true),
-      assistantToolCall("b", "edit", {
-        path: "src/app.ts",
-        edits: [{ oldText: "other", newText: "new" }],
-      }),
-      toolResult("b", "edit", "different edit ok"),
-      assistantToolCall("c", "edit", { path: "src/app.ts", edits }),
-      toolResult("c", "edit", "same edit ok"),
-      ...dcpTail(),
+      assistantToolCall("b", "edit", { path: "src/app.ts", edits }),
+      toolResult("b", "edit", "same edit ok"),
+      ...dcpTail(1),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=resolved");
-    expect(textOf(pruned[3]!)).toBe("different edit ok");
-    expect(textOf(pruned[5]!)).toBe("same edit ok");
+    expect(textOf(pruned[1]!)).toBe(`Error: ${big()}`);
+    expect(textOf(pruned[3]!)).toBe("same edit ok");
   });
 
   it("still supersedes later writes to the same path", () => {

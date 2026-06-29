@@ -25,6 +25,36 @@ describe("context DCP pruning mechanisms", () => {
     expect(textOf(pruned[3]!)).toBe(big());
   });
 
+  it("stubs older duplicate web_fetch results when above threshold", () => {
+    const messages = [
+      assistantToolCall("a", "web_fetch", { url: "https://example.com/a" }),
+      toolResult("a", "web_fetch", big()),
+      assistantToolCall("b", "web_fetch", { url: "https://example.com/b" }),
+      toolResult("b", "web_fetch", big()),
+      ...dcpTail(1),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toContain("reason=duplicate");
+    expect(textOf(pruned[3]!)).toBe(big());
+  });
+
+  it("keeps duplicate web_search results", () => {
+    const messages = [
+      assistantToolCall("a", "web_search", { query: "first" }),
+      toolResult("a", "web_search", big()),
+      assistantToolCall("b", "web_search", { query: "second" }),
+      toolResult("b", "web_search", big()),
+      ...dcpTail(1),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(big());
+    expect(textOf(pruned[3]!)).toBe(big());
+  });
+
   it("stubs resolved errors only when followed by later success for the same operation", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "npm test" }),
@@ -52,6 +82,21 @@ describe("context DCP pruning mechanisms", () => {
     const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toBe("Error: failed");
+    expect(textOf(pruned[3]!)).toBe("ok");
+  });
+
+  it("does not resolve web_fetch errors", () => {
+    const messages = [
+      assistantToolCall("a", "web_fetch", { url: "https://example.com" }),
+      toolResult("a", "web_fetch", `Error: ${big()}`, true),
+      assistantToolCall("b", "web_fetch", { url: "https://example.com" }),
+      toolResult("b", "web_fetch", "ok"),
+      ...dcpTail(1),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(`Error: ${big()}`);
     expect(textOf(pruned[3]!)).toBe("ok");
   });
 
