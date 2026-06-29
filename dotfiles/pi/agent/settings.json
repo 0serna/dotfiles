@@ -1,12 +1,14 @@
 {
-  "defaultModel": "gpt-5.5",
-  "defaultProvider": "openai-codex",
-  "defaultThinkingLevel": "medium",
+  "defaultModel": "mimo-v2.5-pro",
+  "defaultProvider": "opencode-go",
+  "defaultThinkingLevel": "high",
   "enableSkillCommands": true,
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.79.6",
+  "lastChangelogVersion": "0.80.2",
   "quietStartup": true,
   "treeFilterMode": "no-tools",
   "enabledModels": ["openai-codex/gpt-5.5", "opencode-go/mimo-v2.5-pro"],
-  "theme": "dark"
+  "theme": "dark",
+  "defaultProjectTrust": "always",
+  "transport": "websocket"
 }
