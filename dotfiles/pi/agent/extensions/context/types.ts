@@ -17,7 +17,6 @@ export interface ToolMetadata {
   semanticOperationKey: string | null;
   supersedeKey: string | null;
   isFileOperation: boolean;
-  isSkillRead: boolean;
 }
 
 export interface ToolResultCandidate {

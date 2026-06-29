@@ -203,7 +203,7 @@ describe("context DCP pruning mechanisms", () => {
     expect(textOf(pruned[1]!)).toContain("reason=stale_large");
   });
 
-  it("stubs stale large read results", () => {
+  it("keeps stale large read results", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/big.ts" }),
       toolResult("a", "read", big()),
@@ -212,33 +212,15 @@ describe("context DCP pruning mechanisms", () => {
 
     const { messages: pruned, metrics } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=stale_large");
+    expect(textOf(pruned[1]!)).toBe(big());
     expect(metrics.staleLargeProtectedCount).toBe(0);
   });
 
-  it("keeps stale large skill read results", () => {
+  it("stubs superseded read results", () => {
     const messages = [
-      assistantToolCall("a", "read", {
-        path: "/home/user/.agents/skills/review/SKILL.md",
-      }),
+      assistantToolCall("a", "read", { path: "src/big.ts" }),
       toolResult("a", "read", big()),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe(big());
-  });
-
-  it("stubs superseded skill read results", () => {
-    const messages = [
-      assistantToolCall("a", "read", {
-        path: "/home/user/.agents/skills/review/SKILL.md",
-      }),
-      toolResult("a", "read", big()),
-      assistantToolCall("b", "read", {
-        path: "/home/user/.agents/skills/review/SKILL.md",
-      }),
+      assistantToolCall("b", "read", { path: "src/big.ts" }),
       toolResult("b", "read", big()),
       ...dcpTail(),
     ];

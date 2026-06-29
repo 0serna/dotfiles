@@ -25,7 +25,7 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
   ReadonlySet<PruneReason>
 > = new Map<string, ReadonlySet<PruneReason>>(
   Object.entries({
-    read: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
+    read: new Set<PruneReason>(["superseded"]),
     edit: new Set<PruneReason>(["resolved", "stale_large"]),
     write: new Set<PruneReason>(["resolved", "superseded", "stale_large"]),
     bash: new Set<PruneReason>(["duplicate", "resolved", "stale_large"]),
@@ -254,7 +254,6 @@ function decideStubs(
     ) {
       reason = "superseded";
     } else if (
-      !candidate.metadata.isSkillRead &&
       candidate.dcpAge > STALE_LARGE_MIN_AGE &&
       estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
         PRUNE_TOKEN_THRESHOLD &&
@@ -305,7 +304,6 @@ function metricsFor(
     stubbedCount: decisions.length,
     staleLargeProtectedCount: candidates.filter(
       (candidate) =>
-        !candidate.metadata.isSkillRead &&
         candidate.policy.has("stale_large") &&
         candidate.dcpAge <= STALE_LARGE_MIN_AGE &&
         estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >

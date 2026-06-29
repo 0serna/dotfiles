@@ -7,7 +7,6 @@ interface ToolCallMetadata {
   semanticOperationKey: string | null;
   supersedeKey: string | null;
   isFileOperation: boolean;
-  isSkillRead: boolean;
 }
 
 const FILE_TOOL_NAMES = new Set(["read", "write", "edit"]);
@@ -45,17 +44,6 @@ function isFileOperation(
     FILE_TOOL_NAMES.has(name) ||
     stringArg(args, ["path", "filePath", "filepath", "file"]) !== null
   );
-}
-
-function isSkillPath(path: string): boolean {
-  const normalized = path.trim().replace(/\\/g, "/").toLowerCase();
-  return normalized === "skill.md" || normalized.endsWith("/skill.md");
-}
-
-function isSkillRead(toolName: string, args: Record<string, unknown>): boolean {
-  if (normalizedToolName(toolName) !== "read") return false;
-  const path = stringArg(args, ["path", "filePath", "filepath", "file"]);
-  return path !== null && isSkillPath(path);
 }
 
 function buildOperationKey(toolName: string, target: string): string {
@@ -185,7 +173,6 @@ function parseToolCall(
     semanticOperationKey,
     supersedeKey,
     isFileOperation: isFileOperation(block.name, args),
-    isSkillRead: isSkillRead(block.name, args),
   };
 }
 
@@ -235,6 +222,5 @@ export function metadataForToolResult(
     isFileOperation:
       toolCall?.isFileOperation ??
       FILE_TOOL_NAMES.has(normalizedToolName(toolName)),
-    isSkillRead: toolCall?.isSkillRead ?? false,
   };
 }
