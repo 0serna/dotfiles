@@ -3,8 +3,8 @@ import {
   formatCodexQuotaStatus,
   formatResetTime,
   parseCredits,
-} from "./status.js";
-import type { CodexQuotaData, ExtensionContext } from "./types.js";
+} from "../status.js";
+import type { CodexQuotaData, ExtensionContext } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

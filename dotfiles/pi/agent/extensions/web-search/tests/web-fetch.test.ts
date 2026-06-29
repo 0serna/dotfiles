@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { executeWebFetch } from "./web-fetch.ts";
+import { executeWebFetch } from "../web-fetch.ts";
 
 const mocks = vi.hoisted(() => ({
   callExaContents: vi.fn(),
@@ -10,24 +10,24 @@ const mocks = vi.hoisted(() => ({
   tryGitHubFetch: vi.fn(),
 }));
 
-vi.mock("./exa.ts", () => ({
+vi.mock("../exa.ts", () => ({
   callExaContents: mocks.callExaContents,
 }));
 
-vi.mock("./github.ts", () => ({
+vi.mock("../github.ts", () => ({
   classifyGitHubUrl: mocks.classifyGitHubUrl,
   tryGitHubFetch: mocks.tryGitHubFetch,
 }));
 
-vi.mock("./http.ts", () => ({
+vi.mock("../http.ts", () => ({
   extractViaHttp: mocks.extractViaHttp,
 }));
 
-vi.mock("./cloudflare.ts", () => ({
+vi.mock("../cloudflare.ts", () => ({
   tryCloudflareMarkdown: mocks.tryCloudflareMarkdown,
 }));
 
-vi.mock("./logger.ts", () => ({
+vi.mock("../logger.ts", () => ({
   logWebToolEvent: mocks.logWebToolEvent,
 }));
 

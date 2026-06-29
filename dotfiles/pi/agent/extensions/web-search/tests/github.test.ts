@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { GitHubIssue, GitHubPullRequest, GitHubRepo } from "./github.ts";
+import type { GitHubIssue, GitHubPullRequest, GitHubRepo } from "../github.ts";
 import {
   blobToRawUrl,
   classifyGitHubUrl,
   renderIssue,
   renderPullRequest,
   renderRepo,
-} from "./github.ts";
+} from "../github.ts";
 
 describe("classifyGitHubUrl", () => {
   it("classifies blob URLs", () => {

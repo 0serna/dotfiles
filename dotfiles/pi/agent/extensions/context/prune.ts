@@ -224,13 +224,6 @@ function decideStubs(
   const laterSupersedeTargets = laterSupersedeTargetsByIndex(candidates);
 
   for (const candidate of candidates) {
-    const tokenEstimate = estimateToolResultTokens(
-      candidate.text,
-      candidate.metadata.toolName,
-    );
-
-    if (tokenEstimate <= PRUNE_TOKEN_THRESHOLD) continue;
-
     const hash = hashNormalizedContent(candidate.text);
 
     let reason: PruneReason | null = null;
@@ -263,6 +256,8 @@ function decideStubs(
     } else if (
       !candidate.metadata.isSkillRead &&
       candidate.dcpAge > STALE_LARGE_MIN_AGE &&
+      estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
+        PRUNE_TOKEN_THRESHOLD &&
       candidate.policy.has("stale_large")
     ) {
       reason = "stale_large";

@@ -29,14 +29,14 @@ vi.mock("node:os", () => ({
 // Now import the modules under test
 import { compact } from "@earendil-works/pi-coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import registerProfilesExtension from "./index.ts";
-import { ROUTE_TYPES } from "./routes.ts";
-import { loadConfig } from "./state.ts";
+import registerProfilesExtension from "../index.ts";
+import { ROUTE_TYPES } from "../routes.ts";
+import { loadConfig } from "../state.ts";
 import {
   getRememberedLevel,
   loadMemory,
   recordLevel,
-} from "./thinking-memory.ts";
+} from "../thinking-memory.ts";
 
 const compactMock = vi.mocked(compact);
 const mkdirMock = vi.mocked(mkdir);

@@ -2,9 +2,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LoggerContext } from "./logger.ts";
+import type { LoggerContext } from "../logger.ts";
 
-type CreateExtensionLogger = typeof import("./logger.ts").createExtensionLogger;
+type CreateExtensionLogger =
+  typeof import("../logger.ts").createExtensionLogger;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -79,7 +80,7 @@ describe("createExtensionLogger", () => {
       ...(await vi.importActual<typeof import("os")>("os")),
       homedir: () => tmpHome,
     }));
-    ({ createExtensionLogger } = await import("./logger.ts"));
+    ({ createExtensionLogger } = await import("../logger.ts"));
   });
 
   afterEach(() => {

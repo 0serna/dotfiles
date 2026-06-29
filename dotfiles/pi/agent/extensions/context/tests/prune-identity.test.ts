@@ -54,7 +54,7 @@ describe("context DCP semantic identity", () => {
       toolResult("a", "read", `Error: ${big()}`, true),
       assistantToolCall("b", "read", { path: "src/app.ts", offset: 251 }),
       toolResult("b", "read", "ok"),
-      ...dcpTail(29),
+      ...dcpTail(19),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -77,7 +77,7 @@ describe("context DCP semantic identity", () => {
         limit: 10,
       }),
       toolResult("b", "read", big()),
-      ...dcpTail(29),
+      ...dcpTail(19),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -135,7 +135,7 @@ describe("context DCP semantic identity", () => {
       toolResult("a", "write", big()),
       assistantToolCall("b", "write", { path: "src/out.txt", content: "new" }),
       toolResult("b", "write", big()),
-      ...dcpTail(29),
+      ...dcpTail(19),
     ];
 
     const { messages: pruned } = pruneMessages(messages);

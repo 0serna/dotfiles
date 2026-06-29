@@ -1,16 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { executeWebSearch } from "./web-search.ts";
+import { executeWebSearch } from "../web-search.ts";
 
 const mocks = vi.hoisted(() => ({
   callExaSearch: vi.fn(),
   callTavilySearch: vi.fn(),
 }));
 
-vi.mock("./exa.ts", () => ({
+vi.mock("../exa.ts", () => ({
   callExaSearch: mocks.callExaSearch,
 }));
 
-vi.mock("./tavily.ts", () => ({
+vi.mock("../tavily.ts", () => ({
   callTavilySearch: mocks.callTavilySearch,
 }));
 

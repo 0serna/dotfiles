@@ -82,7 +82,7 @@ describe("context DCP pruning mechanisms", () => {
       toolResult("a", "read", big()),
       assistantToolCall("b", "read", { path: "src/a.ts" }),
       toolResult("b", "read", big()),
-      ...dcpTail(29),
+      ...dcpTail(19),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -112,7 +112,7 @@ describe("context DCP pruning mechanisms", () => {
       toolResult("a", "read", big()),
       assistantToolCall("b", "edit", { path: "src/a.ts" }),
       toolResult("b", "edit", big()),
-      ...dcpTail(29),
+      ...dcpTail(19),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -137,7 +137,7 @@ describe("context DCP pruning mechanisms", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", big()),
-      ...dcpTail(30),
+      ...dcpTail(20),
     ];
 
     const { messages: pruned } = pruneMessages(messages);
@@ -150,7 +150,7 @@ describe("context DCP pruning mechanisms", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", big()),
-      ...dcpTail(30),
+      ...dcpTail(20),
       ...questionTail(5),
     ];
 
@@ -158,7 +158,7 @@ describe("context DCP pruning mechanisms", () => {
 
     expect(textOf(pruned[1]!)).toBe(big());
     expect(log.mock.calls[0]?.[1]).toMatchObject({
-      processedCount: 31,
+      processedCount: 21,
       stubbedCount: 0,
       staleLargeProtectedCount: 1,
     });
