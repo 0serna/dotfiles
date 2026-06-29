@@ -45,10 +45,6 @@
     "target": "~/.codex/config.toml"
   },
   {
-    "source": "dotfiles/rtk/config.toml",
-    "target": "~/.config/rtk/config.toml"
-  },
-  {
     "source": "dotfiles/pi/agent/settings.json",
     "target": "~/.pi/agent/settings.json"
   },
