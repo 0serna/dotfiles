@@ -54,7 +54,7 @@ export default function (pi: ExtensionAPI) {
             const cwd = formatCwd(ctx.cwd);
             const branch = footerData.getGitBranch();
             const thinking = pi.getThinkingLevel();
-            const modelId = ctx.model?.id;
+            const modelLabel = ctx.model?.name ?? ctx.model?.id;
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
             const usageQuota = extStatuses.get("quota");
@@ -67,7 +67,7 @@ export default function (pi: ExtensionAPI) {
             const sections = [
               formatCwdWithBranch(cwd, branch, theme),
               profileStatus,
-              formatModelInfo(modelId, thinking, theme),
+              formatModelInfo(modelLabel, thinking, theme),
               ...ordered,
               ...remaining,
             ].filter(Boolean);
