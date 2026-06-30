@@ -1,0 +1,102 @@
+import { describe, expect, it } from "vitest";
+import { formatOpenCodeBalances } from "../status.js";
+import type { OpenCodeGoData } from "../types.js";
+import { makeContext, stripStyles } from "./helpers.js";
+
+describe("formatOpenCodeBalances", () => {
+  const ctx = makeContext();
+
+  function build(overrides: Partial<OpenCodeGoData> = {}): OpenCodeGoData {
+    return {
+      rolling: { remainingPercent: 80, resetInSec: 60 },
+      weekly: { remainingPercent: 70, resetInSec: 120 },
+      monthly: { remainingPercent: 60, resetInSec: 180 },
+      balanceDollars: 12.34,
+      ...overrides,
+    };
+  }
+
+  it("returns null when no windows or balance are available", () => {
+    expect(formatOpenCodeBalances({}, ctx)).toBeNull();
+  });
+
+  it("formats R window with label when only rolling is available", () => {
+    const result = stripStyles(
+      formatOpenCodeBalances(
+        { rolling: { remainingPercent: 80, resetInSec: 60 } },
+        ctx,
+      ),
+    );
+    expect(result).toContain("R(80%");
+  });
+
+  it("omits healthy W and M windows from compact status", () => {
+    const result = stripStyles(formatOpenCodeBalances(build(), ctx));
+    expect(result).toContain("R(80%");
+    expect(result).not.toContain("W(");
+    expect(result).not.toContain("M(");
+  });
+
+  it("shows W when below threshold", () => {
+    const result = stripStyles(
+      formatOpenCodeBalances(
+        build({ weekly: { remainingPercent: 15, resetInSec: 120 } }),
+        ctx,
+      ),
+    );
+    expect(result).toContain("R(80%");
+    expect(result).toContain("W(15%");
+  });
+
+  it("shows M when below threshold", () => {
+    const result = stripStyles(
+      formatOpenCodeBalances(
+        build({ monthly: { remainingPercent: 10, resetInSec: 180 } }),
+        ctx,
+      ),
+    );
+    expect(result).toContain("R(80%");
+    expect(result).toContain("M(10%");
+  });
+
+  it("falls back to first available window when rolling is missing", () => {
+    const result = stripStyles(
+      formatOpenCodeBalances(
+        {
+          weekly: { remainingPercent: 70, resetInSec: 120 },
+          monthly: { remainingPercent: 60, resetInSec: 180 },
+        },
+        ctx,
+      ),
+    );
+    expect(result).toContain("W(70%");
+    expect(result).not.toContain("R(");
+  });
+
+  it("omits balance when no window is exhausted", () => {
+    const result = stripStyles(formatOpenCodeBalances(build(), ctx));
+    expect(result).not.toContain("$");
+  });
+
+  it("shows balance when a window is exhausted", () => {
+    const result = formatOpenCodeBalances(
+      build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
+      ctx,
+    );
+    expect(result).toContain("<dim>R(0%");
+    expect(result).toContain("<warning>$12.34</warning>");
+  });
+
+  it("dims exhausted windows when consuming balance", () => {
+    const result = formatOpenCodeBalances(
+      build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
+      ctx,
+    );
+    expect(result).toContain("<dim>R(0%");
+    expect(result).toContain("<warning>$12.34</warning>");
+  });
+
+  it("returns null when only balance is available with no windows", () => {
+    expect(formatOpenCodeBalances({ balanceDollars: 5.0 }, ctx)).toBeNull();
+  });
+});

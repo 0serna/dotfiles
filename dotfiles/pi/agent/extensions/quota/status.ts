@@ -3,7 +3,7 @@ import type {
   CodexUsageWindow,
   ExtensionContext,
   OpenCodeGoData,
-  OpenCodeGoWindowData,
+  WindowLabel,
 } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -14,14 +14,6 @@ const LOW_QUOTA_THRESHOLD_PERCENT = 20;
 const STATUS_SEPARATOR = " ";
 
 type ThemeColor = Parameters<ExtensionContext["ui"]["theme"]["fg"]>[0];
-
-// ---------------------------------------------------------------------------
-// Error helpers
-// ---------------------------------------------------------------------------
-
-export function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 // ---------------------------------------------------------------------------
 // Pure numeric helpers
@@ -83,6 +75,45 @@ function hasPositiveBalance(value: number | undefined): boolean {
   return value != null && value > 0;
 }
 
+// ---------------------------------------------------------------------------
+// Compact window selection
+// ---------------------------------------------------------------------------
+
+type WindowCandidate = {
+  label: WindowLabel;
+  percent: number;
+  resetLabel: string;
+  isPrimary: boolean;
+};
+
+/**
+ * Select which windows to display in compact mode:
+ * - Always include the primary window if available.
+ * - Include longer windows only when below the low-quota threshold.
+ * - If the primary window is missing, fall back to the first available window.
+ */
+export function selectCompactWindows(
+  candidates: WindowCandidate[],
+): WindowCandidate[] {
+  const primary = candidates.find((c) => c.isPrimary);
+  const others = candidates.filter((c) => !c.isPrimary);
+
+  const belowThreshold = others.filter(
+    (c) => c.percent < LOW_QUOTA_THRESHOLD_PERCENT,
+  );
+
+  if (primary) {
+    return [primary, ...belowThreshold];
+  }
+
+  // Primary missing: show first available window as fallback
+  if (candidates.length > 0) {
+    return [candidates[0]!];
+  }
+
+  return [];
+}
+
 function formatCountSegment(
   ctx: ExtensionContext,
   prefix: string,
@@ -101,13 +132,14 @@ function formatMoneySegment(
 }
 
 export function formatPercentResetSegment(
+  label: string,
   remainingPercent: number,
   resetLabel: string,
   ctx: ExtensionContext,
   suppressExhaustedWarning = false,
 ): string {
   const roundedPercent = clampPercent(remainingPercent);
-  const segment = `${roundedPercent}(${resetLabel})`;
+  const segment = `${label}(${roundedPercent}% ${resetLabel})`;
   const color =
     roundedPercent < LOW_QUOTA_THRESHOLD_PERCENT &&
     !(suppressExhaustedWarning && roundedPercent === 0)
@@ -120,60 +152,62 @@ export function formatPercentResetSegment(
 // Codex status formatting
 // ---------------------------------------------------------------------------
 
-function hasCodexQuotaWindows(
-  data: CodexQuotaData,
-): data is CodexQuotaData &
-  Required<
-    Pick<
-      CodexQuotaData,
-      "remaining5h" | "resetAt5h" | "remaining7d" | "resetAt7d"
-    >
-  > {
-  return (
-    data.remaining5h != null &&
-    data.resetAt5h != null &&
-    data.remaining7d != null &&
-    data.resetAt7d != null
-  );
-}
+function codexWindowCandidates(data: CodexQuotaData): WindowCandidate[] {
+  const candidates: WindowCandidate[] = [];
 
-function isConsumingCredits(data: CodexQuotaData): boolean {
-  return (
-    hasPositiveBalance(data.remainingCredits) &&
-    (data.remaining5h === 0 || data.remaining7d === 0)
-  );
+  if (data.remaining5h != null && data.resetAt5h != null) {
+    candidates.push({
+      label: "R",
+      percent: data.remaining5h,
+      resetLabel: formatResetTime(data.resetAt5h),
+      isPrimary: true,
+    });
+  }
+
+  if (data.remaining7d != null && data.resetAt7d != null) {
+    candidates.push({
+      label: "W",
+      percent: data.remaining7d,
+      resetLabel: formatResetTime(data.resetAt7d),
+      isPrimary: false,
+    });
+  }
+
+  return candidates;
 }
 
 export function formatCodexQuotaStatus(
   data: CodexQuotaData,
   ctx: ExtensionContext,
 ): string | null {
-  if (!hasCodexQuotaWindows(data)) return null;
+  const candidates = codexWindowCandidates(data);
+  if (candidates.length === 0) return null;
 
-  const consumingCredits = isConsumingCredits(data);
-  const parts = [
+  const selected = selectCompactWindows(candidates);
+  const windowExhausted = data.remaining5h === 0 || data.remaining7d === 0;
+  const consumingCredits =
+    hasPositiveBalance(data.remainingCredits) && windowExhausted;
+  const belowThreshold = candidates.some(
+    (c) => c.percent < LOW_QUOTA_THRESHOLD_PERCENT,
+  );
+
+  const parts = selected.map((c) =>
     formatPercentResetSegment(
-      data.remaining5h,
-      formatResetTime(data.resetAt5h),
+      c.label,
+      c.percent,
+      c.resetLabel,
       ctx,
       consumingCredits,
     ),
-    formatPercentResetSegment(
-      data.remaining7d,
-      formatResetTime(data.resetAt7d),
-      ctx,
-      consumingCredits,
-    ),
-  ];
+  );
 
-  if (data.bankedResetCredits != null) {
+  if (belowThreshold && data.bankedResetCredits != null) {
     const color = data.bankedResetCredits > 0 ? "accent" : "dim";
     parts.push(formatCountSegment(ctx, "R", data.bankedResetCredits, color));
   }
 
-  if (data.remainingCredits != null) {
-    const color = consumingCredits ? "warning" : "dim";
-    parts.push(formatCountSegment(ctx, "C", data.remainingCredits, color));
+  if (consumingCredits && data.remainingCredits != null) {
+    parts.push(formatCountSegment(ctx, "C", data.remainingCredits, "warning"));
   }
 
   return joinStatusParts(ctx, parts);
@@ -183,56 +217,67 @@ export function formatCodexQuotaStatus(
 // OpenCode Go formatting
 // ---------------------------------------------------------------------------
 
-export function formatOpenCodeResetTime(resetInSec: number): string {
+function formatOpenCodeResetTime(resetInSec: number): string {
   return formatResetTime(Math.floor(Date.now() / 1000) + resetInSec);
 }
 
-export function formatOpenCodeSegment(
-  window: OpenCodeGoWindowData,
-  ctx: ExtensionContext,
-  suppressExhaustedWarning = false,
-): string {
-  return formatPercentResetSegment(
-    window.remainingPercent,
-    formatOpenCodeResetTime(window.resetInSec),
-    ctx,
-    suppressExhaustedWarning,
-  );
-}
+function openCodeWindowCandidates(data: OpenCodeGoData): WindowCandidate[] {
+  const candidates: WindowCandidate[] = [];
 
-function openCodeWindows(data: OpenCodeGoData): OpenCodeGoWindowData[] {
-  return [data.rolling, data.weekly, data.monthly].filter(
-    (window): window is OpenCodeGoWindowData => window != null,
-  );
-}
+  if (data.rolling) {
+    candidates.push({
+      label: "R",
+      percent: clampPercent(data.rolling.remainingPercent),
+      resetLabel: formatOpenCodeResetTime(data.rolling.resetInSec),
+      isPrimary: true,
+    });
+  }
 
-function isConsumingOpenCodeBalance(data: OpenCodeGoData): boolean {
-  return (
-    hasPositiveBalance(data.balanceDollars) &&
-    openCodeWindows(data).some(
-      (window) => clampPercent(window.remainingPercent) === 0,
-    )
-  );
+  if (data.weekly) {
+    candidates.push({
+      label: "W",
+      percent: clampPercent(data.weekly.remainingPercent),
+      resetLabel: formatOpenCodeResetTime(data.weekly.resetInSec),
+      isPrimary: false,
+    });
+  }
+
+  if (data.monthly) {
+    candidates.push({
+      label: "M",
+      percent: clampPercent(data.monthly.remainingPercent),
+      resetLabel: formatOpenCodeResetTime(data.monthly.resetInSec),
+      isPrimary: false,
+    });
+  }
+
+  return candidates;
 }
 
 export function formatOpenCodeBalances(
   data: OpenCodeGoData,
   ctx: ExtensionContext,
 ): string | null {
-  const windows = openCodeWindows(data);
-  if (windows.length === 0 && data.balanceDollars == null) return null;
+  const candidates = openCodeWindowCandidates(data);
+  if (candidates.length === 0) return null;
 
-  const consumingBalance = isConsumingOpenCodeBalance(data);
-  const parts =
-    windows.length === 3
-      ? windows.map((window) =>
-          formatOpenCodeSegment(window, ctx, consumingBalance),
-        )
-      : [];
+  const windowExhausted = candidates.some((c) => c.percent === 0);
+  const consumingBalance =
+    hasPositiveBalance(data.balanceDollars) && windowExhausted;
 
-  if (data.balanceDollars != null) {
-    const color = consumingBalance ? "warning" : "dim";
-    parts.push(formatMoneySegment(ctx, data.balanceDollars, color));
+  const selected = selectCompactWindows(candidates);
+  const parts = selected.map((c) =>
+    formatPercentResetSegment(
+      c.label,
+      c.percent,
+      c.resetLabel,
+      ctx,
+      consumingBalance,
+    ),
+  );
+
+  if (consumingBalance && data.balanceDollars != null) {
+    parts.push(formatMoneySegment(ctx, data.balanceDollars, "warning"));
   }
 
   return parts.length > 0 ? joinStatusParts(ctx, parts) : null;

@@ -60,22 +60,22 @@ function publishCombinedStatus(ctx: ExtensionContext, reason: string): void {
     return;
   }
 
-  const ocStatus = formatProviderStatus(
-    "OC",
-    lastStatus.opencodeGoError,
-    lastStatus.opencodeGo,
-    formatOpenCodeBalances,
-    ctx,
-  );
   const codexStatus = formatProviderStatus(
-    "CODEX",
+    "Codex",
     lastStatus.codexError,
     lastStatus.codex,
     formatCodexQuotaStatus,
     ctx,
   );
+  const ocStatus = formatProviderStatus(
+    "OpenCode",
+    lastStatus.opencodeGoError,
+    lastStatus.opencodeGo,
+    formatOpenCodeBalances,
+    ctx,
+  );
 
-  const statusText = `${ocStatus}${ctx.ui.theme.fg("dim", " │ ")}${codexStatus}`;
+  const statusText = `${codexStatus}${ctx.ui.theme.fg("dim", " │ ")}${ocStatus}`;
   logger.log("status_published", { reason, status: statusText });
   setStatusSafely(ctx, reason, statusText);
 }

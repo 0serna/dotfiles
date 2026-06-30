@@ -1,10 +1,4 @@
-# pi-codex-usage-footer Specification
-
-## Purpose
-
-TBD - created by archiving change add-codex-compact-footer. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Pi footer displays compact Codex quota headroom
 
@@ -52,77 +46,6 @@ The Pi footer SHALL represent Codex quota windows as remaining headroom rather t
 - **AND** any Codex quota window is exhausted
 - **THEN** the footer displays the credits segment as `C<n>`
 - **AND** the footer does not format the value as currency
-
-### Requirement: Codex quota footer remains visible independently of active provider
-
-The Pi footer SHALL continue to display the Codex quota status independently of which model provider is currently active.
-
-#### Scenario: Active model is Codex
-
-- **WHEN** the active model provider is Codex
-- **THEN** the footer displays the compact Codex quota status alongside the rest of the footer information
-
-#### Scenario: Active model is not Codex
-
-- **WHEN** the active model provider is not Codex
-- **THEN** the footer still displays the compact Codex quota status alongside the rest of the footer information
-
-### Requirement: Codex quota footer uses Pi Codex authentication
-
-The Pi footer SHALL resolve Codex usage authentication from Pi's Codex login credentials rather than from external tool-specific auth files.
-
-#### Scenario: Pi Codex authentication is available
-
-- **WHEN** Pi has usable Codex authentication for the Codex quota footer
-- **THEN** the footer uses that authentication to request Codex quota data
-- **AND** the footer displays the compact Codex quota status when quota data is returned
-
-#### Scenario: Pi Codex authentication refreshes successfully
-
-- **WHEN** Pi Codex authentication requires refresh before Codex quota data can be requested
-- **THEN** the footer uses Pi's authentication mechanism to obtain a usable access token
-- **AND** the footer requests Codex quota data with the refreshed authentication
-
-#### Scenario: External tool auth exists but Pi Codex authentication is unavailable
-
-- **WHEN** external tool-specific Codex authentication exists outside Pi
-- **AND** Pi Codex authentication is unavailable
-- **THEN** the footer does not use the external tool-specific authentication for Codex quota data
-- **AND** the footer reports the missing Pi Codex authentication state
-
-### Requirement: Codex quota footer reports missing Pi authentication
-
-The Pi footer SHALL display a compact Codex authentication status when Pi Codex authentication is unavailable.
-
-#### Scenario: Pi Codex authentication is missing
-
-- **WHEN** the Codex quota footer cannot obtain usable Pi Codex authentication
-- **THEN** the footer displays `codex auth missing` for the Codex quota status
-- **AND** the footer does not invent quota values
-
-### Requirement: Codex quota footer preserves cached data after transient fetch failures
-
-The Pi footer SHALL retry a failed Codex quota fetch once after obtaining usable authentication, and SHALL preserve the last known Codex quota status if the retry also fails.
-
-#### Scenario: Retry succeeds
-
-- **WHEN** the first Codex quota fetch attempt fails after usable authentication is obtained
-- **AND** the immediate retry succeeds
-- **THEN** the footer displays the quota status from the successful retry
-
-#### Scenario: Retry fails and cached data exists
-
-- **WHEN** the first Codex quota fetch attempt fails after usable authentication is obtained
-- **AND** the immediate retry also fails
-- **AND** cached Codex quota data exists
-- **THEN** the footer keeps displaying the cached Codex quota status
-
-#### Scenario: Retry fails and no cached data exists
-
-- **WHEN** the first Codex quota fetch attempt fails after usable authentication is obtained
-- **AND** the immediate retry also fails
-- **AND** no cached Codex quota data exists
-- **THEN** the footer omits quota values rather than displaying invented data
 
 ### Requirement: Pi footer displays OpenCode Go usage quota headroom
 
@@ -174,22 +97,6 @@ The Pi footer SHALL display the OpenCode Go dashboard balance as a remaining dol
 - **THEN** the footer displays the available OpenCode Go usage windows according to the compact window visibility rules
 - **AND** the footer omits the OpenCode Go balance segment rather than displaying an invented zero value
 
-### Requirement: OpenCode Go quota footer uses dashboard cookie configuration
-
-The Pi footer SHALL request OpenCode Go quota data from the OpenCode dashboard only when both the OpenCode Go workspace ID and dashboard auth cookie are configured.
-
-#### Scenario: OpenCode Go dashboard configuration is complete
-
-- **WHEN** `OPENCODE_GO_WORKSPACE_ID` and `OPENCODE_GO_AUTH_COOKIE` are both configured
-- **THEN** the footer uses the configured workspace ID and auth cookie to request the OpenCode Go dashboard
-- **AND** the footer parses OpenCode Go usage data from the dashboard response when present
-
-#### Scenario: OpenCode Go dashboard configuration is incomplete
-
-- **WHEN** either `OPENCODE_GO_WORKSPACE_ID` or `OPENCODE_GO_AUTH_COOKIE` is not configured
-- **THEN** the footer does not attempt an OpenCode Go dashboard request
-- **AND** the missing OpenCode Go configuration does not prevent Codex quota data from being displayed
-
 ### Requirement: Combined usage quota footer preserves provider isolation
 
 The Pi footer SHALL combine Codex quota and OpenCode Go quota into one compact quota status while treating each provider as an independently available data source.
@@ -219,36 +126,6 @@ The Pi footer SHALL combine Codex quota and OpenCode Go quota into one compact q
 
 - **WHEN** neither Codex quota data nor OpenCode Go quota data is available
 - **THEN** the footer does not invent quota values
-
-### Requirement: Combined usage quota footer fetches providers independently
-
-The Pi footer SHALL refresh Codex quota data and OpenCode Go quota data independently so that latency or failure in one source does not block the other source.
-
-#### Scenario: Provider refreshes run during a quota update
-
-- **WHEN** the quota footer refreshes usage data
-- **THEN** Codex quota fetching and OpenCode Go quota fetching are initiated as independent operations
-- **AND** each provider result is resolved into the combined usage quota status according to its own success or failure state
-
-### Requirement: Combined quota footer uses a single quota extension status
-
-The Pi footer SHALL render the combined quota status from a single quota extension status entry so that Codex and OpenCode quota data appear once in the footer.
-
-#### Scenario: Quota status is available
-
-- **WHEN** the quota extension publishes a combined quota status
-- **THEN** the custom Pi footer displays that status as the quota area of the footer
-- **AND** the same quota status is not duplicated in the other extension status area
-
-### Requirement: Combined quota footer remains available after extension directory refactor
-
-The managed Pi quota extension SHALL remain discoverable as a Pi extension after it is represented as a directory-based extension.
-
-#### Scenario: Pi discovers managed extensions
-
-- **WHEN** Pi discovers extensions from the managed agent extensions directory
-- **THEN** the combined quota extension is available from the directory-based quota extension entrypoint
-- **AND** the old Codex-named entrypoint is not also loaded as a duplicate quota extension
 
 ### Requirement: Codex quota footer displays banked reset credits
 

@@ -50,6 +50,8 @@ export type OpenCodeGoData = {
   balanceDollars?: number;
 };
 
+export type WindowLabel = "R" | "W" | "M";
+
 export type UsageQuotaStatus = {
   codex: CodexQuotaData | null;
   codexError: string | null;
