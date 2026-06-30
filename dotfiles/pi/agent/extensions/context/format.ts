@@ -145,5 +145,5 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
 }
 
 export function isCacheBelowThreshold(cacheInfo: CacheInfo): boolean {
-  return cacheInfo.belowThresholdStreak >= 2;
+  return cacheInfo.belowThresholdStreak > 3;
 }

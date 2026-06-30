@@ -190,14 +190,26 @@ describe("isCacheBelowThreshold", () => {
     ).toBe(false);
   });
 
-  it("returns true when at least two latest percents are below threshold", () => {
+  it("returns false when only three latest percents are below threshold", () => {
     expect(
       isCacheBelowThreshold({
         text: "◉ 79%",
         percent: 79,
         input: 210,
         cacheRead: 790,
-        belowThresholdStreak: 2,
+        belowThresholdStreak: 3,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true when more than three latest percents are below threshold", () => {
+    expect(
+      isCacheBelowThreshold({
+        text: "◉ 79%",
+        percent: 79,
+        input: 210,
+        cacheRead: 790,
+        belowThresholdStreak: 4,
       }),
     ).toBe(true);
   });
