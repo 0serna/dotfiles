@@ -13,19 +13,20 @@ Refresh generated OpenSpec skill files from the latest CLI without manually rewr
    npm install -g @fission-ai/openspec@latest
    ```
    Complete when `openspec --version` succeeds.
-2. Create a clean staging directory under `/tmp/`.
+2. Create a clean staging directory with `mktemp -d` under `/tmp/`.
    Complete when the staging directory exists and contains no state from a previous run.
 3. Run `openspec init --tools pi` in the staging directory.
    Complete when the staging directory contains generated `.pi/skills/openspec-*` directories.
 4. Replace generated target skills in `dotfiles/agents/skills/`.
    - Remove existing target directories matching `openspec-*`.
    - Copy generated source directories matching `openspec-*`, except `openspec-explore`.
-     Complete when the target contains only the copied generated OpenSpec skill directories and no `openspec-explore` directory.
+     Complete when, among `openspec-*` directories, the target contains only the copied generated OpenSpec skill directories and no `openspec-explore` directory.
 5. Verify the copied skills.
    - Compare every copied target directory with its matching source directory using `diff -r`.
    - Count source `openspec-*` directories excluding `openspec-explore`.
    - Count copied target `openspec-*` directories.
-     Complete when every copied directory has a clean diff, the target count equals the expected source count, and stale generated target directories are absent.
+   - Run `npm run check`.
+     Complete when every copied directory has a clean diff, the target count equals the expected source count, stale generated target directories are absent, and the check passes.
 
 ## Failure handling
 
@@ -39,3 +40,4 @@ Return a concise summary with:
 - update result
 - copied skill count
 - verification results, including any count deviations
+- quality gate result
