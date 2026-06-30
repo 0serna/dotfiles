@@ -61,11 +61,18 @@ function isIgnoredTool(toolName: string): boolean {
   return IGNORED_TOOL_NAMES.has(normalizedToolName(toolName));
 }
 
-const PI_BASH_FULL_OUTPUT_FILE_PATTERN = /^pi-bash-[A-Za-z0-9]+\.log$/;
-
 function isReusableFullOutputPath(filePath: string): boolean {
-  if (dirname(filePath) !== tmpdir()) return false;
-  if (!PI_BASH_FULL_OUTPUT_FILE_PATTERN.test(basename(filePath))) return false;
+  const dir = dirname(filePath);
+  const name = basename(filePath);
+
+  const knownPattern =
+    (dir === tmpdir() && /^pi-bash-[A-Za-z0-9]+\.log$/.test(name)) ||
+    (dir === `${tmpdir()}/pi-web-fetch` &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.txt$/i.test(
+        name,
+      ));
+
+  if (!knownPattern) return false;
 
   try {
     accessSync(filePath, constants.R_OK);
@@ -76,7 +83,7 @@ function isReusableFullOutputPath(filePath: string): boolean {
 }
 
 function extractFullOutputPath(text: string): string | null {
-  const match = text.match(/Full output:\s*([^\s\]]+)/);
+  const match = text.match(/Full (?:output|content saved to):\s*([^\s\]]+)/);
   const filePath = match?.[1];
   return filePath !== undefined && isReusableFullOutputPath(filePath)
     ? filePath

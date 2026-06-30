@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, statSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { describe, expect, it } from "vitest";
@@ -62,6 +68,63 @@ describe("context DCP pruning externalization", () => {
       "full original output content",
     );
     expect(statSync(existingPath).mode & 0o777).toBe(0o644);
+  });
+
+  it("reuses existing web_fetch full-content path instead of creating DCP-owned copy", () => {
+    const existingDir = join(tmpdir(), "pi-web-fetch");
+    const existingPath = join(
+      existingDir,
+      "123e4567-e89b-12d3-a456-426614174000.txt",
+    );
+    mkdirSync(existingDir, { recursive: true });
+    writeFileSync(existingPath, "full fetched content", {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+
+    const truncatedText = `[Content truncated: 20 of 200 lines. Full content saved to: ${existingPath}]`;
+    const messages = [
+      assistantToolCall("a", "web_fetch", { url: "https://example.com" }),
+      toolResult("a", "web_fetch", big() + truncatedText),
+      ...dcpTail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, {
+      sessionId: "test-web-fetch-reuse-session",
+    });
+
+    const stubText = textOf(pruned[1]!);
+    expect(stubText).toContain("reason=stale_large");
+    expect(stubText).toContain(`saved=${existingPath}`);
+    expect(stubText).not.toContain(
+      "saved=/tmp/pi-dcp/test-web-fetch-reuse-session-",
+    );
+    expect(readFileSync(existingPath, "utf8")).toBe("full fetched content");
+  });
+
+  it("falls back to DCP-owned file when web_fetch full-content path is missing", () => {
+    const missingPath = join(
+      tmpdir(),
+      "pi-web-fetch",
+      "123e4567-e89b-12d3-a456-426614174999.txt",
+    );
+    const truncatedText = `[Content truncated: 20 of 200 lines. Full content saved to: ${missingPath}]`;
+    const messages = [
+      assistantToolCall("a", "web_fetch", { url: "https://example.com" }),
+      toolResult("a", "web_fetch", big() + truncatedText),
+      ...dcpTail(),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages, {
+      sessionId: "test-web-fetch-fallback-session",
+    });
+
+    const stubText = textOf(pruned[1]!);
+    expect(stubText).toContain("reason=stale_large");
+    expect(stubText).toContain(
+      "saved=/tmp/pi-dcp/test-web-fetch-fallback-session-0001.txt",
+    );
+    expect(stubText).not.toContain(missingPath);
   });
 
   it("falls back to DCP-owned file when full-output path is missing", () => {
