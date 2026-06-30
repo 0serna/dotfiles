@@ -25,7 +25,7 @@ describe("context DCP pruning externalization", () => {
 
     const stubText = textOf(pruned[1]!);
     expect(stubText).toContain("reason=stale_large");
-    expect(stubText).toContain("saved=/tmp/pi-dcp/test-ext-session/");
+    expect(stubText).toContain("saved=/tmp/pi-dcp/test-ext-session-0001.txt");
 
     const pathMatch = stubText.match(/saved=([^"\]]+)/);
     expect(pathMatch).not.toBeNull();
@@ -57,7 +57,7 @@ describe("context DCP pruning externalization", () => {
     const stubText = textOf(pruned[1]!);
     expect(stubText).toContain("reason=stale_large");
     expect(stubText).toContain(`saved=${existingPath}`);
-    expect(stubText).not.toContain("saved=/tmp/pi-dcp/test-reuse-session/");
+    expect(stubText).not.toContain("saved=/tmp/pi-dcp/test-reuse-session-");
     expect(readFileSync(existingPath, "utf8")).toBe(
       "full original output content",
     );
@@ -79,7 +79,9 @@ describe("context DCP pruning externalization", () => {
 
     const stubText = textOf(pruned[1]!);
     expect(stubText).toContain("reason=stale_large");
-    expect(stubText).toContain("saved=/tmp/pi-dcp/test-fallback-session/");
+    expect(stubText).toContain(
+      "saved=/tmp/pi-dcp/test-fallback-session-0001.txt",
+    );
     expect(stubText).not.toContain(missingPath);
 
     const pathMatch = stubText.match(/saved=([^"\]]+)/);

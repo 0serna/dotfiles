@@ -132,11 +132,7 @@ async function formatFetchContent(
     return { text: content, details: { contentLength: content.length } };
   }
 
-  const fullOutputPath = await writeTempOutput(
-    "pi-web-fetch",
-    "content.txt",
-    content,
-  );
+  const fullOutputPath = await writeTempOutput("pi-web-fetch", content);
   const text = `${truncation.content}\n\n[Content truncated: ${truncation.outputLines} of ${truncation.totalLines} lines (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}). Full content saved to: ${fullOutputPath}]`;
 
   logWebToolEvent("web_fetch_truncated", {

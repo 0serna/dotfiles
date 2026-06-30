@@ -1,7 +1,8 @@
 import { estimateTokens as estimateMessageTokens } from "@earendil-works/pi-coding-agent";
-import { accessSync, chmodSync, constants, mkdirSync, writeFileSync } from "fs";
+import { accessSync, constants } from "fs";
 import { tmpdir } from "os";
-import { basename, dirname, join } from "path";
+import { basename, dirname } from "path";
+import { writeTempOutputSync } from "../shared/temp-output.js";
 import {
   asRecord,
   extractTextContent,
@@ -55,8 +56,6 @@ function isErrorResult(
 }
 
 const IGNORED_TOOL_NAMES = new Set(["question", "multi_tool_use.parallel"]);
-const DCP_DIRECTORY_MODE = 0o700;
-const DCP_FILE_MODE = 0o600;
 
 function isIgnoredTool(toolName: string): boolean {
   return IGNORED_TOOL_NAMES.has(normalizedToolName(toolName));
@@ -322,25 +321,14 @@ export type PruneResult<T> = {
   metrics: PruneMetrics;
 };
 
-function ensurePrivateDirectory(path: string): void {
-  mkdirSync(path, { recursive: true, mode: DCP_DIRECTORY_MODE });
-  chmodSync(path, DCP_DIRECTORY_MODE);
-}
-
 function externalizeOutput(
   text: string,
   sessionId: string,
   sequenceNumber: number,
 ): string {
-  const baseDir = join(tmpdir(), "pi-dcp");
-  const dir = join(baseDir, sessionId);
-  ensurePrivateDirectory(baseDir);
-  ensurePrivateDirectory(dir);
-
-  const filePath = join(dir, `${String(sequenceNumber).padStart(4, "0")}.txt`);
-  writeFileSync(filePath, text, { encoding: "utf8", mode: DCP_FILE_MODE });
-  chmodSync(filePath, DCP_FILE_MODE);
-  return filePath;
+  return writeTempOutputSync("pi-dcp", text, {
+    id: `${sessionId}-${String(sequenceNumber).padStart(4, "0")}`,
+  });
 }
 
 export function pruneMessages<T>(
