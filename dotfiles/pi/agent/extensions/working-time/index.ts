@@ -2,11 +2,7 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import {
-  formatDuration,
-  inferLastDuration,
-  type SessionEntry,
-} from "./helpers.ts";
+import { formatDuration } from "./format.ts";
 
 export default function (pi: ExtensionAPI) {
   let startTime: number | null = null;
@@ -19,17 +15,20 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
-  function statusText(ctx: ExtensionContext, ms: number): string {
-    return ctx.ui.theme.fg("dim", `⏱ ${formatDuration(ms)}`);
+  function setWorkingTime(ctx: ExtensionContext, ms: number): void {
+    ctx.ui.setWorkingMessage(
+      ctx.ui.theme.fg("muted", `Working ${formatDuration(ms)}`),
+    );
   }
 
   pi.on("agent_start", (_event, ctx) => {
     startTime = Date.now();
-    ctx.ui.setStatus("duration", statusText(ctx, 0));
     clearLiveInterval();
+    ctx.ui.setWorkingIndicator({ frames: [ctx.ui.theme.fg("accent", "▸")] });
+    setWorkingTime(ctx, 0);
     intervalId = setInterval(() => {
       if (startTime !== null) {
-        ctx.ui.setStatus("duration", statusText(ctx, Date.now() - startTime));
+        setWorkingTime(ctx, Date.now() - startTime);
       }
     }, 1000);
   });
@@ -38,21 +37,15 @@ export default function (pi: ExtensionAPI) {
     clearLiveInterval();
     if (startTime !== null) {
       const elapsed = Date.now() - startTime;
-      ctx.ui.setStatus("duration", statusText(ctx, elapsed));
+      ctx.ui.notify(`Completed in ${formatDuration(elapsed)}`, "info");
       startTime = null;
     }
+    ctx.ui.setWorkingMessage();
   });
 
-  pi.on("session_shutdown", () => {
+  pi.on("session_shutdown", (_event, ctx) => {
     clearLiveInterval();
     startTime = null;
-  });
-
-  pi.on("session_start", (_event, ctx) => {
-    const entries = ctx.sessionManager.getEntries() as SessionEntry[];
-    const inferred = inferLastDuration(entries);
-    if (inferred !== null) {
-      ctx.ui.setStatus("duration", statusText(ctx, inferred));
-    }
+    ctx.ui.setWorkingMessage();
   });
 }
