@@ -22,12 +22,10 @@ function formatCwdWithBranch(
 
 function formatModelInfo(
   modelId: string | null | undefined,
-  provider: string | null | undefined,
   thinking: string,
   theme: Theme,
 ): string {
-  const modelInfo = modelId && provider ? `${provider}/${modelId}` : modelId;
-  return theme.fg("dim", modelInfo ? `${modelInfo}/${thinking}` : thinking);
+  return theme.fg("dim", modelId ? `${modelId}/${thinking}` : thinking);
 }
 
 export default function (pi: ExtensionAPI) {
@@ -54,7 +52,6 @@ export default function (pi: ExtensionAPI) {
             const branch = footerData.getGitBranch();
             const thinking = pi.getThinkingLevel();
             const modelId = ctx.model?.id;
-            const provider = ctx.model?.provider;
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
             const usageQuota = extStatuses.get("quota");
@@ -67,7 +64,7 @@ export default function (pi: ExtensionAPI) {
             const sections = [
               formatCwdWithBranch(cwd, branch, theme),
               profileStatus,
-              formatModelInfo(modelId, provider, thinking, theme),
+              formatModelInfo(modelId, thinking, theme),
               ...ordered,
               ...remaining,
             ].filter(Boolean);
