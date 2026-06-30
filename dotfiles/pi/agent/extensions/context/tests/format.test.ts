@@ -78,7 +78,7 @@ describe("formatCurrentUsage", () => {
 describe("formatCacheHit", () => {
   it("returns unavailable reason when no entries exist", () => {
     expect(formatCacheHit([])).toEqual({
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: 0,
       cacheRead: 0,
@@ -93,7 +93,7 @@ describe("formatCacheHit", () => {
     ];
 
     expect(formatCacheHit(entries)).toEqual({
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: 0,
       cacheRead: 0,
@@ -109,7 +109,7 @@ describe("formatCacheHit", () => {
     ];
 
     expect(formatCacheHit(entries)).toEqual({
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: 200,
       cacheRead: 0,
@@ -125,7 +125,7 @@ describe("formatCacheHit", () => {
     ];
 
     expect(formatCacheHit(entries)).toEqual({
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: 0,
       cacheRead: 0,
@@ -141,7 +141,7 @@ describe("formatCacheHit", () => {
     ];
 
     expect(formatCacheHit(entries)).toEqual({
-      text: "cache 60%",
+      text: "◉ 60%",
       percent: 60,
       input: 200,
       cacheRead: 300,
@@ -157,7 +157,7 @@ describe("formatCacheHit", () => {
     ];
 
     expect(formatCacheHit(entries)).toMatchObject({
-      text: "cache 10%",
+      text: "◉ 10%",
       percent: 10,
       belowThresholdStreak: 2,
     });
@@ -168,7 +168,7 @@ describe("isCacheBelowThreshold", () => {
   it("returns false when only the latest percent is below threshold", () => {
     expect(
       isCacheBelowThreshold({
-        text: "cache 0%",
+        text: "◉ 0%",
         percent: 0,
         input: 0,
         cacheRead: 0,
@@ -181,7 +181,7 @@ describe("isCacheBelowThreshold", () => {
   it("returns false when percent meets threshold", () => {
     expect(
       isCacheBelowThreshold({
-        text: "cache 80%",
+        text: "◉ 80%",
         percent: 80,
         input: 100,
         cacheRead: 400,
@@ -193,7 +193,7 @@ describe("isCacheBelowThreshold", () => {
   it("returns true when at least two latest percents are below threshold", () => {
     expect(
       isCacheBelowThreshold({
-        text: "cache 79%",
+        text: "◉ 79%",
         percent: 79,
         input: 210,
         cacheRead: 790,

@@ -18,7 +18,7 @@ function formatCwdWithBranch(
   branch: string | null,
   theme: Theme,
 ): string {
-  return theme.fg("dim", branch ? `${cwd} (${branch})` : cwd);
+  return theme.fg("dim", branch ? `${cwd} › ${branch}` : cwd);
 }
 
 function formatModelInfo(
@@ -26,7 +26,7 @@ function formatModelInfo(
   thinking: string,
   theme: Theme,
 ): string {
-  return theme.fg("dim", modelId ? `${modelId}/${thinking}` : thinking);
+  return theme.fg("dim", modelId ? `${modelId} › ${thinking}` : thinking);
 }
 
 export default function (pi: ExtensionAPI) {

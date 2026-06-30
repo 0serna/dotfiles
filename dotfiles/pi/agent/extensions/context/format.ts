@@ -100,7 +100,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
 
   if (!latestUsage) {
     return {
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: 0,
       cacheRead: 0,
@@ -113,7 +113,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
 
   if (allCacheReadZero) {
     return {
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: latestUsage.input,
       cacheRead: latestUsage.cacheRead,
@@ -126,7 +126,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
 
   if (latestUsage.input + latestUsage.cacheRead === 0) {
     return {
-      text: "cache 0%",
+      text: "◉ 0%",
       percent: 0,
       input: latestUsage.input,
       cacheRead: latestUsage.cacheRead,
@@ -136,7 +136,7 @@ export function formatCacheHit(entries: CacheUsageEntry[]): CacheInfo {
   }
 
   return {
-    text: `cache ${formatPercent(percent)}`,
+    text: `◉ ${formatPercent(percent)}`,
     percent,
     input: latestUsage.input,
     cacheRead: latestUsage.cacheRead,

@@ -53,11 +53,11 @@ function publishStatus(
     logCacheStatus(logger, cacheInfo, usage, lastDcp);
   }
 
-  const contextText = `ctx ${formatCurrentUsage(usage)}`;
+  const contextText = `Σ ${formatCurrentUsage(usage)}`;
   const styledContext = isContextOverLimit(usage)
     ? ctx.ui.theme.fg("warning", contextText)
     : ctx.ui.theme.fg("dim", contextText);
-  const savedText = `saved ${formatK(lastDcp.estimatedSavedTokens)}`;
+  const savedText = `↓ ${formatK(lastDcp.estimatedSavedTokens)}`;
   const styledSaved = ctx.ui.theme.fg("dim", savedText);
   const styledCache = isCacheBelowThreshold(cacheInfo)
     ? ctx.ui.theme.fg("warning", cacheInfo.text)
