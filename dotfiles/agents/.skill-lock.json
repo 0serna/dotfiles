@@ -24,9 +24,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/fallow-rs/fallow-skills.git",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "skillFolderHash": "d0f19f7f4a8cb03f14d8796d6c5171c55319b9be",
+      "skillFolderHash": "ca0fcda02f60fa450d28eb4e4c8d4e5a1dba36e8",
       "installedAt": "2026-05-19T16:54:29.764Z",
-      "updatedAt": "2026-06-25T16:09:21.394Z"
+      "updatedAt": "2026-06-30T16:12:45.227Z"
     },
     "writing-great-skills": {
       "source": "mattpocock/skills",

@@ -20,7 +20,6 @@ Update these tools with these exact methods:
 | Tool         | Method                             | Version check          |
 | ------------ | ---------------------------------- | ---------------------- |
 | `playwriter` | `npm install -g playwriter@latest` | `playwriter --version` |
-| `rtk`        | `brew upgrade rtk`                 | `rtk --version`        |
 | `ctx7`       | `npm install -g ctx7@latest`       | `ctx7 --version`       |
 | `skills`     | `npx skills update -g -y`          | `npx skills --version` |
 
@@ -40,8 +39,6 @@ Update these tools with these exact methods:
 
 ## Failure Handling
 
-- If `brew upgrade rtk` reports already up-to-date, count that as OK.
-- If `brew upgrade rtk` fails (formula unavailable, Homebrew missing, etc.), count only `rtk` as failed and continue.
 - If `npm install -g ...` or `npx skills update -g -y` fails, count only the affected tool as failed and continue.
 - Version checks are best effort. A failed version check is not an update failure when the update command itself succeeded.
 
