@@ -45,16 +45,14 @@ describe("executeWebFetch", () => {
     mocks.callExaContents.mockResolvedValue(null);
   });
 
-  it("returns an error for invalid URLs", async () => {
-    const invalidProtocol = await executeWebFetch("tool-1", {
-      url: "file:///tmp/example.txt",
-    });
-    const empty = await executeWebFetch("tool-1", { url: "" });
+  it("throws an error for invalid URLs", async () => {
+    await expect(
+      executeWebFetch("tool-1", { url: "file:///tmp/example.txt" }),
+    ).rejects.toThrow("Invalid URL");
+    await expect(executeWebFetch("tool-1", { url: "" })).rejects.toThrow(
+      "Invalid URL",
+    );
 
-    expect(invalidProtocol.isError).toBe(true);
-    expect(textOf(invalidProtocol)).toContain("Invalid URL");
-    expect(empty.isError).toBe(true);
-    expect(textOf(empty)).toContain("Invalid URL");
     expect(mocks.classifyGitHubUrl).not.toHaveBeenCalled();
   });
 
@@ -122,20 +120,31 @@ describe("executeWebFetch", () => {
     expect(mocks.callExaContents).not.toHaveBeenCalled();
   });
 
-  it("returns a clean error when all tiers fail", async () => {
-    const result = await executeWebFetch("tool-1", {
-      url: "https://example.com/all-fail",
-    });
-
-    expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain("Failed to fetch content");
-    expect(textOf(result)).toContain("All retrieval tiers failed");
-    expect(result.details.fetchError).toBe(
-      "All retrieval tiers failed to provide content",
+  it("throws a clean error when all tiers fail", async () => {
+    await expect(
+      executeWebFetch("tool-1", { url: "https://example.com/all-fail" }),
+    ).rejects.toThrow(
+      "Failed to fetch content: All retrieval tiers failed to provide content",
     );
+
     expect(mocks.extractViaHttp).toHaveBeenCalledOnce();
     expect(mocks.tryCloudflareMarkdown).toHaveBeenCalledOnce();
     expect(mocks.callExaContents).toHaveBeenCalledOnce();
+  });
+
+  it("truncates large content and records a full output path", async () => {
+    const content = `${"line\n".repeat(3000)}end`;
+    mocks.extractViaHttp.mockResolvedValue(content);
+
+    const result = await executeWebFetch("tool-1", {
+      url: "https://example.com/large-content",
+    });
+
+    expect(textOf(result)).toContain("[Content truncated:");
+    expect(textOf(result)).toContain("Full content saved to:");
+    expect(result.details.contentLength).toBe(content.length);
+    expect(result.details.truncated).toBe(true);
+    expect(result.details.fullOutputPath).toEqual(expect.any(String));
   });
 
   it("returns cached content without calling tiers again", async () => {

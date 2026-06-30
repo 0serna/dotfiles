@@ -41,11 +41,11 @@ describe("executeWebSearch", () => {
     delete process.env.TAVILY_API_KEY;
   });
 
-  it("returns an error for an empty query", async () => {
-    const result = await executeWebSearch("tool-1", { query: "   " });
+  it("throws an error for an empty query", async () => {
+    await expect(executeWebSearch("tool-1", { query: "   " })).rejects.toThrow(
+      "A query is required",
+    );
 
-    expect(result.isError).toBe(true);
-    expect(textOf(result)).toContain("A query is required");
     expect(mocks.callExaSearch).not.toHaveBeenCalled();
     expect(mocks.callTavilySearch).not.toHaveBeenCalled();
   });
@@ -138,28 +138,26 @@ describe("executeWebSearch", () => {
     expect(result.details).toEqual({ sourceCount: 1 });
   });
 
-  it("returns an error when both providers fail", async () => {
+  it("throws an error when both providers fail", async () => {
     process.env.EXA_API_KEY = "exa-key";
     process.env.TAVILY_API_KEY = "tavily-key";
     mocks.callExaSearch.mockRejectedValue(new Error("exa down"));
     mocks.callTavilySearch.mockResolvedValue(null);
 
-    const result = await executeWebSearch("tool-1", { query: "typescript" });
-
-    expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe("Search failed");
+    await expect(
+      executeWebSearch("tool-1", { query: "typescript" }),
+    ).rejects.toThrow("Search failed");
   });
 
-  it("returns an error when both providers return no results", async () => {
+  it("throws an error when both providers return no results", async () => {
     process.env.EXA_API_KEY = "exa-key";
     process.env.TAVILY_API_KEY = "tavily-key";
     mocks.callExaSearch.mockResolvedValue({ results: [] });
     mocks.callTavilySearch.mockResolvedValue({ results: [] });
 
-    const result = await executeWebSearch("tool-1", { query: "typescript" });
-
-    expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe("Search failed");
+    await expect(
+      executeWebSearch("tool-1", { query: "typescript" }),
+    ).rejects.toThrow("Search failed");
   });
 
   it("deduplicates URLs preserving the first interleaved occurrence", async () => {

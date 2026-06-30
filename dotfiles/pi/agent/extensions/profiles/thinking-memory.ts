@@ -37,8 +37,15 @@ export function recordLevel(modelId: string, level: ThinkingLevel): void {
 }
 
 function writeMemory(): void {
+  writeTimer = undefined;
   const filePath = memoryFilePath();
   void mkdir(dirname(filePath), { recursive: true }).then(() =>
     writeFile(filePath, JSON.stringify(memory, null, 2), "utf8"),
   );
+}
+
+export function flushThinkingMemory(): void {
+  if (!writeTimer) return;
+  clearTimeout(writeTimer);
+  writeMemory();
 }

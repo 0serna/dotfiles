@@ -2,6 +2,7 @@ import {
   createExtensionLogger,
   type ExtensionLogger,
 } from "../shared/logger.ts";
+import { isTuiMode } from "../shared/mode.ts";
 
 import type {
   ExtensionAPI,
@@ -30,11 +31,11 @@ async function handleSensitiveCommand(
 
   logger.log("sensitive_detected", { cwd: ctx.cwd, scope, command });
 
-  if (!ctx.hasUI) {
-    logger.log("blocked_no_ui", { cwd: ctx.cwd, scope, command });
+  if (!isTuiMode(ctx)) {
+    logger.log("blocked_no_tui", { cwd: ctx.cwd, scope, command });
     return {
       block: true,
-      reason: "Sensitive command blocked (no UI for confirmation)",
+      reason: "Sensitive command blocked (TUI confirmation unavailable)",
     };
   }
 

@@ -108,14 +108,16 @@ export async function promptForSensitiveCommand(
     }
   });
 
+  const resolvedChoice = choice ?? { type: "block" as const };
+
   logger.log("approval_choice", {
     cwd: ctx.cwd,
     scope,
-    choice: choice.type,
+    choice: resolvedChoice.type,
     command,
   });
 
-  if (choice.type === "allow-session") {
+  if (resolvedChoice.type === "allow-session") {
     approveForSession(approvalKey);
     logger.log("session_approval_stored", {
       cwd: ctx.cwd,
@@ -124,7 +126,7 @@ export async function promptForSensitiveCommand(
     });
     return;
   }
-  if (choice.type === "allow-once") {
+  if (resolvedChoice.type === "allow-once") {
     return;
   }
   logger.log("blocked_by_user", { cwd: ctx.cwd, scope, command });

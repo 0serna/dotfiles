@@ -1,6 +1,14 @@
-import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
+import {
+  DEFAULT_MAX_BYTES,
+  DEFAULT_MAX_LINES,
+  formatSize,
+  truncateHead,
+  type AgentToolResult,
+  type Theme,
+} from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { failureDetails } from "../shared/diagnostics.ts";
+import { writeTempOutput } from "../shared/temp-output.ts";
 import { tryCloudflareMarkdown } from "./cloudflare.ts";
 import { callExaContents } from "./exa.ts";
 import { classifyGitHubUrl, tryGitHubFetch } from "./github.ts";
@@ -18,17 +26,40 @@ function isValidHttpUrl(s: string): boolean {
 }
 
 const CACHE_TTL_MS = 600_000;
+const MAX_FETCH_CACHE_ENTRIES = 50;
 
-const fetchCache = new Map<
-  string,
-  { content: string; source: string; timestamp: number }
->();
+type CachedFetch = { content: string; source: string; timestamp: number };
+
+const fetchCache = new Map<string, CachedFetch>();
+
+function pruneFetchCache(now = Date.now()): void {
+  for (const [url, cached] of fetchCache) {
+    if (now - cached.timestamp >= CACHE_TTL_MS) fetchCache.delete(url);
+  }
+
+  while (fetchCache.size >= MAX_FETCH_CACHE_ENTRIES) {
+    const oldestUrl = fetchCache.keys().next().value as string | undefined;
+    if (oldestUrl === undefined) return;
+    fetchCache.delete(oldestUrl);
+  }
+}
+
+function getCachedFetch(url: string): CachedFetch | null {
+  const cached = fetchCache.get(url);
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp >= CACHE_TTL_MS) {
+    fetchCache.delete(url);
+    return null;
+  }
+  return cached;
+}
 
 function cacheAndReturn(
   url: string,
   content: string,
   source: string,
 ): { content: string; source: string } {
+  pruneFetchCache();
   fetchCache.set(url, { content, source, timestamp: Date.now() });
   return { content, source };
 }
@@ -37,10 +68,8 @@ async function tryFetchContent(
   url: string,
   toolCallId: string,
 ): Promise<{ content: string; source: string }> {
-  const cached = fetchCache.get(url);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return { content: cached.content, source: cached.source };
-  }
+  const cached = getCachedFetch(url);
+  if (cached) return { content: cached.content, source: cached.source };
 
   const parsed = classifyGitHubUrl(url);
 
@@ -90,50 +119,75 @@ async function tryFetchContent(
   throw new Error("All retrieval tiers failed to provide content");
 }
 
+async function formatFetchContent(
+  url: string,
+  content: string,
+): Promise<{ text: string; details: Record<string, unknown> }> {
+  const truncation = truncateHead(content, {
+    maxLines: DEFAULT_MAX_LINES,
+    maxBytes: DEFAULT_MAX_BYTES,
+  });
+
+  if (!truncation.truncated) {
+    return { text: content, details: { contentLength: content.length } };
+  }
+
+  const fullOutputPath = await writeTempOutput(
+    "pi-web-fetch",
+    "content.txt",
+    content,
+  );
+  const text = `${truncation.content}\n\n[Content truncated: ${truncation.outputLines} of ${truncation.totalLines} lines (${formatSize(truncation.outputBytes)} of ${formatSize(truncation.totalBytes)}). Full content saved to: ${fullOutputPath}]`;
+
+  logWebToolEvent("web_fetch_truncated", {
+    url,
+    outputBytes: truncation.outputBytes,
+    totalBytes: truncation.totalBytes,
+    outputLines: truncation.outputLines,
+    totalLines: truncation.totalLines,
+    fullOutputPath,
+  });
+
+  return {
+    text,
+    details: {
+      contentLength: content.length,
+      displayedContentLength: truncation.content.length,
+      truncated: true,
+      fullOutputPath,
+    },
+  };
+}
+
 export async function executeWebFetch(
   _toolCallId: string,
   params: Record<string, unknown>,
 ): Promise<TextToolResult> {
   const { url } = params as { url: string };
   if (!url || !isValidHttpUrl(url)) {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Invalid URL: "${url}". Provide a valid http:// or https:// URL.`,
-        },
-      ],
-      details: {},
-      isError: true,
-    };
+    throw new Error(
+      `Invalid URL: "${url}". Provide a valid http:// or https:// URL.`,
+    );
   }
   try {
     const result = await tryFetchContent(url, _toolCallId);
+    const formatted = await formatFetchContent(url, result.content);
     return {
-      content: [{ type: "text" as const, text: result.content }],
+      content: [{ type: "text" as const, text: formatted.text }],
       details: {
-        contentLength: result.content.length,
+        ...formatted.details,
         source: result.source,
       },
     };
   } catch (err: unknown) {
-    const fetchError =
-      err instanceof Error ? err.message : "Unknown error during fetch";
     logWebToolEvent("web_fetch_failure", {
       toolCallId: _toolCallId,
       url,
       ...failureDetails(err),
     });
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text: `Failed to fetch content: ${fetchError}`,
-        },
-      ],
-      details: { fetchError },
-      isError: true,
-    };
+    const fetchError =
+      err instanceof Error ? err.message : "Unknown error during fetch";
+    throw new Error(`Failed to fetch content: ${fetchError}`, { cause: err });
   }
 }
 

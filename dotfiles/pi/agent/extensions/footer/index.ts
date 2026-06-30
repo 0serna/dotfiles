@@ -1,6 +1,7 @@
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { basename } from "node:path";
+import { isTuiMode } from "../shared/mode.ts";
 
 function formatCwd(cwd: string): string {
   if (cwd === process.env.HOME) {
@@ -36,6 +37,8 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_start", (_event, ctx) => {
+    if (!isTuiMode(ctx)) return;
+
     try {
       ctx.ui.setFooter((tui, theme, footerData) => {
         requestRender = () => tui.requestRender();

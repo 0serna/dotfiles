@@ -1,4 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { isTuiMode } from "../shared/mode.ts";
 import { getModelLabels } from "./model-ids.ts";
 import { validateConfigSemantics } from "./routing.ts";
 import type { ProfilesRuntime } from "./runtime.ts";
@@ -9,6 +10,14 @@ export async function runProfileCommand(
   ctx: ExtensionContext,
   runtime: ProfilesRuntime,
 ): Promise<void> {
+  if (!isTuiMode(ctx)) {
+    ctx.ui.notify(
+      "Profile route editor is only available in TUI mode.",
+      "warning",
+    );
+    return;
+  }
+
   await runtime.refreshConfig(ctx);
 
   const availableModels = ctx.modelRegistry.getAvailable();

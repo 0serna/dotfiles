@@ -84,12 +84,8 @@ function formatMergedResults(results: SearchResult[]): string {
     .join("\n\n");
 }
 
-function searchFailed(): TextToolResult {
-  return {
-    content: [{ type: "text" as const, text: "Search failed" }],
-    details: {},
-    isError: true,
-  };
+function throwSearchFailed(): never {
+  throw new Error("Search failed");
 }
 
 function searchSucceeded(
@@ -108,8 +104,9 @@ async function runExaOnly(
   toolCallId: string,
 ): Promise<TextToolResult> {
   const data = await callExaSearch(query, toolCallId).catch(() => null);
-  if (data == null) return searchFailed();
-  return searchSucceeded(formatSearchResponse(data), data.results?.length ?? 0);
+  const sourceCount = data?.results?.length ?? 0;
+  if (data == null || sourceCount === 0) throwSearchFailed();
+  return searchSucceeded(formatSearchResponse(data), sourceCount);
 }
 
 export async function executeWebSearch(
@@ -118,13 +115,7 @@ export async function executeWebSearch(
 ): Promise<TextToolResult> {
   const { query } = params as { query: string };
   if (!query || query.trim() === "") {
-    return {
-      content: [
-        { type: "text" as const, text: "A query is required for web_search." },
-      ],
-      details: {},
-      isError: true,
-    };
+    throw new Error("A query is required for web_search.");
   }
 
   const trimmedQuery = query.trim();
@@ -138,7 +129,7 @@ export async function executeWebSearch(
   if (!hasExaApiKey) {
     const tavilyData = await callTavilySearch(trimmedQuery, _toolCallId);
     const tavilyResults = toTavilyResults(tavilyData);
-    if (tavilyResults.length === 0) return searchFailed();
+    if (tavilyResults.length === 0) throwSearchFailed();
     return searchSucceeded(
       formatMergedResults(tavilyResults),
       tavilyResults.length,
@@ -157,7 +148,7 @@ export async function executeWebSearch(
   const tavilyResults = toTavilyResults(tavilyData);
   const mergedResults = mergeResults(exaResults, tavilyResults);
 
-  if (mergedResults.length === 0) return searchFailed();
+  if (mergedResults.length === 0) throwSearchFailed();
 
   const bothProvidersContributed =
     exaResults.length > 0 && tavilyResults.length > 0;

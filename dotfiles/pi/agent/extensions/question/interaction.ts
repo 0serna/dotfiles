@@ -5,6 +5,7 @@ import {
   Key,
   matchesKey,
 } from "@earendil-works/pi-tui";
+import { isTuiMode } from "../shared/mode.ts";
 
 import { renderFrame } from "./rendering.ts";
 import { buildResult } from "./results.ts";
@@ -107,12 +108,12 @@ export async function execute(
   _onUpdate: unknown,
   ctx: ExtensionContext,
 ) {
-  if (!ctx.hasUI) {
+  if (!isTuiMode(ctx)) {
     return {
       content: [
         {
           type: "text" as const,
-          text: "Error: UI not available (running in non-interactive mode)",
+          text: "Error: UI not available (question requires TUI mode)",
         },
       ],
       details: {

@@ -10,6 +10,7 @@ import { ROUTE_TYPES } from "./routes.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import { createProfilesRuntime } from "./runtime.ts";
 import {
+  flushThinkingMemory,
   getRememberedLevel,
   loadMemory,
   recordLevel,
@@ -187,6 +188,10 @@ export default function (pi: ExtensionAPI) {
       modelId: ctx.model.id,
       thinkingLevel: event.level,
     });
+  });
+
+  pi.on("session_shutdown", () => {
+    flushThinkingMemory();
   });
 
   pi.registerCommand("profile", {
