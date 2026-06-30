@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  clampPercent,
   formatCodexQuotaStatus,
+  formatOpenCodeBalances,
+  formatPercentResetSegment,
+  formatProviderStatus,
   formatResetTime,
   parseCredits,
+  toRemainingPercent,
 } from "../status.js";
-import type { CodexQuotaData, ExtensionContext } from "../types.js";
+import type {
+  CodexQuotaData,
+  ExtensionContext,
+  OpenCodeGoData,
+} from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,6 +33,36 @@ function makeContext(): ExtensionContext {
 function stripStyles(value: string | null): string | null {
   return value?.replaceAll(/<\/?[^>]+>/g, "") ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Numeric helpers
+// ---------------------------------------------------------------------------
+
+describe("clampPercent", () => {
+  it("rounds and clamps percent values", () => {
+    expect(clampPercent(42.4)).toBe(42);
+    expect(clampPercent(42.5)).toBe(43);
+    expect(clampPercent(-10)).toBe(0);
+    expect(clampPercent(110)).toBe(100);
+  });
+});
+
+describe("toRemainingPercent", () => {
+  it("uses remaining_percent before used_percent", () => {
+    expect(
+      toRemainingPercent({ remaining_percent: 42.6, used_percent: 90 }),
+    ).toBe(43);
+  });
+
+  it("derives remaining percent from used_percent", () => {
+    expect(toRemainingPercent({ used_percent: 33.3 })).toBe(67);
+  });
+
+  it("returns undefined when no percent is available", () => {
+    expect(toRemainingPercent(undefined)).toBeUndefined();
+    expect(toRemainingPercent({})).toBeUndefined();
+  });
+});
 
 // ---------------------------------------------------------------------------
 // parseCredits
@@ -61,6 +100,26 @@ describe("formatResetTime", () => {
     reset.setHours(13, 5, 0, 0);
 
     expect(formatResetTime(Math.floor(reset.getTime() / 1000))).toBe("13:05");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Percent segment formatting
+// ---------------------------------------------------------------------------
+
+describe("formatPercentResetSegment", () => {
+  const ctx = makeContext();
+
+  it("warns when remaining percent is below the threshold", () => {
+    expect(formatPercentResetSegment(19, "12:00", ctx)).toBe(
+      "<warning>19(12:00)</warning>",
+    );
+  });
+
+  it("dims exhausted quota when warning is suppressed", () => {
+    expect(formatPercentResetSegment(0, "12:00", ctx, true)).toBe(
+      "<dim>0(12:00)</dim>",
+    );
   });
 });
 
@@ -162,5 +221,88 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).toContain("<accent>R3</accent>");
     expect(stripStyles(result)).toContain("R3");
     expect(stripStyles(result)).not.toContain("C");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatOpenCodeBalances
+// ---------------------------------------------------------------------------
+
+describe("formatOpenCodeBalances", () => {
+  const ctx = makeContext();
+
+  function build(overrides: Partial<OpenCodeGoData> = {}): OpenCodeGoData {
+    return {
+      rolling: { remainingPercent: 80, resetInSec: 60 },
+      weekly: { remainingPercent: 70, resetInSec: 120 },
+      monthly: { remainingPercent: 60, resetInSec: 180 },
+      balanceDollars: 12.34,
+      ...overrides,
+    };
+  }
+
+  it("returns null when no windows or balance are available", () => {
+    expect(formatOpenCodeBalances({}, ctx)).toBeNull();
+  });
+
+  it("returns null when only partial window data is available", () => {
+    expect(
+      formatOpenCodeBalances(
+        { rolling: { remainingPercent: 80, resetInSec: 60 } },
+        ctx,
+      ),
+    ).toBeNull();
+  });
+
+  it("formats all windows and balance", () => {
+    const result = stripStyles(formatOpenCodeBalances(build(), ctx));
+    expect(result).toContain("80(");
+    expect(result).toContain("70(");
+    expect(result).toContain("60(");
+    expect(result).toContain("$12.34");
+  });
+
+  it("formats only balance when windows are incomplete", () => {
+    expect(
+      formatOpenCodeBalances(
+        {
+          rolling: { remainingPercent: 80, resetInSec: 60 },
+          balanceDollars: 12.34,
+        },
+        ctx,
+      ),
+    ).toBe("<dim>$12.34</dim>");
+  });
+
+  it("dims exhausted windows when consuming balance", () => {
+    const result = formatOpenCodeBalances(
+      build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
+      ctx,
+    );
+    expect(result).toContain("<dim>0(");
+    expect(result).toContain("<warning>$12.34</warning>");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatProviderStatus
+// ---------------------------------------------------------------------------
+
+describe("formatProviderStatus", () => {
+  const ctx = makeContext();
+
+  it("formats provider errors", () => {
+    expect(
+      formatProviderStatus("OC", "fetch_failed", {}, () => "ok", ctx),
+    ).toBe("<warning>OC error</warning>");
+    expect(formatProviderStatus("OC", null, null, () => "ok", ctx)).toBe(
+      "<warning>OC error</warning>",
+    );
+  });
+
+  it("formats successful provider status", () => {
+    expect(formatProviderStatus("OC", null, {}, () => "ok", ctx)).toBe(
+      "<dim>OC </dim>ok",
+    );
   });
 });

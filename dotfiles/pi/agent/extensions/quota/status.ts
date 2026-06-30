@@ -11,6 +11,9 @@ import type {
 // ---------------------------------------------------------------------------
 
 const LOW_QUOTA_THRESHOLD_PERCENT = 20;
+const STATUS_SEPARATOR = " ";
+
+type ThemeColor = Parameters<ExtensionContext["ui"]["theme"]["fg"]>[0];
 
 // ---------------------------------------------------------------------------
 // Error helpers
@@ -68,6 +71,35 @@ export function formatResetTime(resetAt: number): string {
   return `${days}d`;
 }
 
+function fg(ctx: ExtensionContext, color: ThemeColor, text: string): string {
+  return ctx.ui.theme.fg(color, text);
+}
+
+function joinStatusParts(ctx: ExtensionContext, parts: string[]): string {
+  return parts.join(fg(ctx, "dim", STATUS_SEPARATOR));
+}
+
+function hasPositiveBalance(value: number | undefined): boolean {
+  return value != null && value > 0;
+}
+
+function formatCountSegment(
+  ctx: ExtensionContext,
+  prefix: string,
+  value: number,
+  color: ThemeColor,
+): string {
+  return fg(ctx, color, `${prefix}${value}`);
+}
+
+function formatMoneySegment(
+  ctx: ExtensionContext,
+  value: number,
+  color: ThemeColor,
+): string {
+  return fg(ctx, color, `$${value.toFixed(2)}`);
+}
+
 export function formatPercentResetSegment(
   remainingPercent: number,
   resetLabel: string,
@@ -76,63 +108,75 @@ export function formatPercentResetSegment(
 ): string {
   const roundedPercent = clampPercent(remainingPercent);
   const segment = `${roundedPercent}(${resetLabel})`;
-  if (
+  const color =
     roundedPercent < LOW_QUOTA_THRESHOLD_PERCENT &&
     !(suppressExhaustedWarning && roundedPercent === 0)
-  ) {
-    return ctx.ui.theme.fg("warning", segment);
-  }
-  return ctx.ui.theme.fg("dim", segment);
+      ? "warning"
+      : "dim";
+  return fg(ctx, color, segment);
 }
 
 // ---------------------------------------------------------------------------
 // Codex status formatting
 // ---------------------------------------------------------------------------
 
+function hasCodexQuotaWindows(
+  data: CodexQuotaData,
+): data is CodexQuotaData &
+  Required<
+    Pick<
+      CodexQuotaData,
+      "remaining5h" | "resetAt5h" | "remaining7d" | "resetAt7d"
+    >
+  > {
+  return (
+    data.remaining5h != null &&
+    data.resetAt5h != null &&
+    data.remaining7d != null &&
+    data.resetAt7d != null
+  );
+}
+
+function isConsumingCredits(data: CodexQuotaData): boolean {
+  return (
+    hasPositiveBalance(data.remainingCredits) &&
+    (data.remaining5h === 0 || data.remaining7d === 0)
+  );
+}
+
 export function formatCodexQuotaStatus(
   data: CodexQuotaData,
   ctx: ExtensionContext,
 ): string | null {
-  if (
-    data.remaining5h == null ||
-    data.resetAt5h == null ||
-    data.remaining7d == null ||
-    data.resetAt7d == null
-  ) {
-    return null;
-  }
+  if (!hasCodexQuotaWindows(data)) return null;
 
-  const isConsumingCredits =
-    data.remainingCredits != null &&
-    data.remainingCredits > 0 &&
-    (data.remaining5h === 0 || data.remaining7d === 0);
-
+  const consumingCredits = isConsumingCredits(data);
   const parts = [
     formatPercentResetSegment(
       data.remaining5h,
       formatResetTime(data.resetAt5h),
       ctx,
-      isConsumingCredits,
+      consumingCredits,
     ),
     formatPercentResetSegment(
       data.remaining7d,
       formatResetTime(data.resetAt7d),
       ctx,
-      isConsumingCredits,
+      consumingCredits,
     ),
   ];
 
   if (data.bankedResetCredits != null) {
     const color = data.bankedResetCredits > 0 ? "accent" : "dim";
-    parts.push(ctx.ui.theme.fg(color, `R${data.bankedResetCredits}`));
+    parts.push(formatCountSegment(ctx, "R", data.bankedResetCredits, color));
   }
 
   if (data.remainingCredits != null) {
-    const color = isConsumingCredits ? "warning" : "dim";
-    parts.push(ctx.ui.theme.fg(color, `C${data.remainingCredits}`));
+    const color = consumingCredits ? "warning" : "dim";
+    parts.push(formatCountSegment(ctx, "C", data.remainingCredits, color));
   }
 
-  return parts.join(ctx.ui.theme.fg("dim", " "));
+  return joinStatusParts(ctx, parts);
 }
 
 // ---------------------------------------------------------------------------
@@ -156,41 +200,42 @@ export function formatOpenCodeSegment(
   );
 }
 
+function openCodeWindows(data: OpenCodeGoData): OpenCodeGoWindowData[] {
+  return [data.rolling, data.weekly, data.monthly].filter(
+    (window): window is OpenCodeGoWindowData => window != null,
+  );
+}
+
+function isConsumingOpenCodeBalance(data: OpenCodeGoData): boolean {
+  return (
+    hasPositiveBalance(data.balanceDollars) &&
+    openCodeWindows(data).some(
+      (window) => clampPercent(window.remainingPercent) === 0,
+    )
+  );
+}
+
 export function formatOpenCodeBalances(
   data: OpenCodeGoData,
   ctx: ExtensionContext,
 ): string | null {
-  if (
-    !data.rolling &&
-    !data.weekly &&
-    !data.monthly &&
-    data.balanceDollars == null
-  )
-    return null;
+  const windows = openCodeWindows(data);
+  if (windows.length === 0 && data.balanceDollars == null) return null;
 
-  const isConsumingBalance =
-    data.balanceDollars != null &&
-    data.balanceDollars > 0 &&
-    [data.rolling, data.weekly, data.monthly].some(
-      (window) => window && clampPercent(window.remainingPercent) === 0,
-    );
-
-  const parts: string[] = [];
-
-  if (data.rolling && data.weekly && data.monthly) {
-    parts.push(
-      formatOpenCodeSegment(data.rolling, ctx, isConsumingBalance),
-      formatOpenCodeSegment(data.weekly, ctx, isConsumingBalance),
-      formatOpenCodeSegment(data.monthly, ctx, isConsumingBalance),
-    );
-  }
+  const consumingBalance = isConsumingOpenCodeBalance(data);
+  const parts =
+    windows.length === 3
+      ? windows.map((window) =>
+          formatOpenCodeSegment(window, ctx, consumingBalance),
+        )
+      : [];
 
   if (data.balanceDollars != null) {
-    const color = isConsumingBalance ? "warning" : "dim";
-    parts.push(ctx.ui.theme.fg(color, `$${data.balanceDollars.toFixed(2)}`));
+    const color = consumingBalance ? "warning" : "dim";
+    parts.push(formatMoneySegment(ctx, data.balanceDollars, color));
   }
 
-  return parts.length > 0 ? parts.join(ctx.ui.theme.fg("dim", " ")) : null;
+  return parts.length > 0 ? joinStatusParts(ctx, parts) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,8 +249,8 @@ export function formatProviderStatus<T>(
   formatter: (data: T, ctx: ExtensionContext) => string | null,
   ctx: ExtensionContext,
 ): string {
-  if (error || !data) return ctx.ui.theme.fg("warning", `${label} error`);
+  if (error || !data) return fg(ctx, "warning", `${label} error`);
   const status = formatter(data, ctx);
-  if (!status) return ctx.ui.theme.fg("warning", `${label} error`);
-  return `${ctx.ui.theme.fg("dim", `${label} `)}${status}`;
+  if (!status) return fg(ctx, "warning", `${label} error`);
+  return `${fg(ctx, "dim", `${label} `)}${status}`;
 }
