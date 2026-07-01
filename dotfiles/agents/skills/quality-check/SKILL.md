@@ -28,7 +28,7 @@ Use a conservative catalog after configured tools are accounted for:
 
 | Stack evidence        | Common check candidates                                          |
 | --------------------- | ---------------------------------------------------------------- |
-| JavaScript/TypeScript | eslint or biome, `tsc --noEmit`, test script, fallow, knip       |
+| JavaScript/TypeScript | eslint or biome, `tsc --noEmit`, test script, knip               |
 | Python                | ruff, mypy or pyright, pytest, tox/nox                           |
 | Go                    | `go test ./...`, `go vet ./...`, golangci-lint                   |
 | Rust                  | `cargo check`, `cargo test`, `cargo clippy`, `cargo fmt --check` |

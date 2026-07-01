@@ -17,7 +17,7 @@
 │   ├── specs/                    # Living specifications
 │   └── changes/archive/          # Completed changes
 ├── scripts/                      # Local automation
-│   ├── check.sh                  # Quality gate (eslint, tsc, fallow, openspec)
+│   ├── check.sh                  # Quality gate (eslint, tsc, openspec)
 │   └── publish-pi-settings.sh    # Pi agent settings sync
 └── dotfiles.json                 # Link manifest consumed by the installer
 ```
@@ -26,6 +26,6 @@
 
 - `npm install`: install dependencies.
 - `npm test`: run the Vitest suite.
-- `npm run check`: run ESLint, TypeScript, Fallow, and OpenSpec validation.
+- `npm run check`: run ESLint, TypeScript, and OpenSpec validation.
 - `npm run format`: format repository files with Prettier.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
