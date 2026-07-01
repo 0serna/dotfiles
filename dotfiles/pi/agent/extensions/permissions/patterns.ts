@@ -63,8 +63,8 @@ const SENSITIVE_PATTERNS: RegExp[] = [
   /\b(?:chmod|chown)\s+(?:-[^\s]+\s+)?777\b/i,
   // curl|wget piped to shell
   /\b(?:curl|wget)\b.*\|\s*(?:bash|sh|zsh|fish)\b/i,
-  // shell -c invocation
-  /\b(?:bash|sh|zsh|fish)\s+-c\s+/i,
+  // shell -c invocation with actual code (not just a shell name like find -exec sh -c '...' sh)
+  /\b(?:bash|sh|zsh|fish)\s+-c\s+(?!sh\b|bash\b|zsh\b|fish\b)\S/i,
 ];
 
 // ---------------------------------------------------------------------------
