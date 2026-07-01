@@ -87,31 +87,30 @@ type WindowCandidate = {
 };
 
 /**
- * Select which windows to display in compact mode:
- * - Always include the primary window if available.
- * - Include longer windows only when below the low-quota threshold.
- * - If the primary window is missing, fall back to the first available window.
+ * Select which window to display in compact mode:
+ * Priority: monthly exhausted > weekly exhausted > rolling (default).
+ * If rolling is missing, fall back to the first available window.
  */
 export function selectCompactWindows(
   candidates: WindowCandidate[],
 ): WindowCandidate[] {
-  const primary = candidates.find((c) => c.isPrimary);
-  const others = candidates.filter((c) => !c.isPrimary);
+  if (candidates.length === 0) return [];
 
-  const belowThreshold = others.filter(
-    (c) => c.percent < LOW_QUOTA_THRESHOLD_PERCENT,
-  );
+  const monthly = candidates.find((c) => c.label === "M");
+  const weekly = candidates.find((c) => c.label === "W");
+  const rolling = candidates.find((c) => c.isPrimary);
 
-  if (primary) {
-    return [primary, ...belowThreshold];
-  }
+  // Exhausted monthly takes highest priority
+  if (monthly && monthly.percent === 0) return [monthly];
 
-  // Primary missing: show first available window as fallback
-  if (candidates.length > 0) {
-    return [candidates[0]!];
-  }
+  // Exhausted weekly takes next priority
+  if (weekly && weekly.percent === 0) return [weekly];
 
-  return [];
+  // Default to rolling if available
+  if (rolling) return [rolling];
+
+  // Fallback to first available window
+  return [candidates[0]!];
 }
 
 function formatCountSegment(
@@ -139,7 +138,9 @@ export function formatPercentResetSegment(
   suppressExhaustedWarning = false,
 ): string {
   const roundedPercent = clampPercent(remainingPercent);
-  const segment = `${label}(${roundedPercent}% ${resetLabel})`;
+  const segment = label
+    ? `${label} ${roundedPercent}% ${resetLabel}`
+    : `${roundedPercent}% ${resetLabel}`;
   const color =
     roundedPercent < LOW_QUOTA_THRESHOLD_PERCENT &&
     !(suppressExhaustedWarning && roundedPercent === 0)
@@ -184,16 +185,15 @@ export function formatCodexQuotaStatus(
   if (candidates.length === 0) return null;
 
   const selected = selectCompactWindows(candidates);
-  const windowExhausted = data.remaining5h === 0 || data.remaining7d === 0;
+  const selectedWindow = selected[0]!;
+  const windowExhausted = selectedWindow.percent === 0;
+  const belowThreshold = selectedWindow.percent < LOW_QUOTA_THRESHOLD_PERCENT;
   const consumingCredits =
     hasPositiveBalance(data.remainingCredits) && windowExhausted;
-  const belowThreshold = candidates.some(
-    (c) => c.percent < LOW_QUOTA_THRESHOLD_PERCENT,
-  );
 
   const parts = selected.map((c) =>
     formatPercentResetSegment(
-      c.label,
+      "",
       c.percent,
       c.resetLabel,
       ctx,
@@ -261,14 +261,15 @@ export function formatOpenCodeBalances(
   const candidates = openCodeWindowCandidates(data);
   if (candidates.length === 0) return null;
 
-  const windowExhausted = candidates.some((c) => c.percent === 0);
+  const selected = selectCompactWindows(candidates);
+  const selectedWindow = selected[0]!;
+  const windowExhausted = selectedWindow.percent === 0;
   const consumingBalance =
     hasPositiveBalance(data.balanceDollars) && windowExhausted;
 
-  const selected = selectCompactWindows(candidates);
   const parts = selected.map((c) =>
     formatPercentResetSegment(
-      c.label,
+      "",
       c.percent,
       c.resetLabel,
       ctx,
@@ -281,6 +282,77 @@ export function formatOpenCodeBalances(
   }
 
   return parts.length > 0 ? joinStatusParts(ctx, parts) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Full detail formatting (/quota command)
+// ---------------------------------------------------------------------------
+
+const DETAIL_WIDTH = 31;
+
+function detailBorder(title: string): string {
+  const label = ` ${title} `;
+  return `┌${label}${"─".repeat(DETAIL_WIDTH - label.length)}┐`;
+}
+
+function detailRow(label: string, value: string): string {
+  return `│${`${label.padEnd(10)} ${value}`.padEnd(DETAIL_WIDTH)}│`;
+}
+
+function detailFooter(): string {
+  return `└${"─".repeat(DETAIL_WIDTH)}┘`;
+}
+
+function formatWindowRow(
+  label: string,
+  percent: number,
+  resetLabel: string,
+): string {
+  return detailRow(label, `${percent}% reset ${resetLabel}`);
+}
+
+export function formatCodexFullDetail(data: CodexQuotaData): string[] {
+  const lines: string[] = [detailBorder("Codex")];
+
+  const candidates = codexWindowCandidates(data);
+  for (const c of candidates) {
+    lines.push(
+      formatWindowRow(
+        c.label === "R" ? "Rolling" : "Weekly",
+        c.percent,
+        c.resetLabel,
+      ),
+    );
+  }
+
+  if (data.remainingCredits != null) {
+    lines.push(detailRow("Credits", `${data.remainingCredits}`));
+  }
+
+  if (data.bankedResetCredits != null) {
+    lines.push(detailRow("Resets", `${data.bankedResetCredits}`));
+  }
+
+  lines.push(detailFooter());
+  return lines;
+}
+
+export function formatOpenCodeFullDetail(data: OpenCodeGoData): string[] {
+  const lines: string[] = [detailBorder("OpenCode Go")];
+
+  const candidates = openCodeWindowCandidates(data);
+  for (const c of candidates) {
+    const label =
+      c.label === "R" ? "Rolling" : c.label === "W" ? "Weekly" : "Monthly";
+    lines.push(formatWindowRow(label, c.percent, c.resetLabel));
+  }
+
+  if (data.balanceDollars != null) {
+    lines.push(detailRow("Balance", `$${data.balanceDollars.toFixed(2)}`));
+  }
+
+  lines.push(detailFooter());
+  return lines;
 }
 
 // ---------------------------------------------------------------------------

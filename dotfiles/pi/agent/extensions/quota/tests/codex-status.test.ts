@@ -27,22 +27,22 @@ describe("formatCodexQuotaStatus", () => {
     ).toBeNull();
   });
 
-  it("formats R window with label", () => {
+  it("formats R window without label", () => {
     const result = stripStyles(formatCodexQuotaStatus(build(), ctx));
-    expect(result).toContain("R(80%");
+    expect(result).toContain("80%");
+    expect(result).not.toContain("R(");
   });
 
-  it("omits healthy 7d window (W) from compact status", () => {
+  it("shows only one window (rolling by default)", () => {
     const result = stripStyles(formatCodexQuotaStatus(build(), ctx));
     expect(result).not.toContain("W(");
   });
 
-  it("shows W window when below threshold", () => {
+  it("shows W window when exhausted (priority over rolling)", () => {
     const result = stripStyles(
-      formatCodexQuotaStatus(build({ remaining7d: 15 }), ctx),
+      formatCodexQuotaStatus(build({ remaining7d: 0 }), ctx),
     );
-    expect(result).toContain("R(80%");
-    expect(result).toContain("W(15%");
+    expect(result).toContain("0%");
   });
 
   it("falls back to W when R is unavailable", () => {
@@ -52,8 +52,7 @@ describe("formatCodexQuotaStatus", () => {
         ctx,
       ),
     );
-    expect(result).toContain("W(90%");
-    expect(result).not.toContain("R(");
+    expect(result).toContain("90%");
   });
 
   it("omits credits when no window is exhausted", () => {
@@ -80,23 +79,21 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).not.toContain("R3");
   });
 
-  it("includes R<n> when below threshold and before C<n>", () => {
+  it("includes R<n> when below threshold", () => {
     const result = formatCodexQuotaStatus(
-      build({ remaining7d: 15, bankedResetCredits: 3 }),
+      build({ remaining5h: 15, bankedResetCredits: 3 }),
       ctx,
     );
     const plainResult = stripStyles(result);
     expect(result).toContain("<accent>R3</accent>");
 
     const rIndex = plainResult!.indexOf("R3");
-    const cIndex = plainResult!.indexOf("C100");
     expect(rIndex).toBeGreaterThanOrEqual(0);
-    if (cIndex >= 0) expect(rIndex).toBeLessThan(cIndex);
   });
 
-  it("shows R0 as dim when bankedResetCredits is explicitly 0 and below threshold", () => {
+  it("shows R0 as dim when bankedResetCredits is explicitly 0 and selected window is below threshold", () => {
     const result = formatCodexQuotaStatus(
-      build({ remaining7d: 15, bankedResetCredits: 0 }),
+      build({ remaining5h: 15, bankedResetCredits: 0 }),
       ctx,
     );
     expect(result).toContain("<dim>R0</dim>");
@@ -114,7 +111,7 @@ describe("formatCodexQuotaStatus", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(
         build({
-          remaining7d: 15,
+          remaining5h: 15,
           bankedResetCredits: 0,
           remainingCredits: undefined,
         }),

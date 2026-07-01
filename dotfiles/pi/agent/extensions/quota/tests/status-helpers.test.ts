@@ -69,35 +69,34 @@ describe("formatResetTime", () => {
 describe("formatPercentResetSegment", () => {
   const ctx = makeContext();
 
-  it("emits label(percent% reset) format", () => {
+  it("emits label percent% reset format", () => {
     expect(formatPercentResetSegment("R", 82, "14:20", ctx)).toBe(
-      "<dim>R(82% 14:20)</dim>",
+      "<dim>R 82% 14:20</dim>",
     );
   });
 
   it("warns when remaining percent is below the threshold", () => {
     expect(formatPercentResetSegment("W", 19, "12:00", ctx)).toBe(
-      "<warning>W(19% 12:00)</warning>",
+      "<warning>W 19% 12:00</warning>",
     );
   });
 
   it("dims exhausted quota when warning is suppressed", () => {
     expect(formatPercentResetSegment("R", 0, "12:00", ctx, true)).toBe(
-      "<dim>R(0% 12:00)</dim>",
+      "<dim>R 0% 12:00</dim>",
     );
   });
 });
 
 describe("selectCompactWindows", () => {
-  it("keeps primary and includes longer windows below threshold", () => {
+  it("returns rolling by default when no windows are exhausted", () => {
     const result = selectCompactWindows([
       { label: "R", percent: 80, resetLabel: "14:00", isPrimary: true },
       { label: "W", percent: 10, resetLabel: "3d", isPrimary: false },
       { label: "M", percent: 50, resetLabel: "7d", isPrimary: false },
     ]);
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(1);
     expect(result[0]!.isPrimary).toBe(true);
-    expect(result[1]!.percent).toBe(10);
   });
 
   it("omits longer windows above threshold", () => {

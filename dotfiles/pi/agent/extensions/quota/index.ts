@@ -8,8 +8,10 @@ import { readCache, writeCache } from "./cache.js";
 import { fetchCodexQuotaStatus } from "./codex.js";
 import { fetchOpenCodeGoData } from "./opencode.js";
 import {
+  formatCodexFullDetail,
   formatCodexQuotaStatus,
   formatOpenCodeBalances,
+  formatOpenCodeFullDetail,
   formatProviderStatus,
 } from "./status.js";
 import type {
@@ -187,6 +189,36 @@ function handleSessionShutdown(): void {
 }
 
 // ---------------------------------------------------------------------------
+// /quota command
+// ---------------------------------------------------------------------------
+
+function formatQuotaFullOutput(): string {
+  if (!lastStatus) return "";
+  const lines: string[] = [];
+  if (lastStatus.codex && !lastStatus.codexError) {
+    lines.push(...formatCodexFullDetail(lastStatus.codex));
+  }
+  if (lastStatus.opencodeGo && !lastStatus.opencodeGoError) {
+    lines.push(...formatOpenCodeFullDetail(lastStatus.opencodeGo));
+  }
+  return lines.join("\n");
+}
+
+async function handleQuotaCommand(
+  _args: string,
+  ctx: ExtensionContext,
+): Promise<void> {
+  lastCtx = ctx;
+  await refreshStatus("quota_command");
+  const output = formatQuotaFullOutput();
+  if (!output) {
+    ctx.ui.notify("No quota data available", "info");
+    return;
+  }
+  ctx.ui.notify(output, "info");
+}
+
+// ---------------------------------------------------------------------------
 // Extension entry point
 // ---------------------------------------------------------------------------
 
@@ -195,4 +227,9 @@ export default function (pi: ExtensionAPI) {
   pi.on("turn_start", handleTurnStart);
   pi.on("turn_end", handleTurnEnd);
   pi.on("session_shutdown", handleSessionShutdown);
+
+  pi.registerCommand("quota", {
+    description: "Show detailed quota information",
+    handler: handleQuotaCommand,
+  });
 }

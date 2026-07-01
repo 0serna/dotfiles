@@ -20,43 +20,42 @@ describe("formatOpenCodeBalances", () => {
     expect(formatOpenCodeBalances({}, ctx)).toBeNull();
   });
 
-  it("formats R window with label when only rolling is available", () => {
+  it("formats R window without label when only rolling is available", () => {
     const result = stripStyles(
       formatOpenCodeBalances(
         { rolling: { remainingPercent: 80, resetInSec: 60 } },
         ctx,
       ),
     );
-    expect(result).toContain("R(80%");
+    expect(result).toContain("80%");
+    expect(result).not.toContain("R(");
   });
 
-  it("omits healthy W and M windows from compact status", () => {
+  it("shows only one window (rolling by default)", () => {
     const result = stripStyles(formatOpenCodeBalances(build(), ctx));
-    expect(result).toContain("R(80%");
+    expect(result).toContain("80%");
     expect(result).not.toContain("W(");
     expect(result).not.toContain("M(");
   });
 
-  it("shows W when below threshold", () => {
+  it("shows W when exhausted (priority over rolling)", () => {
     const result = stripStyles(
       formatOpenCodeBalances(
-        build({ weekly: { remainingPercent: 15, resetInSec: 120 } }),
+        build({ weekly: { remainingPercent: 0, resetInSec: 120 } }),
         ctx,
       ),
     );
-    expect(result).toContain("R(80%");
-    expect(result).toContain("W(15%");
+    expect(result).toContain("0%");
   });
 
-  it("shows M when below threshold", () => {
+  it("shows M when exhausted (highest priority)", () => {
     const result = stripStyles(
       formatOpenCodeBalances(
-        build({ monthly: { remainingPercent: 10, resetInSec: 180 } }),
+        build({ monthly: { remainingPercent: 0, resetInSec: 180 } }),
         ctx,
       ),
     );
-    expect(result).toContain("R(80%");
-    expect(result).toContain("M(10%");
+    expect(result).toContain("0%");
   });
 
   it("falls back to first available window when rolling is missing", () => {
@@ -69,8 +68,7 @@ describe("formatOpenCodeBalances", () => {
         ctx,
       ),
     );
-    expect(result).toContain("W(70%");
-    expect(result).not.toContain("R(");
+    expect(result).toContain("70%");
   });
 
   it("omits balance when no window is exhausted", () => {
@@ -83,7 +81,7 @@ describe("formatOpenCodeBalances", () => {
       build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
       ctx,
     );
-    expect(result).toContain("<dim>R(0%");
+    expect(result).toContain("<dim>0%");
     expect(result).toContain("<warning>$12.34</warning>");
   });
 
@@ -92,7 +90,7 @@ describe("formatOpenCodeBalances", () => {
       build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
       ctx,
     );
-    expect(result).toContain("<dim>R(0%");
+    expect(result).toContain("<dim>0%");
     expect(result).toContain("<warning>$12.34</warning>");
   });
 
