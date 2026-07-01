@@ -75,14 +75,14 @@ describe("formatPercentResetSegment", () => {
     );
   });
 
-  it("warns when remaining percent is below the threshold", () => {
+  it("always dims percent segment regardless of value", () => {
     expect(formatPercentResetSegment("W", 19, "12:00", ctx)).toBe(
-      "<warning>W 19% 12:00</warning>",
+      "<dim>W 19% 12:00</dim>",
     );
   });
 
-  it("dims exhausted quota when warning is suppressed", () => {
-    expect(formatPercentResetSegment("R", 0, "12:00", ctx, true)).toBe(
+  it("dims exhausted quota", () => {
+    expect(formatPercentResetSegment("R", 0, "12:00", ctx)).toBe(
       "<dim>R 0% 12:00</dim>",
     );
   });

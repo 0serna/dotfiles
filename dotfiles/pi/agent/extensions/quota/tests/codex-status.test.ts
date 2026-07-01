@@ -79,21 +79,28 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).not.toContain("R3");
   });
 
-  it("includes R<n> when below threshold", () => {
+  it("includes R<n> when window is exhausted", () => {
     const result = formatCodexQuotaStatus(
-      build({ remaining5h: 15, bankedResetCredits: 3 }),
+      build({ remaining5h: 0, bankedResetCredits: 3 }),
       ctx,
     );
-    const plainResult = stripStyles(result);
     expect(result).toContain("<accent>R3</accent>");
-
-    const rIndex = plainResult!.indexOf("R3");
-    expect(rIndex).toBeGreaterThanOrEqual(0);
+    expect(stripStyles(result)).toContain("R3");
   });
 
-  it("shows R0 as dim when bankedResetCredits is explicitly 0 and selected window is below threshold", () => {
+  it("omits R<n> when below threshold but not exhausted", () => {
+    const result = stripStyles(
+      formatCodexQuotaStatus(
+        build({ remaining5h: 15, bankedResetCredits: 3 }),
+        ctx,
+      ),
+    );
+    expect(result).not.toContain("R3");
+  });
+
+  it("shows R0 as dim when bankedResetCredits is 0 and window is exhausted", () => {
     const result = formatCodexQuotaStatus(
-      build({ remaining5h: 15, bankedResetCredits: 0 }),
+      build({ remaining5h: 0, bankedResetCredits: 0 }),
       ctx,
     );
     expect(result).toContain("<dim>R0</dim>");
@@ -107,7 +114,7 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).not.toMatch(/\bR\d/);
   });
 
-  it("handles bankedResetCredits=0 with no credits gracefully", () => {
+  it("omits R0 when window is not exhausted and no credits", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(
         build({
@@ -118,7 +125,7 @@ describe("formatCodexQuotaStatus", () => {
         ctx,
       ),
     );
-    expect(result).toContain("R0");
+    expect(result).not.toContain("R0");
     expect(result).not.toContain("C");
   });
 });

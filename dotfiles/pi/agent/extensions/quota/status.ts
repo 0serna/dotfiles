@@ -10,7 +10,6 @@ import type {
 // Constants
 // ---------------------------------------------------------------------------
 
-const LOW_QUOTA_THRESHOLD_PERCENT = 20;
 const STATUS_SEPARATOR = " ";
 
 type ThemeColor = Parameters<ExtensionContext["ui"]["theme"]["fg"]>[0];
@@ -135,18 +134,12 @@ export function formatPercentResetSegment(
   remainingPercent: number,
   resetLabel: string,
   ctx: ExtensionContext,
-  suppressExhaustedWarning = false,
 ): string {
   const roundedPercent = clampPercent(remainingPercent);
   const segment = label
     ? `${label} ${roundedPercent}% ${resetLabel}`
     : `${roundedPercent}% ${resetLabel}`;
-  const color =
-    roundedPercent < LOW_QUOTA_THRESHOLD_PERCENT &&
-    !(suppressExhaustedWarning && roundedPercent === 0)
-      ? "warning"
-      : "dim";
-  return fg(ctx, color, segment);
+  return fg(ctx, "dim", segment);
 }
 
 // ---------------------------------------------------------------------------
@@ -187,21 +180,14 @@ export function formatCodexQuotaStatus(
   const selected = selectCompactWindows(candidates);
   const selectedWindow = selected[0]!;
   const windowExhausted = selectedWindow.percent === 0;
-  const belowThreshold = selectedWindow.percent < LOW_QUOTA_THRESHOLD_PERCENT;
   const consumingCredits =
     hasPositiveBalance(data.remainingCredits) && windowExhausted;
 
   const parts = selected.map((c) =>
-    formatPercentResetSegment(
-      "",
-      c.percent,
-      c.resetLabel,
-      ctx,
-      consumingCredits,
-    ),
+    formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
   );
 
-  if (belowThreshold && data.bankedResetCredits != null) {
+  if (windowExhausted && data.bankedResetCredits != null) {
     const color = data.bankedResetCredits > 0 ? "accent" : "dim";
     parts.push(formatCountSegment(ctx, "R", data.bankedResetCredits, color));
   }
@@ -268,13 +254,7 @@ export function formatOpenCodeBalances(
     hasPositiveBalance(data.balanceDollars) && windowExhausted;
 
   const parts = selected.map((c) =>
-    formatPercentResetSegment(
-      "",
-      c.percent,
-      c.resetLabel,
-      ctx,
-      consumingBalance,
-    ),
+    formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
   );
 
   if (consumingBalance && data.balanceDollars != null) {
