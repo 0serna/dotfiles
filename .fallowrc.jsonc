@@ -1,5 +1,0 @@
-{
-  "entry": ["dotfiles/pi/agent/extensions/*.ts"],
-  "ignorePatterns": ["dotfiles/opencode/plugins/**"],
-  "ignoreDependencies": ["@opencode-ai/*", "typebox"]
-}
