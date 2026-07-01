@@ -10,16 +10,19 @@
 │   └── paths.ts                   # Path resolution utilities
 ├── dotfiles/                     # Files linked into user config locations
 │   ├── agents/skills/            # Sharable agent skills
+│   ├── codex/                    # Codex configuration
 │   ├── opencode/                 # OpenCode commands, agents, plugins & tools
-│   ├── pi/agent/                 # Pi agent extensions, prompts & settings
-│   └── rtk/                      # RTK configuration
+│   └── pi/agent/                 # Pi agent extensions, prompts & settings
 ├── openspec/                     # OpenSpec specifications and change archive
 │   ├── specs/                    # Living specifications
 │   └── changes/archive/          # Completed changes
 ├── scripts/                      # Local automation
 │   ├── check.sh                  # Quality gate (eslint, tsc, openspec)
 │   └── publish-pi-settings.sh    # Pi agent settings sync
-└── dotfiles.json                 # Link manifest consumed by the installer
+├── dotfiles.json                 # Link manifest consumed by the installer
+├── eslint.config.js              # ESLint configuration
+├── package.json                  # npm scripts and dependencies
+└── tsconfig.json                 # TypeScript configuration
 ```
 
 ## Repository Commands
@@ -29,3 +32,4 @@
 - `npm run check`: run ESLint, TypeScript, and OpenSpec validation.
 - `npm run format`: format repository files with Prettier.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
+- `npm run sync-pi-settings`: sync Pi agent settings.
