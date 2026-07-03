@@ -12,7 +12,7 @@ Create or maintain root `AGENTS.md`. Compile the generated block first, then pre
 
 1. Load `templates/agents-md-example.md` for heading order, fence style, and bullet style.
 2. Read `AGENTS.md` if it exists; separate content to preserve from content to replace.
-3. Map structure from actual files and directories. Include source, docs, content, config, data, and automation dirs. Exclude `.git`, deps, build outputs, caches, logs, editor state, and tooling dirs. Keep depth 1–2 levels unless deeper levels reveal meaningful boundaries.
+3. Map structure from actual files and directories. Render per the Repository Structure spec below.
 4. Find commands with explicit evidence: manifests, task runners, or executable scripts. If none exist, write `No useful commands detected.`
 5. Suggest extra sections when constraints are not captured by the generated block; add only after user approval.
 6. Create or update `AGENTS.md`. Done when the generated block is first and unrelated content is unchanged.
@@ -20,7 +20,7 @@ Create or maintain root `AGENTS.md`. Compile the generated block first, then pre
 
 ## Repository Structure
 
-Build a markdown code-fence tree starting at `.`. Annotate directories only when the purpose is non-obvious.
+Build a markdown code-fence tree starting at `.`. Show only directories — no files, no hidden directories. Go one level deep only when subdirectories reveal the directory's purpose; otherwise stop at the root. Annotate each directory when its purpose is non-obvious.
 
 ## Repository Commands
 

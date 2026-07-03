@@ -2,27 +2,17 @@
 
 ```text
 .
-├── src/                          # TypeScript installer and link logic
-│   ├── dotfiles-installer.ts      # CLI entry point
-│   ├── dotfiles-installer.test.ts # Vitest coverage
-│   ├── linker.ts                  # Symlink management
-│   ├── manifest.ts                # Dotfiles manifest parsing
-│   └── paths.ts                   # Path resolution utilities
-├── dotfiles/                     # Files linked into user config locations
-│   ├── agents/skills/            # Sharable agent skills
-│   ├── codex/                    # Codex configuration
-│   ├── opencode/                 # OpenCode commands, agents, plugins & tools
-│   └── pi/agent/                 # Pi agent extensions, prompts & settings
-├── openspec/                     # OpenSpec specifications and change archive
-│   ├── specs/                    # Living specifications
-│   └── changes/archive/          # Completed changes
-├── scripts/                      # Local automation
-│   ├── check.sh                  # Quality gate (eslint, tsc, openspec)
-│   └── publish-pi-settings.sh    # Pi agent settings sync
-├── dotfiles.json                 # Link manifest consumed by the installer
-├── eslint.config.js              # ESLint configuration
-├── package.json                  # npm scripts and dependencies
-└── tsconfig.json                 # TypeScript configuration
+├── src/                  # TypeScript installer and link logic
+├── dotfiles/             # Files linked into user config locations
+│   ├── agents/           # Sharable agent skills
+│   ├── codex/            # Codex configuration
+│   ├── opencode/         # OpenCode commands, agents, plugins & tools
+│   └── pi/               # Pi agent extensions, prompts & settings
+├── openspec/             # OpenSpec specifications and change archive
+│   ├── specs/            # Living specifications
+│   └── changes/          # Active and archived changes
+│       └── archive/      # Completed changes
+└── scripts/              # Local automation
 ```
 
 ## Repository Commands
