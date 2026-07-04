@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clampPercent,
   formatPercentResetSegment,
+  formatRelativeExpiry,
   formatResetTime,
   parseCredits,
   selectCompactWindows,
@@ -84,6 +85,55 @@ describe("formatPercentResetSegment", () => {
   it("dims exhausted quota", () => {
     expect(formatPercentResetSegment("R", 0, "12:00", ctx)).toBe(
       "<dim>R 0% 12:00</dim>",
+    );
+  });
+});
+
+describe("formatRelativeExpiry", () => {
+  const NOW_SECONDS = 1_700_000_000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW_SECONDS * 1000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns 'expired' when expiresAt is in the past", () => {
+    expect(formatRelativeExpiry(NOW_SECONDS - 1)).toBe("expired");
+    expect(formatRelativeExpiry(NOW_SECONDS - 86_400)).toBe("expired");
+  });
+
+  it("returns 'expired' when expiresAt equals now", () => {
+    expect(formatRelativeExpiry(NOW_SECONDS)).toBe("expired");
+  });
+
+  it("rounds up to 'in 1h' for any remaining time under one hour", () => {
+    expect(formatRelativeExpiry(NOW_SECONDS + 1)).toBe("in 1h");
+    expect(formatRelativeExpiry(NOW_SECONDS + 30 * 60)).toBe("in 1h");
+    expect(formatRelativeExpiry(NOW_SECONDS + 59 * 60 + 59)).toBe("in 1h");
+  });
+
+  it("formats remaining time under 12h in hours rounded to nearest", () => {
+    expect(formatRelativeExpiry(NOW_SECONDS + 60 * 60)).toBe("in 1h");
+    expect(formatRelativeExpiry(NOW_SECONDS + 6 * 60 * 60)).toBe("in 6h");
+    expect(formatRelativeExpiry(NOW_SECONDS + 11 * 60 * 60 + 30 * 60)).toBe(
+      "in 12h",
+    );
+  });
+
+  it("formats remaining time at or above 12h in days rounded to nearest", () => {
+    expect(formatRelativeExpiry(NOW_SECONDS + 12 * 60 * 60)).toBe("in 1d");
+    expect(formatRelativeExpiry(NOW_SECONDS + 23 * 60 * 60)).toBe("in 1d");
+    expect(formatRelativeExpiry(NOW_SECONDS + 24 * 60 * 60)).toBe("in 1d");
+    expect(formatRelativeExpiry(NOW_SECONDS + 23 * 60 * 60 + 59 * 60)).toBe(
+      "in 1d",
+    );
+    expect(formatRelativeExpiry(NOW_SECONDS + 36 * 60 * 60)).toBe("in 2d");
+    expect(formatRelativeExpiry(NOW_SECONDS + 30 * 24 * 60 * 60)).toBe(
+      "in 30d",
     );
   });
 });

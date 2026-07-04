@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatCodexQuotaStatus } from "../status.js";
-import type { CodexQuotaData } from "../types.js";
+import type { BankedResetDetail, CodexQuotaData } from "../types.js";
 import { makeContext, stripStyles } from "./helpers.js";
 
 describe("formatCodexQuotaStatus", () => {
@@ -11,11 +11,19 @@ describe("formatCodexQuotaStatus", () => {
       remaining5h: 80,
       remaining7d: 90,
       remainingCredits: 100,
-      bankedResetCredits: undefined,
+      bankedResetDetails: undefined,
       resetAt5h: 9999999999,
       resetAt7d: 9999999999,
       ...overrides,
     };
+  }
+
+  function resets(count: number): BankedResetDetail[] {
+    return Array.from({ length: count }, (_, i) => ({
+      expiresAt: 9999999999 + i,
+      grantedAt: 0,
+      status: "available",
+    }));
   }
 
   it("returns null when no quota windows are available", () => {
@@ -74,14 +82,14 @@ describe("formatCodexQuotaStatus", () => {
 
   it("omits R<n> when all windows are healthy", () => {
     const result = stripStyles(
-      formatCodexQuotaStatus(build({ bankedResetCredits: 3 }), ctx),
+      formatCodexQuotaStatus(build({ bankedResetDetails: resets(3) }), ctx),
     );
     expect(result).not.toContain("R3");
   });
 
-  it("includes R<n> when window is exhausted", () => {
+  it("includes R<n> when window is exhausted and resets are available", () => {
     const result = formatCodexQuotaStatus(
-      build({ remaining5h: 0, bankedResetCredits: 3 }),
+      build({ remaining5h: 0, bankedResetDetails: resets(3) }),
       ctx,
     );
     expect(result).toContain("<accent>R3</accent>");
@@ -91,25 +99,28 @@ describe("formatCodexQuotaStatus", () => {
   it("omits R<n> when below threshold but not exhausted", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(
-        build({ remaining5h: 15, bankedResetCredits: 3 }),
+        build({ remaining5h: 15, bankedResetDetails: resets(3) }),
         ctx,
       ),
     );
     expect(result).not.toContain("R3");
   });
 
-  it("shows R0 as dim when bankedResetCredits is 0 and window is exhausted", () => {
+  it("shows R0 as dim when bankedResetDetails is empty and window is exhausted", () => {
     const result = formatCodexQuotaStatus(
-      build({ remaining5h: 0, bankedResetCredits: 0 }),
+      build({ remaining5h: 0, bankedResetDetails: [] }),
       ctx,
     );
     expect(result).toContain("<dim>R0</dim>");
     expect(stripStyles(result)).toContain("R0");
   });
 
-  it("omits banked reset segment when bankedResetCredits is undefined", () => {
+  it("omits R segment when bankedResetDetails is undefined", () => {
     const result = stripStyles(
-      formatCodexQuotaStatus(build({ bankedResetCredits: undefined }), ctx),
+      formatCodexQuotaStatus(
+        build({ bankedResetDetails: undefined, remaining5h: 0 }),
+        ctx,
+      ),
     );
     expect(result).not.toMatch(/\bR\d/);
   });
@@ -119,7 +130,7 @@ describe("formatCodexQuotaStatus", () => {
       formatCodexQuotaStatus(
         build({
           remaining5h: 15,
-          bankedResetCredits: 0,
+          bankedResetDetails: [],
           remainingCredits: undefined,
         }),
         ctx,

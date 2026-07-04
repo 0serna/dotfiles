@@ -62,6 +62,17 @@ export function formatResetTime(resetAt: number): string {
   return `${days}d`;
 }
 
+export function formatRelativeExpiry(expiresAt: number): string {
+  const remainingSeconds = expiresAt - Math.floor(Date.now() / 1000);
+  if (remainingSeconds <= 0) return "expired";
+  const days = Math.round(remainingSeconds / 86_400);
+  if (days >= 1) {
+    return `in ${days}d`;
+  }
+  const hours = Math.max(1, Math.round(remainingSeconds / 3600));
+  return `in ${hours}h`;
+}
+
 function fg(ctx: ExtensionContext, color: ThemeColor, text: string): string {
   return ctx.ui.theme.fg(color, text);
 }
@@ -187,9 +198,10 @@ export function formatCodexQuotaStatus(
     formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
   );
 
-  if (windowExhausted && data.bankedResetCredits != null) {
-    const color = data.bankedResetCredits > 0 ? "accent" : "dim";
-    parts.push(formatCountSegment(ctx, "R", data.bankedResetCredits, color));
+  if (windowExhausted && data.bankedResetDetails != null) {
+    const count = data.bankedResetDetails.length;
+    const color = count > 0 ? "accent" : "dim";
+    parts.push(formatCountSegment(ctx, "R", count, color));
   }
 
   if (consumingCredits && data.remainingCredits != null) {
@@ -279,6 +291,10 @@ function detailRow(label: string, value: string): string {
   return `│${`${label.padEnd(10)} ${value}`.padEnd(DETAIL_WIDTH)}│`;
 }
 
+function detailSubRow(value: string): string {
+  return `│${`  ${value}`.padEnd(DETAIL_WIDTH)}│`;
+}
+
 function detailFooter(): string {
   return `└${"─".repeat(DETAIL_WIDTH)}┘`;
 }
@@ -309,8 +325,14 @@ export function formatCodexFullDetail(data: CodexQuotaData): string[] {
     lines.push(detailRow("Credits", `${data.remainingCredits}`));
   }
 
-  if (data.bankedResetCredits != null) {
-    lines.push(detailRow("Resets", `${data.bankedResetCredits}`));
+  if (data.bankedResetDetails != null) {
+    const details = data.bankedResetDetails;
+    lines.push(detailRow("Resets", `${details.length}`));
+    details.forEach((detail, index) => {
+      lines.push(
+        detailSubRow(`#${index + 1} ${formatRelativeExpiry(detail.expiresAt)}`),
+      );
+    });
   }
 
   lines.push(detailFooter());

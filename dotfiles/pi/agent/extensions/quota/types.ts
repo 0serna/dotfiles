@@ -24,16 +24,32 @@ export type CodexUsageResponse = {
     unlimited?: boolean;
     balance?: number | string;
   };
-  rate_limit_reset_credits?: {
-    available_count?: number;
-  } | null;
+};
+
+export type CodexResetCredit = {
+  status?: string;
+  reset_type?: string;
+  granted_at?: string;
+  expires_at?: string;
+  redeemed_at?: string | null;
+};
+
+export type CodexResetCreditsResponse = {
+  available_count?: number;
+  credits?: CodexResetCredit[];
+};
+
+export type BankedResetDetail = {
+  expiresAt: number;
+  grantedAt: number;
+  status: string;
 };
 
 export type CodexQuotaData = {
   remaining5h?: number;
   remaining7d?: number;
   remainingCredits?: number;
-  bankedResetCredits?: number;
+  bankedResetDetails?: BankedResetDetail[];
   resetAt5h?: number;
   resetAt7d?: number;
 };

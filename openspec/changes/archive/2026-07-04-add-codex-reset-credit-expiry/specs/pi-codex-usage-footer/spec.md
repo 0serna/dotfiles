@@ -1,10 +1,4 @@
-# pi-codex-usage-footer Specification
-
-## Purpose
-
-TBD - created by archiving change add-codex-compact-footer. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Pi footer displays compact Codex quota headroom
 
@@ -181,7 +175,7 @@ The Pi footer SHALL request OpenCode Go quota data from the OpenCode dashboard o
 #### Scenario: OpenCode Go dashboard configuration is complete
 
 - **WHEN** `OPENCODE_GO_WORKSPACE_ID` and `OPENCODE_GO_AUTH_COOKIE` are both configured
-- **THEN** the footer uses the configured workspace ID and auth cookie to request the OpenCode Go dashboard
+- **THEN** the footer uses the configured workspace ID and auth cookie to request the OpenCode dashboard
 - **AND** the footer parses OpenCode Go usage data from the dashboard response when present
 
 #### Scenario: OpenCode Go dashboard configuration is incomplete

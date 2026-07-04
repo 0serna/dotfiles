@@ -1,15 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatCodexFullDetail, formatOpenCodeFullDetail } from "../status.js";
-import type { CodexQuotaData, OpenCodeGoData } from "../types.js";
+import type {
+  BankedResetDetail,
+  CodexQuotaData,
+  OpenCodeGoData,
+} from "../types.js";
 import { stripStyles } from "./helpers.js";
 
 describe("formatCodexFullDetail", () => {
+  const NOW_SECONDS = 1_700_000_000;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW_SECONDS * 1000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function resets(count: number, daysAhead: number[]): BankedResetDetail[] {
+    return Array.from({ length: count }, (_, i) => ({
+      expiresAt: NOW_SECONDS + (daysAhead[i] ?? 0) * 24 * 60 * 60,
+      grantedAt: NOW_SECONDS - 7 * 24 * 60 * 60,
+      status: "available",
+    }));
+  }
+
   function build(overrides: Partial<CodexQuotaData> = {}): CodexQuotaData {
     return {
       remaining5h: 80,
       remaining7d: 90,
       remainingCredits: 100,
-      bankedResetCredits: 3,
+      bankedResetDetails: resets(3, [30, 27, 12]),
       resetAt5h: 9999999999,
       resetAt7d: 9999999999,
       ...overrides,
@@ -47,10 +70,50 @@ describe("formatCodexFullDetail", () => {
     );
   });
 
-  it("renders resets row", () => {
+  it("renders resets row with count", () => {
     const lines = formatCodexFullDetail(build());
     const plain = lines.map(stripStyles);
     expect(plain.some((l) => l?.includes("Resets") && l.includes("3"))).toBe(
+      true,
+    );
+  });
+
+  it("renders one sub-line per reset with relative expiry", () => {
+    const lines = formatCodexFullDetail(build());
+    const plain = lines.map(stripStyles);
+    expect(plain.some((l) => l?.includes("#1 in 30d"))).toBe(true);
+    expect(plain.some((l) => l?.includes("#2 in 27d"))).toBe(true);
+    expect(plain.some((l) => l?.includes("#3 in 12d"))).toBe(true);
+  });
+
+  it("renders sub-lines in the order provided", () => {
+    const lines = formatCodexFullDetail(
+      build({ bankedResetDetails: resets(3, [12, 27, 30]) }),
+    );
+    const plain = lines.map(stripStyles);
+    const idx1 = plain.findIndex((l) => l?.includes("#1"));
+    const idx2 = plain.findIndex((l) => l?.includes("#2"));
+    const idx3 = plain.findIndex((l) => l?.includes("#3"));
+    expect(plain[idx1]).toContain("in 12d");
+    expect(plain[idx2]).toContain("in 27d");
+    expect(plain[idx3]).toContain("in 30d");
+  });
+
+  it("renders Resets 0 without sub-lines when details is empty", () => {
+    const lines = formatCodexFullDetail(build({ bankedResetDetails: [] }));
+    const plain = lines.map(stripStyles);
+    expect(plain.some((l) => l?.includes("Resets") && l.includes("0"))).toBe(
+      true,
+    );
+    expect(plain.some((l) => l?.includes("#1"))).toBe(false);
+  });
+
+  it("renders sub-line as 'expired' for past expiresAt", () => {
+    const lines = formatCodexFullDetail(
+      build({ bankedResetDetails: resets(1, [-1]) }),
+    );
+    const plain = lines.map(stripStyles);
+    expect(plain.some((l) => l?.includes("#1") && l.includes("expired"))).toBe(
       true,
     );
   });
@@ -61,9 +124,9 @@ describe("formatCodexFullDetail", () => {
     expect(plain.some((l) => l?.includes("Credits"))).toBe(false);
   });
 
-  it("omits resets when undefined", () => {
+  it("omits resets when details is undefined", () => {
     const lines = formatCodexFullDetail(
-      build({ bankedResetCredits: undefined }),
+      build({ bankedResetDetails: undefined }),
     );
     const plain = lines.map(stripStyles);
     expect(plain.some((l) => l?.includes("Resets"))).toBe(false);

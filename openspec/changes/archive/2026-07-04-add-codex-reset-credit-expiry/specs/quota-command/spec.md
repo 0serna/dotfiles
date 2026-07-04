@@ -1,19 +1,4 @@
-# quota-command Specification
-
-## Purpose
-
-TBD - created by archiving change refactor-quota-status. Update Purpose after archive.
-
-## Requirements
-
-### Requirement: /quota command displays full detail
-
-The system SHALL register a `/quota` command that displays detailed quota information for all providers in a formatted block.
-
-#### Scenario: Command execution
-
-- **WHEN** user types `/quota`
-- **THEN** system refreshes quota data and displays formatted block with all windows, credits, and resets for each provider
+## MODIFIED Requirements
 
 ### Requirement: Block format
 
@@ -85,12 +70,3 @@ The `/quota` Codex block SHALL list each available reset credit on a separate su
 - **WHEN** the response includes credits with `status` other than `available`
 - **THEN** those credits are excluded from the sub-line list and from the `Resets` count
 - **AND** they do not appear anywhere in the Codex block
-
-### Requirement: Command refreshes data
-
-The `/quota` command SHALL fetch fresh data before displaying, not rely solely on cache.
-
-#### Scenario: Fresh fetch
-
-- **WHEN** user runs `/quota`
-- **THEN** system calls fetchCodexQuotaStatus and fetchOpenCodeGoData before rendering
