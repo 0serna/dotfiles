@@ -400,7 +400,7 @@ export interface GitHubFetchResult {
   source: "github-raw" | "github-api";
 }
 
-export async function tryGitHubFetch(
+export async function retrieveWithGitHubAdapter(
   url: string,
   parsed: ParsedGitHubUrl,
   toolCallId?: string,

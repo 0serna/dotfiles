@@ -66,7 +66,7 @@ function extractMarkdown(data: CloudflareMarkdownResponse): string | null {
  * - Daily quota has been exhausted (cached skip)
  * - The API returns an error, rate-limits, empty content, or times out
  */
-export async function tryCloudflareMarkdown(
+export async function retrieveWithCloudflareAdapter(
   url: string,
   toolCallId?: string,
 ): Promise<string | null> {

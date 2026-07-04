@@ -126,7 +126,7 @@ function isExaStatusError(
   return Boolean(status?.status && status.status !== "success");
 }
 
-export async function callExaContents(
+export async function retrieveWithExaAdapter(
   url: string,
   toolCallId?: string,
 ): Promise<string | null> {

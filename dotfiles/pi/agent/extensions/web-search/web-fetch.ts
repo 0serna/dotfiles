@@ -9,11 +9,8 @@ import {
 import { Text } from "@earendil-works/pi-tui";
 import { failureDetails } from "../shared/diagnostics.ts";
 import { writeTempOutput } from "../shared/temp-output.ts";
-import { tryCloudflareMarkdown } from "./cloudflare.ts";
-import { callExaContents } from "./exa.ts";
-import { classifyGitHubUrl, tryGitHubFetch } from "./github.ts";
-import { extractViaHttp } from "./http.ts";
 import { logWebToolEvent } from "./logger.ts";
+import { retrieve } from "./retrieval.ts";
 import type { TextToolResult } from "./types.ts";
 
 function isValidHttpUrl(s: string): boolean {
@@ -23,100 +20,6 @@ function isValidHttpUrl(s: string): boolean {
   } catch {
     return false;
   }
-}
-
-const CACHE_TTL_MS = 600_000;
-const MAX_FETCH_CACHE_ENTRIES = 50;
-
-type CachedFetch = { content: string; source: string; timestamp: number };
-
-const fetchCache = new Map<string, CachedFetch>();
-
-function pruneFetchCache(now = Date.now()): void {
-  for (const [url, cached] of fetchCache) {
-    if (now - cached.timestamp >= CACHE_TTL_MS) fetchCache.delete(url);
-  }
-
-  while (fetchCache.size >= MAX_FETCH_CACHE_ENTRIES) {
-    const oldestUrl = fetchCache.keys().next().value as string | undefined;
-    if (oldestUrl === undefined) return;
-    fetchCache.delete(oldestUrl);
-  }
-}
-
-function getCachedFetch(url: string): CachedFetch | null {
-  const cached = fetchCache.get(url);
-  if (!cached) return null;
-  if (Date.now() - cached.timestamp >= CACHE_TTL_MS) {
-    fetchCache.delete(url);
-    return null;
-  }
-  return cached;
-}
-
-function cacheAndReturn(
-  url: string,
-  content: string,
-  source: string,
-): { content: string; source: string } {
-  pruneFetchCache();
-  fetchCache.set(url, { content, source, timestamp: Date.now() });
-  return { content, source };
-}
-
-async function tryFetchContent(
-  url: string,
-  toolCallId: string,
-): Promise<{ content: string; source: string }> {
-  const cached = getCachedFetch(url);
-  if (cached) return { content: cached.content, source: cached.source };
-
-  const parsed = classifyGitHubUrl(url);
-
-  if (parsed.type !== "unsupported") {
-    const gitHubResult = await tryGitHubFetch(url, parsed, toolCallId);
-    if (gitHubResult) {
-      return cacheAndReturn(url, gitHubResult.content, gitHubResult.source);
-    }
-    logWebToolEvent("web_fetch_fallback", {
-      toolCallId,
-      url,
-      from: "github_fetch",
-      to: "http_fetch",
-      reason: "github_fetch_failure",
-    });
-  }
-
-  const httpContent = await extractViaHttp(url, toolCallId);
-  if (httpContent) {
-    return cacheAndReturn(url, httpContent, "http-fallback");
-  }
-  logWebToolEvent("web_fetch_fallback", {
-    toolCallId,
-    url,
-    from: "http_fetch",
-    to: "cloudflare_markdown",
-    reason: "http_fetch_failure",
-  });
-
-  const cloudflareContent = await tryCloudflareMarkdown(url, toolCallId);
-  if (cloudflareContent) {
-    return cacheAndReturn(url, cloudflareContent, "cloudflare");
-  }
-  logWebToolEvent("web_fetch_fallback", {
-    toolCallId,
-    url,
-    from: "cloudflare_markdown",
-    to: "exa_contents",
-    reason: "cloudflare_markdown_failure",
-  });
-
-  const exaContent = await callExaContents(url, toolCallId).catch(() => null);
-  if (exaContent) {
-    return cacheAndReturn(url, exaContent, "exa");
-  }
-
-  throw new Error("All retrieval tiers failed to provide content");
 }
 
 async function formatFetchContent(
@@ -166,7 +69,7 @@ export async function executeWebFetch(
     );
   }
   try {
-    const result = await tryFetchContent(url, _toolCallId);
+    const result = await retrieve(url, _toolCallId);
     const formatted = await formatFetchContent(url, result.content);
     return {
       content: [{ type: "text" as const, text: formatted.text }],

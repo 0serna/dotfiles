@@ -34,7 +34,7 @@ async function doHttpFetch(
   }
 }
 
-export async function extractViaHttp(
+export async function retrieveWithHttpAdapter(
   url: string,
   toolCallId?: string,
 ): Promise<string | null> {
