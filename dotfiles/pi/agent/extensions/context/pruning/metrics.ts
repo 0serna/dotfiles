@@ -10,8 +10,6 @@ import { estimateToolResultTokens, estimatedSavedTokens } from "./savings.js";
 
 function emptyReasonCounts(): Record<PruneReason, number> {
   return {
-    duplicate: 0,
-    resolved: 0,
     superseded: 0,
     stale_large: 0,
   };
@@ -24,7 +22,7 @@ export function emptyPruneMetrics(
     contextSequence,
     processedCount: 0,
     stubbedCount: 0,
-    staleLargeProtectedCount: 0,
+    ageGatedCount: 0,
     reasonCounts: emptyReasonCounts(),
     estimatedSavedTokens: 0,
     estimatedSavedTokensByReason: emptyReasonCounts(),
@@ -65,7 +63,7 @@ export function metricsFor(
     contextSequence,
     processedCount: candidates.length,
     stubbedCount: decisions.length,
-    staleLargeProtectedCount: candidates.filter(
+    ageGatedCount: candidates.filter(
       (candidate) =>
         candidate.policy.has("stale_large") &&
         candidate.dcpAge <= STALE_LARGE_MIN_AGE &&

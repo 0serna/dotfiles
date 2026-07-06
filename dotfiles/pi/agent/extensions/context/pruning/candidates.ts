@@ -7,16 +7,6 @@ function isToolResult(message: Record<string, unknown>): boolean {
   return message.role === "toolResult";
 }
 
-function isErrorResult(
-  message: Record<string, unknown>,
-  text: string,
-): boolean {
-  return (
-    message.isError === true ||
-    /(^|\n)(error|failed|command exited with code [1-9])/i.test(text)
-  );
-}
-
 export function collectCandidates(
   messages: readonly unknown[],
 ): ToolResultCandidate[] {
@@ -40,7 +30,6 @@ export function collectCandidates(
       index,
       message,
       text,
-      isError: isErrorResult(message, text),
       metadata,
       dcpAge: 0,
       policy,

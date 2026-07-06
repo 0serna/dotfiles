@@ -10,45 +10,6 @@ import {
 } from "./prune.test-utils.ts";
 
 describe("context DCP pruning policy", () => {
-  it("preserves duplicate results below threshold", () => {
-    const messages = [
-      assistantToolCall("a", "bash", { command: "echo same" }),
-      toolResult("a", "bash", "same output"),
-      assistantToolCall("b", "bash", { command: "printf same" }),
-      toolResult("b", "bash", "same output"),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe("same output");
-    expect(textOf(pruned[3]!)).toBe("same output");
-  });
-
-  it("keeps duplicate file tool results", () => {
-    const messages = [
-      assistantToolCall("a", "read", { path: "src/a.ts" }),
-      toolResult("a", "read", big()),
-      assistantToolCall("b", "read", { path: "src/b.ts" }),
-      toolResult("b", "read", big()),
-      assistantToolCall("c", "edit", {
-        path: "src/c.ts",
-        edits: [{ oldText: "a", newText: "b" }],
-      }),
-      toolResult("c", "edit", big()),
-      assistantToolCall("d", "write", { path: "src/d.ts", content: "x" }),
-      toolResult("d", "write", big()),
-      ...dcpTail(1),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe(big());
-    expect(textOf(pruned[3]!)).toBe(big());
-    expect(textOf(pruned[5]!)).toBe(big());
-    expect(textOf(pruned[7]!)).toBe(big());
-  });
-
   it("ignores question results entirely", () => {
     const log = vi.fn();
     const messages = [
@@ -95,36 +56,6 @@ describe("context DCP pruning policy", () => {
     });
   });
 
-  it("does not prune unlisted textual tool by duplicate", () => {
-    const messages = [
-      assistantToolCall("a", "custom_tool", { input: "x" }),
-      toolResult("a", "custom_tool", "same output"),
-      assistantToolCall("b", "custom_tool", { input: "y" }),
-      toolResult("b", "custom_tool", "same output"),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe("same output");
-    expect(textOf(pruned[3]!)).toBe("same output");
-  });
-
-  it("does not prune unlisted textual tool by resolved", () => {
-    const messages = [
-      assistantToolCall("a", "custom_tool", { input: "x" }),
-      toolResult("a", "custom_tool", "Error: failed", true),
-      assistantToolCall("b", "custom_tool", { input: "x" }),
-      toolResult("b", "custom_tool", "ok"),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe("Error: failed");
-    expect(textOf(pruned[3]!)).toBe("ok");
-  });
-
   it("does not prune unlisted textual tool by superseded", () => {
     const messages = [
       assistantToolCall("a", "custom_tool", { path: "file.txt" }),
@@ -156,7 +87,7 @@ describe("context DCP pruning policy", () => {
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       processedCount: 31,
       stubbedCount: 0,
-      staleLargeProtectedCount: 0,
+      ageGatedCount: 0,
     });
   });
 });

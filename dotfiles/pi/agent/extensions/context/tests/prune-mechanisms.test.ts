@@ -10,36 +10,6 @@ import {
 } from "./prune.test-utils.ts";
 
 describe("context DCP pruning mechanisms", () => {
-  it("stubs older duplicate command results when above threshold", () => {
-    const messages = [
-      assistantToolCall("a", "bash", { command: "echo same" }),
-      toolResult("a", "bash", big()),
-      assistantToolCall("b", "bash", { command: "printf same" }),
-      toolResult("b", "bash", big()),
-      ...dcpTail(1),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toContain("reason=duplicate");
-    expect(textOf(pruned[3]!)).toBe(big());
-  });
-
-  it("stubs older duplicate web_fetch results when above threshold", () => {
-    const messages = [
-      assistantToolCall("a", "web_fetch", { url: "https://example.com/a" }),
-      toolResult("a", "web_fetch", big()),
-      assistantToolCall("b", "web_fetch", { url: "https://example.com/b" }),
-      toolResult("b", "web_fetch", big()),
-      ...dcpTail(1),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toContain("reason=duplicate");
-    expect(textOf(pruned[3]!)).toBe(big());
-  });
-
   it("keeps duplicate web_search results", () => {
     const messages = [
       assistantToolCall("a", "web_search", { query: "first" }),
@@ -55,42 +25,42 @@ describe("context DCP pruning mechanisms", () => {
     expect(textOf(pruned[3]!)).toBe(big());
   });
 
-  it("stubs resolved errors only when followed by later success for the same operation", () => {
+  it("keeps duplicate bash results (no longer deduplicated)", () => {
+    const messages = [
+      assistantToolCall("a", "bash", { command: "echo same" }),
+      toolResult("a", "bash", big()),
+      assistantToolCall("b", "bash", { command: "printf same" }),
+      toolResult("b", "bash", big()),
+      ...dcpTail(1),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(big());
+    expect(textOf(pruned[3]!)).toBe(big());
+  });
+
+  it("keeps duplicate web_fetch results (no longer deduplicated)", () => {
+    const messages = [
+      assistantToolCall("a", "web_fetch", { url: "https://example.com/a" }),
+      toolResult("a", "web_fetch", big()),
+      assistantToolCall("b", "web_fetch", { url: "https://example.com/b" }),
+      toolResult("b", "web_fetch", big()),
+      ...dcpTail(1),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toBe(big());
+    expect(textOf(pruned[3]!)).toBe(big());
+  });
+
+  it("keeps bash error followed by later success (no longer resolved)", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "npm test" }),
       toolResult("a", "bash", `Error: ${big()}`, true),
       assistantToolCall("b", "bash", { command: "npm test" }),
       toolResult("b", "bash", "ok"),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toContain("reason=resolved");
-    expect(textOf(pruned[3]!)).toBe("ok");
-  });
-
-  it("preserves resolved errors below threshold", () => {
-    const messages = [
-      assistantToolCall("a", "bash", { command: "npm test" }),
-      toolResult("a", "bash", "Error: failed", true),
-      assistantToolCall("b", "bash", { command: "npm test" }),
-      toolResult("b", "bash", "ok"),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe("Error: failed");
-    expect(textOf(pruned[3]!)).toBe("ok");
-  });
-
-  it("does not resolve web_fetch errors", () => {
-    const messages = [
-      assistantToolCall("a", "web_fetch", { url: "https://example.com" }),
-      toolResult("a", "web_fetch", `Error: ${big()}`, true),
-      assistantToolCall("b", "web_fetch", { url: "https://example.com" }),
-      toolResult("b", "web_fetch", "ok"),
       ...dcpTail(1),
     ];
 
@@ -98,27 +68,6 @@ describe("context DCP pruning mechanisms", () => {
 
     expect(textOf(pruned[1]!)).toBe(`Error: ${big()}`);
     expect(textOf(pruned[3]!)).toBe("ok");
-  });
-
-  it("does not resolve errors for tools without a confident operation target", () => {
-    const messages = [
-      assistantToolCall("a", "question", {
-        question: "first?",
-        options: [{ label: "No" }],
-      }),
-      toolResult("a", "question", `Error: ${big()}`, true),
-      assistantToolCall("b", "question", {
-        question: "second?",
-        options: [{ label: "Yes" }],
-      }),
-      toolResult("b", "question", "Yes"),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toBe(`Error: ${big()}`);
-    expect(textOf(pruned[3]!)).toBe("Yes");
   });
 
   it("stubs same-tool superseded file operations targeting the same file", () => {
@@ -205,7 +154,7 @@ describe("context DCP pruning mechanisms", () => {
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       processedCount: 21,
       stubbedCount: 0,
-      staleLargeProtectedCount: 1,
+      ageGatedCount: 1,
     });
   });
 
@@ -258,21 +207,6 @@ describe("context DCP pruning mechanisms", () => {
     const { messages: pruned, metrics } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toBe(big());
-    expect(metrics.staleLargeProtectedCount).toBe(0);
-  });
-
-  it("stubs superseded read results", () => {
-    const messages = [
-      assistantToolCall("a", "read", { path: "src/big.ts" }),
-      toolResult("a", "read", big()),
-      assistantToolCall("b", "read", { path: "src/big.ts" }),
-      toolResult("b", "read", big()),
-      ...dcpTail(),
-    ];
-
-    const { messages: pruned } = pruneMessages(messages);
-
-    expect(textOf(pruned[1]!)).toContain("reason=superseded");
-    expect(textOf(pruned[3]!)).toBe(big());
+    expect(metrics.ageGatedCount).toBe(0);
   });
 });

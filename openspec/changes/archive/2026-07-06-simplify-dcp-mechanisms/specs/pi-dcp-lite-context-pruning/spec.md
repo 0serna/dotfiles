@@ -1,10 +1,4 @@
-# pi-dcp-lite-context-pruning Specification
-
-## Purpose
-
-Automatically reduce stale tool result content in transient context to improve cache stability and reduce token consumption in long tool-heavy sessions, using an explicit tool/mechanism pruning policy allowlist.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Balance-oriented pruning rules
 
@@ -120,39 +114,21 @@ DCP SHALL stub only eligible `toolResult` messages that match explicit tool/mech
 - **THEN** DCP SHALL leave the result content unchanged
 - **AND** DCP SHALL NOT count the decision as stubbed in pruning metrics
 
-### Requirement: Age-gated size protection metrics
+## REMOVED Requirements
 
-DCP SHALL report size-gate protection metrics separately from pruning metrics and SHALL NOT report a global recent-protection count. DCP SHALL only count size-gate protection for tools whose pruning policy allows `stale_large` and whose estimated original output size is greater than 500 tokens. The metric SHALL be exposed as `ageGatedCount` on `PruneMetrics`.
+### Requirement: Duplicate output pruning
 
-#### Scenario: Size-gate protection is counted for allowlisted tool
+**Reason**: The `duplicate` mechanism is removed in this change; recent activity shows it produces mostly short collisions below the size gate and adds normalized-hash bookkeeping for negligible savings.
+**Migration**: Replaced output deduplication is no longer provided. The remaining `superseded` and `stale_large` mechanisms cover the high-value cases.
 
-- **WHEN** a DCP-ageable `toolResult` exceeds the 500-token pruning threshold but is not older than 25 DCP-ageable tool results
-- **AND** the tool policy allows `stale_large`
-- **THEN** DCP SHALL count the result as protected by the `stale_large` age gate
+### Requirement: Resolved error pruning
 
-#### Scenario: Size-gate protection is not counted without policy
+**Reason**: The `resolved` mechanism is removed in this change; bash error-then-success sequences are typically short and the semantic-operation identity bookkeeping is no longer justified.
+**Migration**: Replaced error trimming is no longer provided. The remaining `superseded` and `stale_large` mechanisms cover the high-value cases.
 
-- **WHEN** a textual `toolResult` exceeds the 500-token pruning threshold but is not older than 25 DCP-ageable tool results
-- **AND** the tool policy does not allow `stale_large`
-- **THEN** DCP SHALL NOT count the result as protected by the `stale_large` age gate
+## RENAMED Requirements
 
-#### Scenario: Below-threshold result is not counted as age protected
+### Requirement: Stale-large age metrics → Age-gated size protection metrics
 
-- **WHEN** a textual `toolResult` has an estimated original output size of 500 tokens or less
-- **AND** the tool policy allows `stale_large`
-- **THEN** DCP SHALL NOT count the result as protected by the `stale_large` age gate
-
-### Requirement: Stable pruning interface
-
-DCP SHALL expose context pruning behavior through a single stable pruning interface that accepts the current context messages and pruning options, returns transformed messages and metrics, and preserves all existing pruning-rule behavior behind that interface. If pruning encounters an unexpected internal error, DCP SHALL leave the input messages unchanged and SHALL return empty pruning metrics rather than interrupting context processing.
-
-#### Scenario: Pruning succeeds through stable interface
-
-- **WHEN** context messages are passed through the pruning interface
-- **THEN** DCP SHALL return a messages array and pruning metrics according to the existing pruning rules
-
-#### Scenario: Internal pruning failure is fail-open
-
-- **WHEN** an unexpected internal pruning error occurs while processing context messages
-- **THEN** DCP SHALL return the original messages unchanged
-- **AND** DCP SHALL return empty pruning metrics
+**Reason**: The metric `staleLargeProtectedCount` is renamed to `ageGatedCount` to reflect that the size gate (now 500 tokens) and the age gate (now 25) are independent, and that the metric counts candidates that cleared the size gate but were blocked by the age gate.
+**Migration**: External readers of `PruneMetrics` must use the new field name `ageGatedCount`. The semantic and counting rules are unchanged apart from the threshold/age values.

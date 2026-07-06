@@ -1,5 +1,3 @@
-import { createHash } from "crypto";
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -42,16 +40,8 @@ export function replaceTextContent(
   };
 }
 
-export function normalizeContent(text: string): string {
-  return text.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
 export function normalizedToolName(name: string): string {
   return name.toLowerCase().replace(/^functions[._-]/, "");
-}
-
-export function hashNormalizedContent(text: string): string {
-  return createHash("sha256").update(normalizeContent(text)).digest("hex");
 }
 
 export function truncateTarget(target: string, maxLength: number): string {

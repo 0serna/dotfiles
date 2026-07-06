@@ -2,7 +2,7 @@
 
 - Use NEUTRAL SPANISH for all user-facing messages, but keep ENGLISH for code and all other files.
 - Keep your answers CONCISE and to the point. AVOID using filler words.
-- Use the `question` tool whenever presenting options or decisions to the user.
+- Use the `question` tool whenever presenting options or decisions to the user. This is mandatory during grilling sessions and any interactive questioning: every decision point goes through the tool, never free-form bullet lists.
 
 ## Principles
 

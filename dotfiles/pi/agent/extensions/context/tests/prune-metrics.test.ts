@@ -12,17 +12,14 @@ describe("context DCP pruning metrics", () => {
   it("reports positive savings for applied stubs", () => {
     const log = vi.fn();
     const messages = [
-      assistantToolCall("a", "bash", { command: "echo same" }),
+      assistantToolCall("a", "bash", { command: "rg foo" }),
       toolResult("a", "bash", big()),
-      assistantToolCall("b", "bash", { command: "printf same" }),
-      toolResult("b", "bash", big()),
-      ...dcpTail(1),
+      ...dcpTail(),
     ];
 
     const { messages: pruned } = pruneMessages(messages, { logger: { log } });
 
-    expect(textOf(pruned[1]!)).toContain("reason=duplicate");
-    expect(textOf(pruned[3]!)).toBe(big());
+    expect(textOf(pruned[1]!)).toContain("reason=stale_large");
     expect(log.mock.calls[0]?.[1]?.["estimatedSavedTokens"]).toBeGreaterThan(0);
   });
 
@@ -82,10 +79,8 @@ describe("context DCP pruning metrics", () => {
       contextSequence: 7,
       processedCount: 32,
       stubbedCount: 1,
-      staleLargeProtectedCount: 0,
+      ageGatedCount: 0,
       reasonCounts: {
-        duplicate: 0,
-        resolved: 0,
         superseded: 0,
         stale_large: 1,
       },

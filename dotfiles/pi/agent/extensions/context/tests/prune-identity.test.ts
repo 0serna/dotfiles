@@ -71,7 +71,7 @@ describe("context DCP semantic identity", () => {
     expect(textOf(pruned[3]!)).toBe("lines 1-100");
   });
 
-  it("does not resolve read errors when later read covers different range", () => {
+  it("preserves read errors (resolved mechanism is removed)", () => {
     const messages = [
       assistantToolCall("a", "read", { path: "src/app.ts" }),
       toolResult("a", "read", `Error: ${big()}`, true),
@@ -130,7 +130,7 @@ describe("context DCP semantic identity", () => {
     expect(textOf(pruned[3]!)).toBe("second edit output");
   });
 
-  it("does not resolve edit errors", () => {
+  it("preserves edit errors (resolved mechanism is removed)", () => {
     const edits = [{ oldText: "old", newText: "new" }];
     const messages = [
       assistantToolCall("a", "edit", { path: "src/app.ts", edits }),
