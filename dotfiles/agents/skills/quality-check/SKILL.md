@@ -44,6 +44,8 @@ Do not propose every candidate. Propose the smallest useful set for the reposito
 
 Validate the execution vehicle before writing anything. Recommend in this order: (1) existing repository runner (Make, Just, Taskfile, package scripts, tox/nox, cargo, rake, composer), (2) runtime from the primary stack (Node, Python, Go, Rust, Ruby, PHP), (3) Bash fallback. Ask the user to confirm the check entrypoint, runner/runtime, selected tools and commands, format/autofix commands, dependencies to add, whether existing commands are preserved or adapted, and the pre-commit mechanism.
 
+Always ask whether to include OpenSpec validation, even when no OpenSpec evidence is present. If selected, validate all specs with the repository's supported OpenSpec command and JSON output when available.
+
 ### 4. Preserve or adapt commands
 
 Classify each selected command as **preserved** (opaque runner/orchestrator kept verbatim), **adapted** (recognized tool adjusted for concise machine-readable output), **added** (new command accepted by the user), or **skipped** (rejected or not applicable).
@@ -52,7 +54,9 @@ Rules:
 
 - Preserve opaque commands such as `make lint`, `nx run-many`, `turbo run`, `tox`, `gradle check`, or pipelines unless the user explicitly wants expansion.
 - Expand script aliases only one level deep.
-- Prefer native parseable flags when available: JSON, terse, quiet, no-progress, or equivalent.
+- Move commands selected for `check` out of other package scripts or runner targets when they would duplicate the centralized check path.
+- Prefer structured or machine-readable output for selected tools when available, such as JSON, SARIF, JUnit, TAP, terse, quiet, no-progress, or equivalent.
+- Capture structured output internally for reliable failure reporting, but keep the check's human-facing output contract stable.
 - Keep formatters out of the check unless they run in check mode, such as `fmt --check`.
 - Include tests only when selected as part of the repository check.
 
@@ -85,6 +89,7 @@ Before edits, present one consolidated change set and ask for confirmation. Incl
 - selected tools and exact commands
 - preserved opaque commands
 - adapted commands and output flags
+- commands removed from other package scripts or runner targets because `check` now centralizes them
 - dependencies to add
 - pre-commit mechanism, format/autofix command, re-stage command, and check command
 
@@ -118,6 +123,7 @@ Report:
 - check entrypoint created or updated
 - runner/runtime used
 - tools preserved, adapted, added, skipped
+- commands removed from other package scripts or runner targets
 - dependencies added
 - pre-commit integration created or updated
 - format/autofix and re-stage behavior

@@ -6,7 +6,8 @@
 # summary always shows all results and the exit code is 0 only when every
 # tool passes.
 
-PATH="$(cd "$(dirname "$0")/.." && pwd)/node_modules/.bin:$PATH"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PATH="$REPO_ROOT/node_modules/.bin:$PATH"
 
 run_tool() {
   local name=$1
