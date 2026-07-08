@@ -13,6 +13,7 @@
 
 - ALWAYS use `rg` (ripgrep) instead of `grep` for file searches — it's faster and respects `.gitignore`.
 - Use GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata. Clone to `/tmp` when deep analysis is needed.
+- Use the `/tdd` skill when changing behavior or fixing bugs where a red → green loop is practical; skip it for mechanical edits, configuration-only changes, documentation-only changes, or exploratory work.
 - NEVER generate documentation files without the user's explicit permission.
 - NEVER use stash, stage, or commit without the user's explicit permission.
 
