@@ -35,6 +35,5 @@ echo "---CHECK:SUMMARY---"
 echo "eslint: $(status $ESLINT_EXIT)"
 echo "tsc: $(status $TSC_EXIT)"
 echo "openspec: $(status $OPENSPEC_EXIT)"
-echo "---CHECK:DONE---"
 
 exit $((ESLINT_EXIT || TSC_EXIT || OPENSPEC_EXIT))

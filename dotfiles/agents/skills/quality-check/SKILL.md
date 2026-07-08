@@ -58,16 +58,16 @@ Rules:
 
 ### 5. Define the output contract
 
-Implement the same contract in the confirmed runner/runtime. Finish when the script or runner entrypoint guarantees:
+The output format is mandatory regardless of runner or runtime. Implement it in the confirmed vehicle (script, Make target, package script, etc.). The contract:
 
-- all selected tools run even after failures
-- successful tool details are hidden
-- failed tool details are printed under a stable delimiter such as `---CHECK:<tool>---`
-- `---CHECK:SUMMARY---` and `---CHECK:DONE---` are always printed
-- every selected tool appears in the summary as PASS or FAIL
-- the final exit code is non-zero if any tool failed
+- All selected tools run even after failures.
+- Successful tool details are hidden.
+- Failed tool details are printed under `---CHECK:<tool>---`.
+- `---CHECK:SUMMARY---` is always printed.
+- Every selected tool appears in the summary as `tool: PASS` or `tool: FAIL`.
+- The final exit code is non-zero if any tool failed.
 
-Do not use fail-fast behavior for the check entrypoint. In shell scripts, do not use `set -e` around tool execution.
+Do not use fail-fast behavior. In shell scripts, do not use `set -e` around tool execution.
 
 ### 6. Integrate pre-commit
 
@@ -94,14 +94,14 @@ Do not implement until the user confirms the whole set.
 
 After implementation, run the agreed check command and the pre-commit command or hook in the least invasive supported way. Finish when:
 
-- all selected tools executed
-- passing tools did not emit details
-- failing tools emitted delimited details
-- summary and done delimiters appeared
-- exit code semantics are correct
-- pre-commit runs format/autofix before the check
-- pre-commit re-stages files modified by format/autofix
-- pre-commit invokes the full check
+- All selected tools executed.
+- Passing tools did not emit details.
+- Failing tools emitted `---CHECK:<tool>---` delimited details.
+- `---CHECK:SUMMARY---` appeared with every tool as PASS or FAIL.
+- Exit code semantics are correct.
+- Pre-commit runs format/autofix before the check.
+- Pre-commit re-stages files modified by format/autofix.
+- Pre-commit invokes the full check.
 
 If verification fails, fix the underlying issue instead of suppressing the tool.
 

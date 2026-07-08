@@ -23,6 +23,5 @@ EXAMPLE_TOOL_EXIT=$?
 
 echo "---CHECK:SUMMARY---"
 echo "example-tool: $(status $EXAMPLE_TOOL_EXIT)"
-echo "---CHECK:DONE---"
 
 exit $((EXAMPLE_TOOL_EXIT))
