@@ -4,7 +4,7 @@
 .
 ├── src/                  # TypeScript installer and link logic
 ├── dotfiles/             # Files linked into user config locations
-│   ├── agents/           # Sharable agent skills
+│   ├── agents/           # Shared agent skills
 │   ├── codex/            # Codex configuration
 │   ├── opencode/         # OpenCode commands, agents, plugins & tools
 │   └── pi/               # Pi agent extensions, prompts & settings
@@ -17,11 +17,19 @@
 └── scripts/              # Local automation
 ```
 
+## Repository Stack
+
+- Language: TypeScript, Bash
+- Runtime: Node.js
+- Package manager: npm
+- Platform: Pi agent, OpenCode, Codex dotfiles
+- Test framework: Vitest
+- Build tool: TypeScript compiler, tsx
+- Quality tools: ESLint, Prettier, OpenSpec
+
 ## Repository Commands
 
 - `npm install`: install dependencies.
-- `npm test`: run the Vitest suite.
-- `npm run check`: run ESLint, TypeScript, and OpenSpec validation.
-- `npm run format`: format repository files with Prettier.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
-- `npm run sync-pi-settings`: sync Pi agent settings.
+- `npm run check`: run Vitest, ESLint, TypeScript, and OpenSpec validation.
+- `npm run sync-pi-settings`: publish local Pi agent settings into the repository.

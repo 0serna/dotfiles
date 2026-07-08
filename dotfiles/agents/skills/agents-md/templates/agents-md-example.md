@@ -10,6 +10,14 @@
 └── docs/                 # project documentation
 ```
 
+## Repository Stack
+
+- Language: TypeScript
+- Runtime: Node.js
+- Package manager: npm
+- Test framework: Vitest
+- Quality tools: ESLint, Prettier
+
 ## Repository Commands
 
 - `npm install`: install dependencies.
