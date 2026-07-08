@@ -6,8 +6,6 @@
   "scripts": {
     "link": "tsx src/dotfiles-installer.ts",
     "check": "bash scripts/check.sh",
-    "format": "prettier --write .",
-    "test": "vitest run",
     "sync-pi-settings": "bash scripts/publish-pi-settings.sh",
     "prepare": "husky"
   },

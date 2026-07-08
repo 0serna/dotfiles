@@ -24,6 +24,8 @@ run_tool() {
 
 status() { [ $1 -eq 0 ] && echo PASS || echo FAIL; }
 
+run_tool vitest vitest run
+VITEST_EXIT=$?
 run_tool eslint eslint . --format json
 ESLINT_EXIT=$?
 run_tool tsc tsc --noEmit
@@ -32,8 +34,9 @@ run_tool openspec openspec validate --all --json
 OPENSPEC_EXIT=$?
 
 echo "---CHECK:SUMMARY---"
+echo "vitest: $(status $VITEST_EXIT)"
 echo "eslint: $(status $ESLINT_EXIT)"
 echo "tsc: $(status $TSC_EXIT)"
 echo "openspec: $(status $OPENSPEC_EXIT)"
 
-exit $((ESLINT_EXIT || TSC_EXIT || OPENSPEC_EXIT))
+exit $((VITEST_EXIT || ESLINT_EXIT || TSC_EXIT || OPENSPEC_EXIT))
