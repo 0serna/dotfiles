@@ -8,6 +8,8 @@
 │   ├── codex/            # Codex configuration
 │   ├── opencode/         # OpenCode commands, agents, plugins & tools
 │   └── pi/               # Pi agent extensions, prompts & settings
+├── docs/                 # Architecture decision records
+│   └── adr/
 ├── openspec/             # OpenSpec specifications and change archive
 │   ├── specs/            # Living specifications
 │   └── changes/          # Active and archived changes

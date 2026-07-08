@@ -20,7 +20,7 @@ Create or maintain root `AGENTS.md`. Compile the generated block first, then pre
 
 ## Repository Structure
 
-Build a markdown code-fence tree starting at `.`. Show only directories — no files, no hidden directories. Go one level deep only when subdirectories reveal the directory's purpose; otherwise stop at the root. Annotate each directory when its purpose is non-obvious.
+Build a markdown code-fence tree starting at `.`. Show only directories — no files, no hidden directories. Respect `.gitignore` rules to exclude ignored directories from the tree. Go one level deep only when subdirectories reveal the directory's purpose; otherwise stop at the root. Annotate each directory when its purpose is non-obvious.
 
 ## Repository Commands
 
@@ -33,4 +33,4 @@ The generated block is always first in the file:
 1. `## Repository Structure`
 2. `## Repository Commands`
 
-Find each by heading; replace from heading to next same/higher heading or EOF. Rename mismatched headings (e.g. `## Project Structure` → `## Repository Structure`). If missing, insert at the start. If `AGENTS.md` begins with unrelated content, move it after the generated block unchanged. Preserve all unrelated content exactly. Do not format or validate afterwards.
+Find each by heading; replace from heading to next same/higher heading or EOF. Rename mismatched headings (e.g. `## Project Structure` → `## Repository Structure`). If missing, insert at the start. If `AGENTS.md` begins with unrelated content, move it after the generated block unchanged. When updating, detect references in preserved content that no longer apply due to structural or command changes (e.g. directory paths, script names) and correct them. Preserve all unrelated content exactly. Do not format or validate afterwards.
