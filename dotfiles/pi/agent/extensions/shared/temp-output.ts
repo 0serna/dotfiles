@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,22 +41,5 @@ export async function writeTempOutput(
     mode: PRIVATE_FILE_MODE,
   });
   await chmod(filePath, PRIVATE_FILE_MODE);
-  return filePath;
-}
-
-export function writeTempOutputSync(
-  namespace: string,
-  content: string,
-  options: TempOutputOptions = {},
-): string {
-  const filePath = tempOutputPath(namespace, options);
-  const dir = join(tmpdir(), namespace);
-  mkdirSync(dir, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
-  chmodSync(dir, PRIVATE_DIRECTORY_MODE);
-  writeFileSync(filePath, content, {
-    encoding: "utf8",
-    mode: PRIVATE_FILE_MODE,
-  });
-  chmodSync(filePath, PRIVATE_FILE_MODE);
   return filePath;
 }

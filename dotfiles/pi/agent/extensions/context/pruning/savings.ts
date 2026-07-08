@@ -2,10 +2,7 @@ import { estimateTokens as estimateMessageTokens } from "@earendil-works/pi-codi
 import type { StubDecision } from "../types.js";
 import { buildStub } from "./stub.js";
 
-export function estimateToolResultTokens(
-  text: string,
-  toolName: string,
-): number {
+function estimateToolResultTokens(text: string, toolName: string): number {
   return estimateMessageTokens({
     role: "toolResult",
     toolCallId: "context-prune-estimate",

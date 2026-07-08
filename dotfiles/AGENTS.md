@@ -2,11 +2,10 @@
 
 - Use NEUTRAL SPANISH for all user-facing messages, but keep ENGLISH for code and all other files.
 - Keep your answers CONCISE and to the point. AVOID using filler words.
-- Use the `question` tool whenever presenting options or decisions to the user. This is mandatory during grilling sessions and any interactive questioning: every decision point goes through the tool, never free-form bullet lists.
+- Use the `question` tool whenever presenting options or decisions to the user. This is mandatory during grilling sessions and any interactive questioning: every decision point goes through the tool, NEVER free-form bullet lists.
 
 ## Principles
 
-- Prefer the smallest correct implementation. Do not add speculative features, abstractions, configurability, or defensive handling for impossible scenarios.
 - Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes.
 - Do not suppress tools. When a quality tool reports an issue, fix the underlying problem. Do not use suppression comments to deflect or silence warnings.
 

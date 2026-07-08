@@ -1,7 +1,6 @@
 import type { ExtensionLogger } from "../shared/logger.js";
 
 export const STALE_LARGE_MIN_AGE = 25;
-export const PRUNE_TOKEN_THRESHOLD = 500;
 export const TARGET_MAX_LENGTH = 120;
 
 export type PruneReason = "superseded" | "stale_large";
@@ -33,7 +32,6 @@ export interface PruneMetrics {
   contextSequence?: number;
   processedCount: number;
   stubbedCount: number;
-  ageGatedCount: number;
   reasonCounts: Record<PruneReason, number>;
   estimatedSavedTokens: number;
   estimatedSavedTokensByReason: Record<PruneReason, number>;
@@ -49,5 +47,4 @@ export interface PruneMetrics {
 export interface PruneOptions {
   logger?: ExtensionLogger;
   contextSequence?: number;
-  sessionId?: string;
 }

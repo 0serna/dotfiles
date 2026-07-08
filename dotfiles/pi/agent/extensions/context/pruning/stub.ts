@@ -1,7 +1,6 @@
 import { accessSync, constants } from "fs";
 import { tmpdir } from "os";
 import { basename, dirname } from "path";
-import { writeTempOutputSync } from "../../shared/temp-output.js";
 import { replaceTextContent } from "../content.js";
 import type { PruneReason, StubDecision } from "../types.js";
 
@@ -40,42 +39,18 @@ export function buildStub(reason: PruneReason, savedPath?: string): string {
     : `[DCP pruned transient output: reason=${reason}]`;
 }
 
-function externalizeOutput(
-  text: string,
-  sessionId: string,
-  sequenceNumber: number,
-): string {
-  return writeTempOutputSync("pi-dcp", text, {
-    id: `${sessionId}-${String(sequenceNumber).padStart(4, "0")}`,
-  });
-}
-
-function savedPathFor(
-  decision: StubDecision,
-  sessionId: string,
-): string | undefined {
-  const existingPath = extractFullOutputPath(decision.candidate.text);
-  if (existingPath !== null) return existingPath;
-  try {
-    return externalizeOutput(
-      decision.candidate.text,
-      sessionId,
-      decision.candidate.index,
-    );
-  } catch {
-    return undefined;
-  }
+function savedPathFor(decision: StubDecision): string | undefined {
+  return extractFullOutputPath(decision.candidate.text) ?? undefined;
 }
 
 export function applyStubs<T>(
   messages: readonly T[],
   decisions: readonly StubDecision[],
-  sessionId: string,
 ): T[] {
   const replacements = new Map<number, Record<string, unknown>>();
 
   for (const decision of decisions) {
-    const savedPath = savedPathFor(decision, sessionId);
+    const savedPath = savedPathFor(decision);
     replacements.set(
       decision.candidate.index,
       replaceTextContent(

@@ -87,7 +87,6 @@ describe("context DCP pruning policy", () => {
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       processedCount: 31,
       stubbedCount: 0,
-      ageGatedCount: 0,
     });
   });
 });

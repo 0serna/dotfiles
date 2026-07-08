@@ -8,8 +8,8 @@
     "check": "bash scripts/check.sh",
     "format": "prettier --write .",
     "test": "vitest run",
-    "prepare": "husky",
-    "sync-pi-settings": "bash scripts/publish-pi-settings.sh"
+    "sync-pi-settings": "bash scripts/publish-pi-settings.sh",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@earendil-works/pi-ai": "^0.75.4",

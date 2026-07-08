@@ -1,12 +1,10 @@
 import {
-  PRUNE_TOKEN_THRESHOLD,
-  STALE_LARGE_MIN_AGE,
   type PruneMetrics,
   type PruneReason,
   type StubDecision,
   type ToolResultCandidate,
 } from "../types.js";
-import { estimateToolResultTokens, estimatedSavedTokens } from "./savings.js";
+import { estimatedSavedTokens } from "./savings.js";
 
 function emptyReasonCounts(): Record<PruneReason, number> {
   return {
@@ -22,7 +20,6 @@ export function emptyPruneMetrics(
     contextSequence,
     processedCount: 0,
     stubbedCount: 0,
-    ageGatedCount: 0,
     reasonCounts: emptyReasonCounts(),
     estimatedSavedTokens: 0,
     estimatedSavedTokensByReason: emptyReasonCounts(),
@@ -63,13 +60,6 @@ export function metricsFor(
     contextSequence,
     processedCount: candidates.length,
     stubbedCount: decisions.length,
-    ageGatedCount: candidates.filter(
-      (candidate) =>
-        candidate.policy.has("stale_large") &&
-        candidate.dcpAge <= STALE_LARGE_MIN_AGE &&
-        estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-          PRUNE_TOKEN_THRESHOLD,
-    ).length,
     reasonCounts,
     estimatedSavedTokens: totalEstimatedSavedTokens,
     estimatedSavedTokensByReason,

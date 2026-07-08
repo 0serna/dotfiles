@@ -68,7 +68,6 @@ describe("context DCP pruning metrics", () => {
     const { metrics } = pruneMessages(messages, {
       logger: { log },
       contextSequence: 7,
-      sessionId: "test-session",
     });
 
     const payload = log.mock.calls[0]?.[1] as Record<string, unknown>;
@@ -79,7 +78,6 @@ describe("context DCP pruning metrics", () => {
       contextSequence: 7,
       processedCount: 32,
       stubbedCount: 1,
-      ageGatedCount: 0,
       reasonCounts: {
         superseded: 0,
         stale_large: 1,

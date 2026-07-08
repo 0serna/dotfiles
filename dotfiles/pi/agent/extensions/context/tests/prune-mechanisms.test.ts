@@ -154,7 +154,6 @@ describe("context DCP pruning mechanisms", () => {
     expect(log.mock.calls[0]?.[1]).toMatchObject({
       processedCount: 21,
       stubbedCount: 0,
-      ageGatedCount: 1,
     });
   });
 
@@ -204,9 +203,8 @@ describe("context DCP pruning mechanisms", () => {
       ...dcpTail(),
     ];
 
-    const { messages: pruned, metrics } = pruneMessages(messages);
+    const { messages: pruned } = pruneMessages(messages);
 
     expect(textOf(pruned[1]!)).toBe(big());
-    expect(metrics.ageGatedCount).toBe(0);
   });
 });

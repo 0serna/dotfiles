@@ -2,7 +2,7 @@
 
 - Tools without an explicit policy entry are excluded from all pruning mechanisms.
 - DCP applies the first enabled mechanism in order: `superseded` → `stale_large`.
-- Thresholds: `PRUNE_TOKEN_THRESHOLD = 500` tokens, `STALE_LARGE_MIN_AGE = 25`.
+- Threshold: `STALE_LARGE_MIN_AGE = 25` DCP-ageable tool results.
 
 | Tool                      | superseded | stale_large |
 | ------------------------- | ---------: | ----------: |
@@ -18,4 +18,4 @@
 ## Mechanisms
 
 - `superseded`: prunes older result when a later file operation targets the same semantic operation identity.
-- `stale_large`: prunes textual results whose estimated size is greater than `500` tokens and that are older than `25` DCP-ageable tool results.
+- `stale_large`: prunes textual results that are older than `25` DCP-ageable tool results.

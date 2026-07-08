@@ -33,11 +33,7 @@ export function pruneMessages<T>(
     }
 
     return {
-      messages: applyStubs(
-        messages,
-        appliedDecisions,
-        options.sessionId ?? "unknown",
-      ),
+      messages: applyStubs(messages, appliedDecisions),
       metrics,
     };
   } catch {

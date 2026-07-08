@@ -1,12 +1,10 @@
 import { normalizedToolName } from "../content.js";
 import {
-  PRUNE_TOKEN_THRESHOLD,
   STALE_LARGE_MIN_AGE,
   type PruneReason,
   type StubDecision,
   type ToolResultCandidate,
 } from "../types.js";
-import { estimateToolResultTokens } from "./savings.js";
 
 const TOOL_PRUNING_POLICY: ReadonlyMap<
   string,
@@ -76,8 +74,6 @@ export function decideStubs(
       reason = "superseded";
     } else if (
       candidate.dcpAge > STALE_LARGE_MIN_AGE &&
-      estimateToolResultTokens(candidate.text, candidate.metadata.toolName) >
-        PRUNE_TOKEN_THRESHOLD &&
       candidate.policy.has("stale_large")
     ) {
       reason = "stale_large";
