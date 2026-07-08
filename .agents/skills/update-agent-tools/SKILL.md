@@ -9,7 +9,7 @@ Update the curated agent tools used by this dotfiles repository.
 Guardrails:
 
 - Update installed tools only.
-- Do not modify repository files or regenerate generated content.
+- Do not modify repository files or regenerate generated content, except for the project's configured file formatter.
 - Do not scan for new commands or broaden the tool list.
 - Report versions only; omit paths.
 
@@ -37,7 +37,9 @@ Update these tools with these exact methods:
 
 6. Capture the post-update version using the same checks as step 1.
 
-7. Return a compact summary for every tool (versions only, no paths). Derive status from the update command, not the version check. If the `skills` tool updated any skill names, list them.
+7. Run the project's configured file formatter before returning.
+
+8. Return a compact summary for every tool (versions only, no paths). Derive status from the update command, not the version check. If the `skills` tool updated any skill names, list them.
 
 ## Failure Handling
 
