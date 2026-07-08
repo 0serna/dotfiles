@@ -7,6 +7,7 @@ import {
 import { readCache, writeCache } from "./cache.js";
 import { fetchCodexQuotaStatus } from "./codex.js";
 import { fetchOpenCodeGoData } from "./opencode.js";
+import { retryNullable } from "./retry.js";
 import {
   formatCodexFullDetail,
   formatCodexQuotaStatus,
@@ -27,6 +28,8 @@ import type {
 
 const STATUS_KEY = "quota";
 const POLL_INTERVAL_MS = 3 * 60 * 1000;
+const FETCH_RETRY_ATTEMPTS = 3;
+const FETCH_RETRY_INITIAL_DELAY_MS = 5000;
 
 // ---------------------------------------------------------------------------
 // Module-level state
@@ -70,7 +73,7 @@ function publishCombinedStatus(ctx: ExtensionContext, reason: string): void {
     ctx,
   );
   const ocStatus = formatProviderStatus(
-    "OpenCode",
+    "OC",
     lastStatus.opencodeGoError,
     lastStatus.opencodeGo,
     formatOpenCodeBalances,
@@ -108,8 +111,14 @@ async function refreshStatus(reason: string): Promise<void> {
     const prevGo = lastStatus?.opencodeGo ?? null;
 
     const [codexData, goData] = await Promise.all([
-      fetchCodexQuotaStatus(ctx, logger),
-      fetchOpenCodeGoData(logger),
+      retryNullable(() => fetchCodexQuotaStatus(ctx, logger), {
+        maxAttempts: FETCH_RETRY_ATTEMPTS,
+        initialDelayMs: FETCH_RETRY_INITIAL_DELAY_MS,
+      }),
+      retryNullable(() => fetchOpenCodeGoData(logger), {
+        maxAttempts: FETCH_RETRY_ATTEMPTS,
+        initialDelayMs: FETCH_RETRY_INITIAL_DELAY_MS,
+      }),
     ]);
 
     const codex: CodexQuotaData | null = codexData ?? prevCodex;

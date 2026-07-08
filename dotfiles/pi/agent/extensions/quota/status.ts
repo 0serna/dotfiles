@@ -81,8 +81,8 @@ function joinStatusParts(ctx: ExtensionContext, parts: string[]): string {
   return parts.join(fg(ctx, "dim", STATUS_SEPARATOR));
 }
 
-function hasPositiveBalance(value: number | undefined): boolean {
-  return value != null && value > 0;
+function formatUnknownSegment(ctx: ExtensionContext): string {
+  return fg(ctx, "warning", "?");
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +153,13 @@ export function formatPercentResetSegment(
   return fg(ctx, "dim", segment);
 }
 
+function formatExhaustedResetSegment(
+  resetLabel: string,
+  ctx: ExtensionContext,
+): string {
+  return fg(ctx, "warning", resetLabel);
+}
+
 // ---------------------------------------------------------------------------
 // Codex status formatting
 // ---------------------------------------------------------------------------
@@ -191,21 +198,27 @@ export function formatCodexQuotaStatus(
   const selected = selectCompactWindows(candidates);
   const selectedWindow = selected[0]!;
   const windowExhausted = selectedWindow.percent === 0;
-  const consumingCredits =
-    hasPositiveBalance(data.remainingCredits) && windowExhausted;
+  if (!windowExhausted) {
+    return joinStatusParts(
+      ctx,
+      selected.map((c) =>
+        formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
+      ),
+    );
+  }
 
-  const parts = selected.map((c) =>
-    formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
+  const parts = [formatExhaustedResetSegment(selectedWindow.resetLabel, ctx)];
+
+  parts.push(
+    data.remainingCredits == null
+      ? formatUnknownSegment(ctx)
+      : formatCountSegment(ctx, "C", data.remainingCredits, "warning"),
   );
 
-  if (windowExhausted && data.bankedResetDetails != null) {
+  if (data.bankedResetDetails != null) {
     const count = data.bankedResetDetails.length;
     const color = count > 0 ? "accent" : "dim";
     parts.push(formatCountSegment(ctx, "R", count, color));
-  }
-
-  if (consumingCredits && data.remainingCredits != null) {
-    parts.push(formatCountSegment(ctx, "C", data.remainingCredits, "warning"));
   }
 
   return joinStatusParts(ctx, parts);
@@ -262,18 +275,23 @@ export function formatOpenCodeBalances(
   const selected = selectCompactWindows(candidates);
   const selectedWindow = selected[0]!;
   const windowExhausted = selectedWindow.percent === 0;
-  const consumingBalance =
-    hasPositiveBalance(data.balanceDollars) && windowExhausted;
-
-  const parts = selected.map((c) =>
-    formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
-  );
-
-  if (consumingBalance && data.balanceDollars != null) {
-    parts.push(formatMoneySegment(ctx, data.balanceDollars, "warning"));
+  if (!windowExhausted) {
+    return joinStatusParts(
+      ctx,
+      selected.map((c) =>
+        formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
+      ),
+    );
   }
 
-  return parts.length > 0 ? joinStatusParts(ctx, parts) : null;
+  const parts = [formatExhaustedResetSegment(selectedWindow.resetLabel, ctx)];
+  parts.push(
+    data.balanceDollars == null
+      ? formatUnknownSegment(ctx)
+      : formatMoneySegment(ctx, data.balanceDollars, "warning"),
+  );
+
+  return joinStatusParts(ctx, parts);
 }
 
 // ---------------------------------------------------------------------------

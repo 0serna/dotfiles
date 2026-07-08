@@ -55,19 +55,17 @@ async function fetchCodex<T>(
   accessToken: string,
   logger: ExtensionLogger,
 ): Promise<T | null> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (response.ok) {
-      return (await response.json()) as T;
-    }
-    logger.log("fetch_failed", { url, status: response.status, attempt });
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (response.ok) {
+    return (await response.json()) as T;
   }
+  logger.log("fetch_failed", { url, status: response.status });
   return null;
 }
 

@@ -46,11 +46,13 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).not.toContain("W(");
   });
 
-  it("shows W window when exhausted (priority over rolling)", () => {
+  it("shows W reset when exhausted (priority over rolling)", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(build({ remaining7d: 0 }), ctx),
     );
-    expect(result).toContain("0%");
+    expect(result).not.toContain("80%");
+    expect(result).not.toContain("0%");
+    expect(result).toContain("C100");
   });
 
   it("falls back to W when R is unavailable", () => {
@@ -68,16 +70,27 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).not.toContain("C");
   });
 
-  it("shows C<n> when a window is exhausted and credits available", () => {
+  it("shows warning reset and C<n> without 0% when a window is exhausted", () => {
     const result = formatCodexQuotaStatus(build({ remaining5h: 0 }), ctx);
+    expect(stripStyles(result)).not.toContain("0%");
     expect(result).toContain("<warning>C100</warning>");
+    expect(result).toMatch(/<warning>[^<]+<\/warning>/);
   });
 
-  it("omits credits segment when credits are unavailable", () => {
-    const result = stripStyles(
-      formatCodexQuotaStatus(build({ remainingCredits: undefined }), ctx),
+  it("shows unknown credits marker when exhausted credits are unavailable", () => {
+    const result = formatCodexQuotaStatus(
+      build({ remaining5h: 0, remainingCredits: undefined }),
+      ctx,
     );
-    expect(result).not.toContain("C");
+    expect(result).toContain("<warning>?</warning>");
+  });
+
+  it("shows known zero credits when a window is exhausted", () => {
+    const result = formatCodexQuotaStatus(
+      build({ remaining5h: 0, remainingCredits: 0 }),
+      ctx,
+    );
+    expect(result).toContain("<warning>C0</warning>");
   });
 
   it("omits R<n> when all windows are healthy", () => {
@@ -87,13 +100,15 @@ describe("formatCodexQuotaStatus", () => {
     expect(result).not.toContain("R3");
   });
 
-  it("includes R<n> when window is exhausted and resets are available", () => {
+  it("includes R<n> after credits when window is exhausted and resets are available", () => {
     const result = formatCodexQuotaStatus(
       build({ remaining5h: 0, bankedResetDetails: resets(3) }),
       ctx,
     );
     expect(result).toContain("<accent>R3</accent>");
-    expect(stripStyles(result)).toContain("R3");
+    const plain = stripStyles(result)!;
+    expect(plain).toContain("R3");
+    expect(plain.indexOf("C100")).toBeLessThan(plain.indexOf("R3"));
   });
 
   it("omits R<n> when below threshold but not exhausted", () => {

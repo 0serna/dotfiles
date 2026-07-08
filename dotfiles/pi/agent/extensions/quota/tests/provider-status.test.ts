@@ -9,8 +9,8 @@ describe("formatProviderStatus", () => {
     expect(
       formatProviderStatus("Codex", "fetch_failed", {}, () => "ok", ctx),
     ).toBe("<warning>Codex error</warning>");
-    expect(formatProviderStatus("OpenCode", null, null, () => "ok", ctx)).toBe(
-      "<warning>OpenCode error</warning>",
+    expect(formatProviderStatus("OC", null, null, () => "ok", ctx)).toBe(
+      "<warning>OC error</warning>",
     );
   });
 
@@ -18,8 +18,8 @@ describe("formatProviderStatus", () => {
     expect(formatProviderStatus("Codex", null, {}, () => "ok", ctx)).toBe(
       "<dim>Codex </dim>ok",
     );
-    expect(formatProviderStatus("OpenCode", null, {}, () => "ok", ctx)).toBe(
-      "<dim>OpenCode </dim>ok",
+    expect(formatProviderStatus("OC", null, {}, () => "ok", ctx)).toBe(
+      "<dim>OC </dim>ok",
     );
   });
 });

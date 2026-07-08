@@ -38,24 +38,28 @@ describe("formatOpenCodeBalances", () => {
     expect(result).not.toContain("M(");
   });
 
-  it("shows W when exhausted (priority over rolling)", () => {
+  it("shows W reset when exhausted (priority over rolling)", () => {
     const result = stripStyles(
       formatOpenCodeBalances(
         build({ weekly: { remainingPercent: 0, resetInSec: 120 } }),
         ctx,
       ),
     );
-    expect(result).toContain("0%");
+    expect(result).not.toContain("80%");
+    expect(result).not.toContain("0%");
+    expect(result).toContain("$12.34");
   });
 
-  it("shows M when exhausted (highest priority)", () => {
+  it("shows M reset when exhausted (highest priority)", () => {
     const result = stripStyles(
       formatOpenCodeBalances(
         build({ monthly: { remainingPercent: 0, resetInSec: 180 } }),
         ctx,
       ),
     );
-    expect(result).toContain("0%");
+    expect(result).not.toContain("80%");
+    expect(result).not.toContain("0%");
+    expect(result).toContain("$12.34");
   });
 
   it("falls back to first available window when rolling is missing", () => {
@@ -76,22 +80,36 @@ describe("formatOpenCodeBalances", () => {
     expect(result).not.toContain("$");
   });
 
-  it("shows balance when a window is exhausted", () => {
+  it("shows warning reset and balance without 0% when a window is exhausted", () => {
     const result = formatOpenCodeBalances(
       build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
       ctx,
     );
-    expect(result).toContain("<dim>0%");
+    expect(stripStyles(result)).not.toContain("0%");
     expect(result).toContain("<warning>$12.34</warning>");
+    expect(result).toMatch(/<warning>[^<]+<\/warning>/);
   });
 
-  it("dims exhausted windows when consuming balance", () => {
+  it("shows known zero balance when a window is exhausted", () => {
     const result = formatOpenCodeBalances(
-      build({ rolling: { remainingPercent: 0, resetInSec: 60 } }),
+      build({
+        rolling: { remainingPercent: 0, resetInSec: 60 },
+        balanceDollars: 0,
+      }),
       ctx,
     );
-    expect(result).toContain("<dim>0%");
-    expect(result).toContain("<warning>$12.34</warning>");
+    expect(result).toContain("<warning>$0.00</warning>");
+  });
+
+  it("shows unknown balance marker when a window is exhausted", () => {
+    const result = formatOpenCodeBalances(
+      build({
+        rolling: { remainingPercent: 0, resetInSec: 60 },
+        balanceDollars: undefined,
+      }),
+      ctx,
+    );
+    expect(result).toContain("<warning>?</warning>");
   });
 
   it("returns null when only balance is available with no windows", () => {
