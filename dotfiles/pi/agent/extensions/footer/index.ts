@@ -11,7 +11,8 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const EXCLUDED_EXTENSIONS = new Set(["context", "profiles", "quota", "tps"]);
+const LEFT_EXTENSION_ORDER = ["tps", "context"];
+const RIGHT_EXTENSION_ORDER = ["quota"];
 
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | null = null;
@@ -41,29 +42,32 @@ export default function (pi: ExtensionAPI) {
             const modelLabel = ctx.model?.name ?? ctx.model?.id;
             const separator = theme.fg("dim", " | ");
             const extStatuses = footerData.getExtensionStatuses();
-            const usageQuota = extStatuses.get("quota");
-            const profileStatus = extStatuses.get("profiles");
-            const ordered = [
-              extStatuses.get("tps"),
-              extStatuses.get("context"),
+            const orderedExtensionKeys = new Set([
+              ...LEFT_EXTENSION_ORDER,
+              ...RIGHT_EXTENSION_ORDER,
+            ]);
+            const leftExtensions = [
+              ...LEFT_EXTENSION_ORDER.map((key) => extStatuses.get(key)),
+              ...Array.from(extStatuses.entries())
+                .filter(([key]) => !orderedExtensionKeys.has(key))
+                .map(([, status]) => status),
             ].filter(Boolean);
-            const remaining = Array.from(extStatuses.entries())
-              .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))
-              .map(([, v]) => v);
+            const rightExtensions = RIGHT_EXTENSION_ORDER.map((key) =>
+              extStatuses.get(key),
+            ).filter(Boolean);
 
             const sections = [
               theme.fg("dim", branch ? `${cwd} › ${branch}` : cwd),
-              profileStatus,
               theme.fg(
                 "dim",
                 modelLabel ? `${modelLabel} › ${thinking}` : thinking,
               ),
-              ...ordered,
-              ...remaining,
+              ...leftExtensions,
             ].filter(Boolean);
 
             const left = sections.join(separator);
-            const right = usageQuota ?? theme.fg("dim", " ");
+            const right =
+              rightExtensions.join(separator) || theme.fg("dim", " ");
             const pad = " ".repeat(
               Math.max(1, width - visibleWidth(left) - visibleWidth(right)),
             );
