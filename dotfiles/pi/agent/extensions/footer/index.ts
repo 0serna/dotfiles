@@ -1,4 +1,4 @@
-import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { basename } from "node:path";
 import { isTuiMode } from "../shared/mode.ts";
@@ -11,23 +11,7 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const EXCLUDED_EXTENSIONS = new Set(["context", "profiles", "quota"]);
-
-function formatCwdWithBranch(
-  cwd: string,
-  branch: string | null,
-  theme: Theme,
-): string {
-  return theme.fg("dim", branch ? `${cwd} › ${branch}` : cwd);
-}
-
-function formatModelInfo(
-  modelId: string | null | undefined,
-  thinking: string,
-  theme: Theme,
-): string {
-  return theme.fg("dim", modelId ? `${modelId} › ${thinking}` : thinking);
-}
+const EXCLUDED_EXTENSIONS = new Set(["context", "profiles", "quota", "tps"]);
 
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | null = null;
@@ -59,15 +43,21 @@ export default function (pi: ExtensionAPI) {
             const extStatuses = footerData.getExtensionStatuses();
             const usageQuota = extStatuses.get("quota");
             const profileStatus = extStatuses.get("profiles");
-            const ordered = [extStatuses.get("context")].filter(Boolean);
+            const ordered = [
+              extStatuses.get("tps"),
+              extStatuses.get("context"),
+            ].filter(Boolean);
             const remaining = Array.from(extStatuses.entries())
               .filter(([k]) => !EXCLUDED_EXTENSIONS.has(k))
               .map(([, v]) => v);
 
             const sections = [
-              formatCwdWithBranch(cwd, branch, theme),
+              theme.fg("dim", branch ? `${cwd} › ${branch}` : cwd),
               profileStatus,
-              formatModelInfo(modelLabel, thinking, theme),
+              theme.fg(
+                "dim",
+                modelLabel ? `${modelLabel} › ${thinking}` : thinking,
+              ),
               ...ordered,
               ...remaining,
             ].filter(Boolean);
