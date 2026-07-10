@@ -1,130 +1,25 @@
 ---
 name: quality-check
 disable-model-invocation: true
-description: Configure and maintain a repository quality check with concise agent-readable output and pre-commit integration.
+description: Configure repository quality commands and a pre-commit quality gate.
 ---
-
-Use this skill only when invoked by the user. The check is the repository's agreed validation command: it runs every selected tool, hides successful output, shows failed tool details, always prints a summary, and exits non-zero when any tool fails.
 
 ## Workflow
 
-### 1. Inspect the repository
+1. Inspect the repository's stack, existing runner, quality tooling, commands, and pre-commit mechanism.
 
-Read evidence before proposing changes. Classify every configured tool, runner, check entrypoint, and pre-commit path as present, absent, or ambiguous.
+2. Propose the smallest relevant set of individual quality commands. Cover build, format, lint, and test when applicable, plus any project-specific checks worth adding. Always ask whether to include OpenSpec, even when the repository has no OpenSpec evidence. Prefer existing conventions and runner targets. The proposal is complete when the user has confirmed:
+   - every individual command and target name
+   - the aggregate quality-gate target and its commands
+   - tools and dependencies to install
+   - the pre-commit mechanism
 
-Inspect dependency manifests, task runners and package scripts, check-related commands (`check`, `lint`, `typecheck`, `test`, `validate`, `ci`, `precommit`), format/autofix commands, pre-commit frameworks (husky, lefthook, lint-staged, overcommit, pre-commit), and tool configs for the detected stack.
+3. After confirmation, install approved tools and configure the individual commands in the repository's existing runner, such as package scripts or Make targets. Add an aggregate runner target that chains the confirmed quality-gate commands; keep orchestration in the runner rather than a standalone script.
 
-### 2. Build the evidence table
+4. Configure pre-commit using the existing hook framework, or an approved project-appropriate mechanism when none exists. Run these steps in order:
+   1. format
+   2. auto-fix
+   3. re-stage files changed by those commands
+   4. invoke the aggregate quality-gate target
 
-Classify tools in three groups:
-
-| Group      | Meaning                                              | Disposition                |
-| ---------- | ---------------------------------------------------- | -------------------------- |
-| Configured | Dependency, config, script, or runner entry exists   | Prefer preserving/adapting |
-| Relevant   | Stack evidence exists but no tool is configured      | Propose conservatively     |
-| Unclear    | Evidence conflicts or multiple choices are plausible | Ask the user               |
-
-Use a conservative catalog after configured tools are accounted for:
-
-| Stack evidence        | Common check candidates                                          |
-| --------------------- | ---------------------------------------------------------------- |
-| JavaScript/TypeScript | eslint or biome, `tsc --noEmit`, test script, knip               |
-| Python                | ruff, mypy or pyright, pytest, tox/nox                           |
-| Go                    | `go test ./...`, `go vet ./...`, golangci-lint                   |
-| Rust                  | `cargo check`, `cargo test`, `cargo clippy`, `cargo fmt --check` |
-| Ruby                  | rubocop, rspec, rake test                                        |
-| PHP                   | phpstan or psalm, phpunit, composer validate                     |
-| Java/Kotlin           | gradle/maven test, check, lint, static analysis tasks            |
-| Docs/specs            | markdownlint, vale, openspec validate                            |
-| Containers/IaC        | hadolint, shellcheck, terraform fmt/validate, tflint             |
-
-Do not propose every candidate. Propose the smallest useful set for the repository's visible stack and conventions.
-
-### 3. Decide runner and command shape with the user
-
-Validate the execution vehicle before writing anything. Recommend in this order: (1) existing repository runner (Make, Just, Taskfile, package scripts, tox/nox, cargo, rake, composer), (2) runtime from the primary stack (Node, Python, Go, Rust, Ruby, PHP), (3) Bash fallback. Ask the user to confirm the check entrypoint, runner/runtime, selected tools and commands, format/autofix commands, dependencies to add, whether existing commands are preserved or adapted, and the pre-commit mechanism.
-
-Always ask whether to include OpenSpec validation, even when no OpenSpec evidence is present. If selected, validate all specs with the repository's supported OpenSpec command and JSON output when available.
-
-### 4. Preserve or adapt commands
-
-Classify each selected command as **preserved** (opaque runner/orchestrator kept verbatim), **adapted** (recognized tool adjusted for concise machine-readable output), **added** (new command accepted by the user), or **skipped** (rejected or not applicable).
-
-Rules:
-
-- Preserve opaque commands such as `make lint`, `nx run-many`, `turbo run`, `tox`, `gradle check`, or pipelines unless the user explicitly wants expansion.
-- Expand script aliases only one level deep.
-- Move commands selected for `check` out of other package scripts or runner targets when they would duplicate the centralized check path.
-- Prefer structured or machine-readable output for selected tools when available, such as JSON, SARIF, JUnit, TAP, terse, quiet, no-progress, or equivalent.
-- Capture structured output internally for reliable failure reporting, but keep the check's human-facing output contract stable.
-- Keep formatters out of the check unless they run in check mode, such as `fmt --check`.
-- Include tests only when selected as part of the repository check.
-
-### 5. Define the output contract
-
-The output format is mandatory regardless of runner or runtime. Implement it in the confirmed vehicle (script, Make target, package script, etc.). The contract:
-
-- All selected tools run even after failures.
-- Successful tool details are hidden.
-- Failed tool details are printed under `---CHECK:<tool>---`.
-- `---CHECK:SUMMARY---` is always printed.
-- Every selected tool appears in the summary as `tool: PASS` or `tool: FAIL`.
-- The final exit code is non-zero if any tool failed.
-
-Do not use fail-fast behavior. In shell scripts, do not use `set -e` around tool execution.
-
-### 6. Integrate pre-commit
-
-Pre-commit must run confirmed format/autofix commands before the full check, then add modified files back to the commit. Finish when the selected pre-commit mechanism exists, is executable when required, runs format/autofix, re-stages changed files, and invokes the confirmed check command without substituting a lighter profile.
-
-Preserve the repository's existing hook framework when present. If none exists, ask which mechanism to use before adding one. Prefer the framework's native re-stage behavior when available; otherwise use the repository's VCS command, such as `git add` for Git.
-
-### 7. Confirm before modifying
-
-Before edits, present one consolidated change set and ask for confirmation. Include:
-
-- files to create or update
-- command names and entrypoints
-- selected runner/runtime
-- selected tools and exact commands
-- preserved opaque commands
-- adapted commands and output flags
-- commands removed from other package scripts or runner targets because `check` now centralizes them
-- dependencies to add
-- pre-commit mechanism, format/autofix command, re-stage command, and check command
-
-Do not implement until the user confirms the whole set.
-
-### 8. Verify
-
-After implementation, run the agreed check command and the pre-commit command or hook in the least invasive supported way. Finish when:
-
-- All selected tools executed.
-- Passing tools did not emit details.
-- Failing tools emitted `---CHECK:<tool>---` delimited details.
-- `---CHECK:SUMMARY---` appeared with every tool as PASS or FAIL.
-- Exit code semantics are correct.
-- Pre-commit runs format/autofix before the check.
-- Pre-commit re-stages files modified by format/autofix.
-- Pre-commit invokes the full check.
-
-If verification fails, fix the underlying issue instead of suppressing the tool.
-
-## Rules
-
-- Prefer existing repository conventions over the catalog.
-- Do not add stack-specific tooling without explicit user confirmation.
-- Keep generated script files executable when the platform requires it.
-
-## Output
-
-Report:
-
-- check entrypoint created or updated
-- runner/runtime used
-- tools preserved, adapted, added, skipped
-- commands removed from other package scripts or runner targets
-- dependencies added
-- pre-commit integration created or updated
-- format/autofix and re-stage behavior
-- verification result
+5. Run every configured quality command and verify the pre-commit flow with the least invasive supported method. Fix underlying failures. Finish when the commands and aggregate target pass, and the hook formats, fixes, re-stages, and blocks the commit when the quality gate fails.

@@ -1,5 +1,0 @@
-#!/usr/bin/env sh
-# Replace placeholders with the confirmed repository commands.
-<format-autofix-command>
-<restage-command>
-<check-command>
