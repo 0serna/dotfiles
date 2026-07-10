@@ -52,4 +52,3 @@ Return a concise summary with:
 
 - key simplifications made
 - verification run and results
-- follow-up risk or uncertainty, if applicable
