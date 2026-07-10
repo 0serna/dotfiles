@@ -16,10 +16,16 @@ describe("formatProviderStatus", () => {
 
   it("formats successful provider status with label", () => {
     expect(formatProviderStatus("Codex", null, {}, () => "ok", ctx)).toBe(
-      "<dim>Codex </dim>ok",
+      "<dim>Codex </dim><dim>ok</dim>",
     );
     expect(formatProviderStatus("OC", null, {}, () => "ok", ctx)).toBe(
-      "<dim>OC </dim>ok",
+      "<dim>OC </dim><dim>ok</dim>",
+    );
+  });
+
+  it("formats warning provider status with label", () => {
+    expect(formatProviderStatus("Codex", null, {}, () => "ok", ctx, true)).toBe(
+      "<warning>Codex </warning><warning>ok</warning>",
     );
   });
 });

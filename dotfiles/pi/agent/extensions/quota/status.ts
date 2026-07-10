@@ -77,12 +77,8 @@ function fg(ctx: ExtensionContext, color: ThemeColor, text: string): string {
   return ctx.ui.theme.fg(color, text);
 }
 
-function joinStatusParts(ctx: ExtensionContext, parts: string[]): string {
-  return parts.join(fg(ctx, "dim", STATUS_SEPARATOR));
-}
-
-function formatUnknownSegment(ctx: ExtensionContext): string {
-  return fg(ctx, "warning", "?");
+function joinStatusParts(parts: string[]): string {
+  return parts.join(STATUS_SEPARATOR);
 }
 
 // ---------------------------------------------------------------------------
@@ -123,41 +119,15 @@ export function selectCompactWindows(
   return [candidates[0]!];
 }
 
-function formatCountSegment(
-  ctx: ExtensionContext,
-  prefix: string,
-  value: number,
-  color: ThemeColor,
-): string {
-  return fg(ctx, color, `${prefix}${value}`);
-}
-
-function formatMoneySegment(
-  ctx: ExtensionContext,
-  value: number,
-  color: ThemeColor,
-): string {
-  return fg(ctx, color, `$${value.toFixed(2)}`);
-}
-
 export function formatPercentResetSegment(
   label: string,
   remainingPercent: number,
   resetLabel: string,
-  ctx: ExtensionContext,
 ): string {
   const roundedPercent = clampPercent(remainingPercent);
-  const segment = label
+  return label
     ? `${label} ${roundedPercent}% ${resetLabel}`
     : `${roundedPercent}% ${resetLabel}`;
-  return fg(ctx, "dim", segment);
-}
-
-function formatExhaustedResetSegment(
-  resetLabel: string,
-  ctx: ExtensionContext,
-): string {
-  return fg(ctx, "warning", resetLabel);
 }
 
 // ---------------------------------------------------------------------------
@@ -188,10 +158,7 @@ function codexWindowCandidates(data: CodexQuotaData): WindowCandidate[] {
   return candidates;
 }
 
-export function formatCodexQuotaStatus(
-  data: CodexQuotaData,
-  ctx: ExtensionContext,
-): string | null {
+export function formatCodexQuotaStatus(data: CodexQuotaData): string | null {
   const candidates = codexWindowCandidates(data);
   if (candidates.length === 0) return null;
 
@@ -200,28 +167,22 @@ export function formatCodexQuotaStatus(
   const windowExhausted = selectedWindow.percent === 0;
   if (!windowExhausted) {
     return joinStatusParts(
-      ctx,
       selected.map((c) =>
-        formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
+        formatPercentResetSegment("", c.percent, c.resetLabel),
       ),
     );
   }
 
-  const parts = [formatExhaustedResetSegment(selectedWindow.resetLabel, ctx)];
+  const parts = [selectedWindow.resetLabel];
 
-  parts.push(
-    data.remainingCredits == null
-      ? formatUnknownSegment(ctx)
-      : formatCountSegment(ctx, "C", data.remainingCredits, "warning"),
-  );
+  parts.push(data.remainingCredits == null ? "?" : `C${data.remainingCredits}`);
 
   if (data.bankedResetDetails != null) {
     const count = data.bankedResetDetails.length;
-    const color = count > 0 ? "accent" : "dim";
-    parts.push(formatCountSegment(ctx, "R", count, color));
+    parts.push(`R${count}`);
   }
 
-  return joinStatusParts(ctx, parts);
+  return joinStatusParts(parts);
 }
 
 // ---------------------------------------------------------------------------
@@ -265,10 +226,7 @@ function openCodeWindowCandidates(data: OpenCodeGoData): WindowCandidate[] {
   return candidates;
 }
 
-export function formatOpenCodeBalances(
-  data: OpenCodeGoData,
-  ctx: ExtensionContext,
-): string | null {
+export function formatOpenCodeBalances(data: OpenCodeGoData): string | null {
   const candidates = openCodeWindowCandidates(data);
   if (candidates.length === 0) return null;
 
@@ -277,21 +235,18 @@ export function formatOpenCodeBalances(
   const windowExhausted = selectedWindow.percent === 0;
   if (!windowExhausted) {
     return joinStatusParts(
-      ctx,
       selected.map((c) =>
-        formatPercentResetSegment("", c.percent, c.resetLabel, ctx),
+        formatPercentResetSegment("", c.percent, c.resetLabel),
       ),
     );
   }
 
-  const parts = [formatExhaustedResetSegment(selectedWindow.resetLabel, ctx)];
+  const parts = [selectedWindow.resetLabel];
   parts.push(
-    data.balanceDollars == null
-      ? formatUnknownSegment(ctx)
-      : formatMoneySegment(ctx, data.balanceDollars, "warning"),
+    data.balanceDollars == null ? "?" : `$${data.balanceDollars.toFixed(2)}`,
   );
 
-  return joinStatusParts(ctx, parts);
+  return joinStatusParts(parts);
 }
 
 // ---------------------------------------------------------------------------
@@ -379,15 +334,32 @@ export function formatOpenCodeFullDetail(data: OpenCodeGoData): string[] {
 // Provider status composition
 // ---------------------------------------------------------------------------
 
+export function codexHasWarning(data: CodexQuotaData): boolean {
+  if (data.remaining5h === 0 || data.remaining7d === 0) return true;
+  if (data.remaining5h == null && data.remaining7d == null) return true;
+  return false;
+}
+
+export function openCodeHasWarning(data: OpenCodeGoData): boolean {
+  if (data.rolling?.remainingPercent === 0) return true;
+  if (data.weekly?.remainingPercent === 0) return true;
+  if (data.monthly?.remainingPercent === 0) return true;
+  if (!data.rolling && !data.weekly && !data.monthly) return true;
+  return false;
+}
+
 export function formatProviderStatus<T>(
   label: string,
   error: string | null,
   data: T | null,
-  formatter: (data: T, ctx: ExtensionContext) => string | null,
+  formatter: (data: T) => string | null,
   ctx: ExtensionContext,
+  hasWarning: boolean = false,
 ): string {
-  if (error || !data) return fg(ctx, "warning", `${label} error`);
-  const status = formatter(data, ctx);
-  if (!status) return fg(ctx, "warning", `${label} error`);
-  return `${fg(ctx, "dim", `${label} `)}${status}`;
+  const isWarning = hasWarning || error != null || data == null;
+  const color: ThemeColor = isWarning ? "warning" : "dim";
+  if (error || !data) return fg(ctx, color, `${label} error`);
+  const status = formatter(data);
+  if (!status) return fg(ctx, color, `${label} error`);
+  return `${fg(ctx, color, `${label} `)}${fg(ctx, color, status)}`;
 }

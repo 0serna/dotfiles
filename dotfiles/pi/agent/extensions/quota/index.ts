@@ -9,11 +9,13 @@ import { fetchCodexQuotaStatus } from "./codex.js";
 import { fetchOpenCodeGoData } from "./opencode.js";
 import { retryNullable } from "./retry.js";
 import {
+  codexHasWarning,
   formatCodexFullDetail,
   formatCodexQuotaStatus,
   formatOpenCodeBalances,
   formatOpenCodeFullDetail,
   formatProviderStatus,
+  openCodeHasWarning,
 } from "./status.js";
 import type {
   CodexQuotaData,
@@ -71,6 +73,7 @@ function publishCombinedStatus(ctx: ExtensionContext, reason: string): void {
     lastStatus.codex,
     formatCodexQuotaStatus,
     ctx,
+    lastStatus.codex != null && codexHasWarning(lastStatus.codex),
   );
   const ocStatus = formatProviderStatus(
     "OC",
@@ -78,6 +81,7 @@ function publishCombinedStatus(ctx: ExtensionContext, reason: string): void {
     lastStatus.opencodeGo,
     formatOpenCodeBalances,
     ctx,
+    lastStatus.opencodeGo != null && openCodeHasWarning(lastStatus.opencodeGo),
   );
 
   const statusText = `${codexStatus}${ctx.ui.theme.fg("dim", " │ ")}${ocStatus}`;

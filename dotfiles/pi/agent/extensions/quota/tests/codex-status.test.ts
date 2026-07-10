@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { formatCodexQuotaStatus } from "../status.js";
 import type { BankedResetDetail, CodexQuotaData } from "../types.js";
-import { makeContext, stripStyles } from "./helpers.js";
+import { stripStyles } from "./helpers.js";
 
 describe("formatCodexQuotaStatus", () => {
-  const ctx = makeContext();
-
   function build(overrides: Partial<CodexQuotaData> = {}): CodexQuotaData {
     return {
       remaining5h: 80,
@@ -30,25 +28,24 @@ describe("formatCodexQuotaStatus", () => {
     expect(
       formatCodexQuotaStatus(
         build({ remaining5h: undefined, remaining7d: undefined }),
-        ctx,
       ),
     ).toBeNull();
   });
 
   it("formats R window without label", () => {
-    const result = stripStyles(formatCodexQuotaStatus(build(), ctx));
+    const result = stripStyles(formatCodexQuotaStatus(build()));
     expect(result).toContain("80%");
     expect(result).not.toContain("R(");
   });
 
   it("shows only one window (rolling by default)", () => {
-    const result = stripStyles(formatCodexQuotaStatus(build(), ctx));
+    const result = stripStyles(formatCodexQuotaStatus(build()));
     expect(result).not.toContain("W(");
   });
 
   it("shows W reset when exhausted (priority over rolling)", () => {
     const result = stripStyles(
-      formatCodexQuotaStatus(build({ remaining7d: 0 }), ctx),
+      formatCodexQuotaStatus(build({ remaining7d: 0 })),
     );
     expect(result).not.toContain("80%");
     expect(result).not.toContain("0%");
@@ -59,43 +56,39 @@ describe("formatCodexQuotaStatus", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(
         build({ remaining5h: undefined, resetAt5h: undefined }),
-        ctx,
       ),
     );
     expect(result).toContain("90%");
   });
 
   it("omits credits when no window is exhausted", () => {
-    const result = stripStyles(formatCodexQuotaStatus(build(), ctx));
+    const result = stripStyles(formatCodexQuotaStatus(build()));
     expect(result).not.toContain("C");
   });
 
-  it("shows warning reset and C<n> without 0% when a window is exhausted", () => {
-    const result = formatCodexQuotaStatus(build({ remaining5h: 0 }), ctx);
+  it("shows reset and C<n> without 0% when a window is exhausted", () => {
+    const result = formatCodexQuotaStatus(build({ remaining5h: 0 }));
     expect(stripStyles(result)).not.toContain("0%");
-    expect(result).toContain("<warning>C100</warning>");
-    expect(result).toMatch(/<warning>[^<]+<\/warning>/);
+    expect(result).toContain("C100");
   });
 
   it("shows unknown credits marker when exhausted credits are unavailable", () => {
     const result = formatCodexQuotaStatus(
       build({ remaining5h: 0, remainingCredits: undefined }),
-      ctx,
     );
-    expect(result).toContain("<warning>?</warning>");
+    expect(result).toContain("?");
   });
 
   it("shows known zero credits when a window is exhausted", () => {
     const result = formatCodexQuotaStatus(
       build({ remaining5h: 0, remainingCredits: 0 }),
-      ctx,
     );
-    expect(result).toContain("<warning>C0</warning>");
+    expect(result).toContain("C0");
   });
 
   it("omits R<n> when all windows are healthy", () => {
     const result = stripStyles(
-      formatCodexQuotaStatus(build({ bankedResetDetails: resets(3) }), ctx),
+      formatCodexQuotaStatus(build({ bankedResetDetails: resets(3) })),
     );
     expect(result).not.toContain("R3");
   });
@@ -103,38 +96,31 @@ describe("formatCodexQuotaStatus", () => {
   it("includes R<n> after credits when window is exhausted and resets are available", () => {
     const result = formatCodexQuotaStatus(
       build({ remaining5h: 0, bankedResetDetails: resets(3) }),
-      ctx,
     );
-    expect(result).toContain("<accent>R3</accent>");
-    const plain = stripStyles(result)!;
-    expect(plain).toContain("R3");
-    expect(plain.indexOf("C100")).toBeLessThan(plain.indexOf("R3"));
+    expect(result).toContain("R3");
+    expect(result!.indexOf("C100")).toBeLessThan(result!.indexOf("R3"));
   });
 
   it("omits R<n> when below threshold but not exhausted", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(
         build({ remaining5h: 15, bankedResetDetails: resets(3) }),
-        ctx,
       ),
     );
     expect(result).not.toContain("R3");
   });
 
-  it("shows R0 as dim when bankedResetDetails is empty and window is exhausted", () => {
+  it("shows R0 when bankedResetDetails is empty and window is exhausted", () => {
     const result = formatCodexQuotaStatus(
       build({ remaining5h: 0, bankedResetDetails: [] }),
-      ctx,
     );
-    expect(result).toContain("<dim>R0</dim>");
-    expect(stripStyles(result)).toContain("R0");
+    expect(result).toContain("R0");
   });
 
   it("omits R segment when bankedResetDetails is undefined", () => {
     const result = stripStyles(
       formatCodexQuotaStatus(
         build({ bankedResetDetails: undefined, remaining5h: 0 }),
-        ctx,
       ),
     );
     expect(result).not.toMatch(/\bR\d/);
@@ -148,7 +134,6 @@ describe("formatCodexQuotaStatus", () => {
           bankedResetDetails: [],
           remainingCredits: undefined,
         }),
-        ctx,
       ),
     );
     expect(result).not.toContain("R0");

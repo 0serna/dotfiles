@@ -8,7 +8,6 @@ import {
   selectCompactWindows,
   toRemainingPercent,
 } from "../status.js";
-import { makeContext } from "./helpers.js";
 
 describe("clampPercent", () => {
   it("rounds and clamps percent values", () => {
@@ -68,24 +67,16 @@ describe("formatResetTime", () => {
 });
 
 describe("formatPercentResetSegment", () => {
-  const ctx = makeContext();
-
   it("emits label percent% reset format", () => {
-    expect(formatPercentResetSegment("R", 82, "14:20", ctx)).toBe(
-      "<dim>R 82% 14:20</dim>",
-    );
+    expect(formatPercentResetSegment("R", 82, "14:20")).toBe("R 82% 14:20");
   });
 
   it("always dims percent segment regardless of value", () => {
-    expect(formatPercentResetSegment("W", 19, "12:00", ctx)).toBe(
-      "<dim>W 19% 12:00</dim>",
-    );
+    expect(formatPercentResetSegment("W", 19, "12:00")).toBe("W 19% 12:00");
   });
 
   it("dims exhausted quota", () => {
-    expect(formatPercentResetSegment("R", 0, "12:00", ctx)).toBe(
-      "<dim>R 0% 12:00</dim>",
-    );
+    expect(formatPercentResetSegment("R", 0, "12:00")).toBe("R 0% 12:00");
   });
 });
 
