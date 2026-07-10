@@ -2,6 +2,20 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
 
+// ---------------------------------------------------------------------------
+// Account configuration
+// ---------------------------------------------------------------------------
+
+export type AccountConfig = {
+  name: string;
+  workspaceEnv: string;
+  cookieEnv: string;
+};
+
+// ---------------------------------------------------------------------------
+// Codex types
+// ---------------------------------------------------------------------------
+
 export type CodexUsageWindow = {
   used_percent?: number;
   remaining_percent?: number;
@@ -54,6 +68,10 @@ export type CodexQuotaData = {
   resetAt7d?: number;
 };
 
+// ---------------------------------------------------------------------------
+// OpenCode Go types
+// ---------------------------------------------------------------------------
+
 export type OpenCodeGoWindowData = {
   remainingPercent: number;
   resetInSec: number;
@@ -64,13 +82,4 @@ export type OpenCodeGoData = {
   weekly?: OpenCodeGoWindowData;
   monthly?: OpenCodeGoWindowData;
   balanceDollars?: number;
-};
-
-export type WindowLabel = "R" | "W" | "M";
-
-export type UsageQuotaStatus = {
-  codex: CodexQuotaData | null;
-  codexError: string | null;
-  opencodeGo: OpenCodeGoData | null;
-  opencodeGoError: string | null;
 };

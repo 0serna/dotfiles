@@ -150,9 +150,16 @@ describe("formatOpenCodeFullDetail", () => {
     };
   }
 
-  it("renders box with OpenCode Go header", () => {
+  it("renders box with OpenCode Go header by default", () => {
     const lines = formatOpenCodeFullDetail(build());
     expect(lines[0]).toContain("OpenCode Go");
+    expect(lines[0]).toContain("┌");
+    expect(lines[0]).toContain("┐");
+  });
+
+  it("renders box with account name when provided", () => {
+    const lines = formatOpenCodeFullDetail(build(), "1");
+    expect(lines[0]).toContain("OpenCode 1");
     expect(lines[0]).toContain("┌");
     expect(lines[0]).toContain("┐");
   });

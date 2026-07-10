@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clampPercent,
-  formatPercentResetSegment,
   formatRelativeExpiry,
   formatResetTime,
   parseCredits,
-  selectCompactWindows,
   toRemainingPercent,
 } from "../status.js";
 
@@ -66,20 +64,6 @@ describe("formatResetTime", () => {
   });
 });
 
-describe("formatPercentResetSegment", () => {
-  it("emits label percent% reset format", () => {
-    expect(formatPercentResetSegment("R", 82, "14:20")).toBe("R 82% 14:20");
-  });
-
-  it("always dims percent segment regardless of value", () => {
-    expect(formatPercentResetSegment("W", 19, "12:00")).toBe("W 19% 12:00");
-  });
-
-  it("dims exhausted quota", () => {
-    expect(formatPercentResetSegment("R", 0, "12:00")).toBe("R 0% 12:00");
-  });
-});
-
 describe("formatRelativeExpiry", () => {
   const NOW_SECONDS = 1_700_000_000;
 
@@ -126,39 +110,5 @@ describe("formatRelativeExpiry", () => {
     expect(formatRelativeExpiry(NOW_SECONDS + 30 * 24 * 60 * 60)).toBe(
       "in 30d",
     );
-  });
-});
-
-describe("selectCompactWindows", () => {
-  it("returns rolling by default when no windows are exhausted", () => {
-    const result = selectCompactWindows([
-      { label: "R", percent: 80, resetLabel: "14:00", isPrimary: true },
-      { label: "W", percent: 10, resetLabel: "3d", isPrimary: false },
-      { label: "M", percent: 50, resetLabel: "7d", isPrimary: false },
-    ]);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.isPrimary).toBe(true);
-  });
-
-  it("omits longer windows above threshold", () => {
-    const result = selectCompactWindows([
-      { label: "R", percent: 80, resetLabel: "14:00", isPrimary: true },
-      { label: "W", percent: 50, resetLabel: "3d", isPrimary: false },
-    ]);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.isPrimary).toBe(true);
-  });
-
-  it("falls back to first available window when primary is missing", () => {
-    const result = selectCompactWindows([
-      { label: "W", percent: 50, resetLabel: "3d", isPrimary: false },
-      { label: "M", percent: 80, resetLabel: "7d", isPrimary: false },
-    ]);
-    expect(result).toHaveLength(1);
-    expect(result[0]!.percent).toBe(50);
-  });
-
-  it("returns empty array when no candidates", () => {
-    expect(selectCompactWindows([])).toHaveLength(0);
   });
 });

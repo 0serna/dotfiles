@@ -8,30 +8,16 @@ import type { OpenCodeGoData, OpenCodeGoWindowData } from "./types.js";
 
 const GO_DASHBOARD_URL = "https://opencode.ai/workspace";
 const REQUEST_TIMEOUT_MS = 10000;
-const GO_WORKSPACE_ID_ENV = "OPENCODE_GO_WORKSPACE_ID";
-const GO_AUTH_COOKIE_ENV = "OPENCODE_GO_AUTH_COOKIE";
-
-// ---------------------------------------------------------------------------
-// Configuration check
-// ---------------------------------------------------------------------------
-
-function isGoConfigured(): boolean {
-  return Boolean(
-    process.env[GO_WORKSPACE_ID_ENV]?.trim() &&
-    process.env[GO_AUTH_COOKIE_ENV]?.trim(),
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Dashboard fetch
 // ---------------------------------------------------------------------------
 
 async function fetchGoDashboardHtml(
+  workspaceId: string,
+  authCookie: string,
   logger: ExtensionLogger,
 ): Promise<string | null> {
-  const workspaceId = process.env[GO_WORKSPACE_ID_ENV]?.trim();
-  const authCookie = process.env[GO_AUTH_COOKIE_ENV]?.trim();
-  if (!workspaceId || !authCookie) return null;
   try {
     const response = await fetch(`${GO_DASHBOARD_URL}/${workspaceId}/go`, {
       headers: {
@@ -226,13 +212,23 @@ function rawBalanceToDollars(raw: number): number {
 
 /** Fetch + parse OpenCode Go dashboard, returning structured data or null. */
 export async function fetchOpenCodeGoData(
+  workspaceEnv: string,
+  cookieEnv: string,
   logger: ExtensionLogger,
 ): Promise<OpenCodeGoData | null> {
-  if (!isGoConfigured()) {
-    logger.log("go_skipped", { reason: "not configured" });
+  const workspaceId = process.env[workspaceEnv]?.trim();
+  const authCookie = process.env[cookieEnv]?.trim();
+
+  if (!workspaceId || !authCookie) {
+    logger.log("go_skipped", {
+      reason: "not configured",
+      workspaceEnv,
+      cookieEnv,
+    });
     return null;
   }
-  const html = await fetchGoDashboardHtml(logger);
+
+  const html = await fetchGoDashboardHtml(workspaceId, authCookie, logger);
   if (!html) {
     logger.log("go_fetch_failed", { reason: "no html" });
     return null;
