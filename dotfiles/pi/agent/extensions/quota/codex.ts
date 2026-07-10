@@ -76,8 +76,7 @@ async function fetchCodex<T>(
 function getCreditsFromResponse(
   credits: CodexUsageResponse["credits"] | undefined,
 ): number | undefined {
-  if (!credits?.has_credits) return undefined;
-  return parseCredits(credits.balance, credits.unlimited);
+  return parseCredits(credits?.balance, credits?.unlimited);
 }
 
 function resetTimestamp(
