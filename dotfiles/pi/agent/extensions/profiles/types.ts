@@ -13,7 +13,7 @@ export type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
-export const ROUTE_NAMES = ["cheap", "balanced", "strong"] as const;
+export const ROUTE_NAMES = ["cheap", "auxiliar"] as const;
 
 export type FixedRouteName = (typeof ROUTE_NAMES)[number];
 

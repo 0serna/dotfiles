@@ -94,11 +94,10 @@ export async function editRoutes(
 ): Promise<PersistedConfig | null> {
   const routes: PersistedConfig = {
     cheap: currentConfig?.cheap ?? { model: "", thinkingLevel: "medium" },
-    balanced: currentConfig?.balanced ?? {
+    auxiliar: currentConfig?.auxiliar ?? {
       model: "",
       thinkingLevel: "medium",
     },
-    strong: currentConfig?.strong ?? { model: "", thinkingLevel: "medium" },
   };
 
   let routeBeingEdited: FixedRouteName = "cheap";

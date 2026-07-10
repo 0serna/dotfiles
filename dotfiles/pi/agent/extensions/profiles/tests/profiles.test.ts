@@ -63,8 +63,7 @@ function mockReadFiles(selection: string | null, config = validConfig()) {
 function validConfig(): string {
   return JSON.stringify({
     cheap: { model: "route/cheap", thinkingLevel: "low" },
-    balanced: { model: "route/balanced", thinkingLevel: "medium" },
-    strong: { model: "route/strong", thinkingLevel: "medium" },
+    auxiliar: { model: "route/auxiliar", thinkingLevel: "medium" },
   });
 }
 
@@ -87,15 +86,8 @@ function setupExtension(config = validConfig()) {
   const userModel = { provider: "user", id: "base" };
   const userModel2 = { provider: "user", id: "other" };
   const cheapRouteModel = { provider: "route", id: "cheap" };
-  const balancedRouteModel = { provider: "route", id: "balanced" };
-  const strongRouteModel = { provider: "route", id: "strong" };
-  const models = [
-    userModel,
-    userModel2,
-    cheapRouteModel,
-    balancedRouteModel,
-    strongRouteModel,
-  ];
+  const auxiliarRouteModel = { provider: "route", id: "auxiliar" };
+  const models = [userModel, userModel2, cheapRouteModel, auxiliarRouteModel];
   const ctx = {
     model: userModel,
     modelRegistry: {
@@ -147,6 +139,7 @@ function setupExtension(config = validConfig()) {
     userModel,
     userModel2,
     cheapRouteModel,
+    auxiliarRouteModel,
   };
 }
 
@@ -166,11 +159,10 @@ describe("loadConfig", () => {
     expect(result.status).toBe("missing");
   });
 
-  it("returns valid for correct cheap/balanced/strong config", async () => {
+  it("returns valid for correct cheap/auxiliar config", async () => {
     const config = {
       cheap: { model: "a/b", thinkingLevel: "low" },
-      balanced: { model: "a/b", thinkingLevel: "medium" },
-      strong: { model: "a/b", thinkingLevel: "medium" },
+      auxiliar: { model: "a/b", thinkingLevel: "medium" },
     };
     readFileMock.mockResolvedValue(JSON.stringify(config));
     const result = await loadConfig();
@@ -180,10 +172,9 @@ describe("loadConfig", () => {
     }
   });
 
-  it("returns invalid when strong route is missing", async () => {
+  it("returns invalid when auxiliar route is missing", async () => {
     const config = {
       cheap: { model: "a/b", thinkingLevel: "low" },
-      balanced: { model: "a/b", thinkingLevel: "medium" },
     };
     readFileMock.mockResolvedValue(JSON.stringify(config));
     const result = await loadConfig();
@@ -201,7 +192,7 @@ describe("compact route compaction", () => {
     firstKeptEntryId: "entry-1",
   };
 
-  it("uses the balanced route resolved from ROUTE_TYPES[/compact] without changing the active model", async () => {
+  it("uses the cheap route resolved from ROUTE_TYPES[/compact] without changing the active model", async () => {
     const result = {
       summary: "summary",
       firstKeptEntryId: "entry-1",
@@ -219,12 +210,12 @@ describe("compact route compaction", () => {
     expect(response).toEqual({ compaction: result });
     expect(compactMock).toHaveBeenCalledWith(
       preparation,
-      { provider: "route", id: "balanced" },
+      { provider: "route", id: "cheap" },
       "test-api-key",
       { "x-test": "yes" },
       "custom",
       undefined,
-      "medium",
+      "low",
     );
     expect(pi.setModel).not.toHaveBeenCalled();
     expect(ctx.model).toEqual({ provider: "user", id: "base" });
@@ -281,7 +272,7 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Compact route failed: model 'route/balanced' not found. Falling back to default compaction.",
+      "Compact route failed: model 'route/cheap' not found. Falling back to default compaction.",
       "warning",
     );
   });
@@ -301,7 +292,7 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(compactMock).not.toHaveBeenCalled();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Compact route failed: authentication unavailable for 'route/balanced'. Falling back to default compaction.",
+      "Compact route failed: authentication unavailable for 'route/cheap'. Falling back to default compaction.",
       "warning",
     );
   });
