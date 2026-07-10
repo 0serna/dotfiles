@@ -17,7 +17,7 @@ import type {
 const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const CODEX_RESET_CREDITS_URL =
   "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 20000;
 const CODEX_PROVIDER_ID = "openai-codex";
 
 // ---------------------------------------------------------------------------
@@ -65,7 +65,18 @@ async function fetchCodex<T>(
   if (response.ok) {
     return (await response.json()) as T;
   }
-  logger.log("fetch_failed", { url, status: response.status });
+  let responseBody: string | undefined;
+  try {
+    responseBody = await response.text();
+  } catch {
+    // ignore body read errors
+  }
+  logger.log("fetch_failed", {
+    url,
+    status: response.status,
+    statusText: response.statusText,
+    body: responseBody?.slice(0, 500),
+  });
   return null;
 }
 
