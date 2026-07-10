@@ -146,7 +146,7 @@ describe("context DCP semantic identity", () => {
     expect(textOf(pruned[3]!)).toBe("same edit ok");
   });
 
-  it("still supersedes later writes to the same path", () => {
+  it("preserves earlier writes to the same path", () => {
     const messages = [
       assistantToolCall("a", "write", { path: "src/out.txt", content: "old" }),
       toolResult("a", "write", big()),
@@ -157,7 +157,7 @@ describe("context DCP semantic identity", () => {
 
     const { messages: pruned } = pruneMessages(messages);
 
-    expect(textOf(pruned[1]!)).toContain("reason=superseded");
+    expect(textOf(pruned[1]!)).toBe(big());
     expect(textOf(pruned[3]!)).toBe(big());
   });
 });

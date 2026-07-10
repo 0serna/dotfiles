@@ -13,7 +13,7 @@ const TOOL_PRUNING_POLICY: ReadonlyMap<
   Object.entries({
     read: new Set<PruneReason>(["superseded"]),
     edit: new Set<PruneReason>(["stale_large"]),
-    write: new Set<PruneReason>(["superseded", "stale_large"]),
+    write: new Set<PruneReason>(["stale_large"]),
     bash: new Set<PruneReason>(["stale_large"]),
     web_fetch: new Set<PruneReason>(["stale_large"]),
     web_search: new Set<PruneReason>(["stale_large"]),

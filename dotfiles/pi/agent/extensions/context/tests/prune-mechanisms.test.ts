@@ -127,6 +127,18 @@ describe("context DCP pruning mechanisms", () => {
     expect(textOf(pruned[1]!)).toContain("reason=stale_large");
   });
 
+  it("stubs stale large textual tool results immediately after the age gate", () => {
+    const messages = [
+      assistantToolCall("a", "bash", { command: "rg foo" }),
+      toolResult("a", "bash", big()),
+      ...dcpTail(21),
+    ];
+
+    const { messages: pruned } = pruneMessages(messages);
+
+    expect(textOf(pruned[1]!)).toContain("reason=stale_large");
+  });
+
   it("keeps large textual tool results inside the stale_large age gate", () => {
     const messages = [
       assistantToolCall("a", "bash", { command: "rg foo" }),
