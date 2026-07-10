@@ -17,19 +17,13 @@
 └── scripts/              # Local automation
 ```
 
-## Repository Stack
-
-- Language: TypeScript, Bash
-- Runtime: Node.js
-- Package manager: npm
-- Platform: Pi agent, OpenCode, Codex dotfiles
-- Test framework: Vitest
-- Build tool: TypeScript compiler, tsx
-- Quality tools: ESLint, Prettier, OpenSpec
-
 ## Repository Commands
 
-- `npm install`: install dependencies.
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
-- `npm run check`: run Vitest, ESLint, TypeScript, and OpenSpec validation.
+- `npm run check`: run the full quality gate (lint, typecheck, test, openspec).
+- `npm run test`: run Vitest tests.
+- `npm run lint`: lint with ESLint.
+- `npm run typecheck`: check types with TypeScript.
+- `npm run format`: format with Prettier.
+- `npm run openspec`: validate OpenSpec specifications.
 - `npm run sync-pi-settings`: publish local Pi agent settings into the repository.
