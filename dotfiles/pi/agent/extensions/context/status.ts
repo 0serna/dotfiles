@@ -10,7 +10,7 @@ import {
   type ContextUsage,
 } from "./format.js";
 
-const CONTEXT_USAGE_WARNING_TOKENS = 120_000;
+const CONTEXT_USAGE_WARNING_TOKENS = 150_000;
 const STATUS_KEY = "context";
 
 type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
