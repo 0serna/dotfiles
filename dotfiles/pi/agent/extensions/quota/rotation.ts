@@ -41,6 +41,12 @@ export function isAvailable(state: AccountState, now: number): boolean {
   return state.cooldownUntil <= now;
 }
 
+/** Return true when the errorMessage contains the GoUsageLimitError token. */
+export function isQuotaExhaustionError(errorMessage?: string): boolean {
+  if (!errorMessage) return false;
+  return errorMessage.includes("GoUsageLimitError");
+}
+
 /** Return true only when all provider quota windows have remaining usage. */
 export function hasUsableQuota(data: OpenCodeGoData | null): boolean {
   return (

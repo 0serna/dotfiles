@@ -3,6 +3,7 @@ import {
   DEFAULT_COOLDOWN_MS,
   initAccountStates,
   isAvailable,
+  isQuotaExhaustionError,
   markBad,
   pickBestQuotaAccount,
   pickNextAccount,
@@ -219,6 +220,36 @@ describe("markBad", () => {
     const state = makeState("1");
     markBad(state, "unauthorized", DEFAULT_COOLDOWN_MS, Date.now());
     expect(state.lastStatus).toBe("unauthorized");
+  });
+});
+
+describe("isQuotaExhaustionError", () => {
+  it("returns true for messages containing GoUsageLimitError", () => {
+    expect(
+      isQuotaExhaustionError(
+        '429: {"type":"GoUsageLimitError","error":"quota exceeded"}',
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true when GoUsageLimitError appears anywhere in the message", () => {
+    expect(isQuotaExhaustionError("Some prefix GoUsageLimitError tail")).toBe(
+      true,
+    );
+  });
+
+  it("returns false for timeout errors", () => {
+    expect(isQuotaExhaustionError("Request timed out.")).toBe(false);
+  });
+
+  it("returns false for stream interruption errors", () => {
+    expect(isQuotaExhaustionError("Stream ended without finish_reason")).toBe(
+      false,
+    );
+  });
+
+  it("returns false when errorMessage is undefined", () => {
+    expect(isQuotaExhaustionError(undefined)).toBe(false);
   });
 });
 

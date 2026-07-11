@@ -11,6 +11,7 @@ import {
   DEFAULT_COOLDOWN_MS,
   initAccountStates,
   isAvailable,
+  isQuotaExhaustionError,
   markBad,
   pickBestQuotaAccount,
   pickNextAccount,
@@ -44,6 +45,7 @@ let rotationConfig: RotationConfig | undefined;
 let accountStates: AccountState[] = [];
 let currentAccountIndex = -1;
 let continuationSentThisTurn = false;
+let triedAccountsThisTurn: Set<string> = new Set();
 let logger: ExtensionLogger | undefined;
 
 // ---------------------------------------------------------------------------
@@ -256,6 +258,7 @@ async function handleSessionStart(
   accountStates = initAccountStates(rotationConfig.accounts);
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
+  triedAccountsThisTurn = new Set();
 
   logger.log("session_start", {
     provider: OPENCODE_PROVIDER,
@@ -289,7 +292,9 @@ async function handleSessionStart(
 
 function makeMessageEndHandler(pi: ExtensionAPI) {
   return async function handleMessageEnd(
-    event: { message?: { role?: string; stopReason?: string } },
+    event: {
+      message?: { role?: string; stopReason?: string; errorMessage?: string };
+    },
     ctx: ExtensionContext,
   ): Promise<void> {
     if (ctx.model?.provider !== OPENCODE_PROVIDER) return;
@@ -297,13 +302,40 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
     const msg = event.message;
     if (msg?.role !== "assistant" || msg?.stopReason !== "error") return;
+
+    // Only rotate on explicit quota exhaustion. Transient errors (timeouts,
+    // stream interruptions, network failures) are handled by pi's built-in
+    // retry and must not trigger a key rotation.
+    if (!isQuotaExhaustionError(msg.errorMessage)) return;
+
+    const current = currentAccount();
+    if (current) {
+      triedAccountsThisTurn.add(current.name);
+    }
+
+    const allAccountsAttempted = accountStates.every((state) =>
+      triedAccountsThisTurn.has(state.name),
+    );
+    if (allAccountsAttempted) {
+      getLogger(ctx).log("rotate_cycle_exhausted", {
+        provider: OPENCODE_PROVIDER,
+        triedAccounts: Array.from(triedAccountsThisTurn),
+        accountCount: accountStates.length,
+      });
+      ctx.ui.notify(
+        "All OpenCode Go accounts have been attempted this turn. Quota may be exhausted on every account.",
+        "warning",
+      );
+      return;
+    }
+
     if (continuationSentThisTurn) return;
 
     // Provider did not recover automatically. Try one more rotation and queue
     // a continuation so the agent resumes without manual intervention.
     getLogger(ctx).log("message_end_error", {
       provider: OPENCODE_PROVIDER,
-      currentAccount: currentAccount()?.name,
+      currentAccount: current?.name,
     });
     const rotated = rotateToNext("rate-limited", ctx);
     if (rotated) {
@@ -319,6 +351,7 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
 function handleTurnStart(): void {
   continuationSentThisTurn = false;
+  triedAccountsThisTurn = new Set();
 }
 
 function handleSessionShutdown(_event: unknown, ctx: ExtensionContext): void {
@@ -327,6 +360,7 @@ function handleSessionShutdown(_event: unknown, ctx: ExtensionContext): void {
   accountStates = [];
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
+  triedAccountsThisTurn = new Set();
   logger = undefined;
 }
 
