@@ -37,6 +37,7 @@ import {
   loadMemory,
   recordLevel,
 } from "../thinking-memory.ts";
+import { loadUserSelection, saveUserSelection } from "../user-selection.ts";
 
 const compactMock = vi.mocked(compact);
 const mkdirMock = vi.mocked(mkdir);
@@ -374,18 +375,20 @@ describe("user snapshot route restoration", () => {
       ctx,
     );
 
-    expect(writeFileMock).toHaveBeenCalledWith(
-      "/home/test/.local/state/pi/user-selection.json",
-      JSON.stringify(
-        {
-          modelProvider: userModel2.provider,
-          modelId: userModel2.id,
-          thinkingLevel: "high",
-        },
-        null,
-        2,
+    await vi.waitFor(() =>
+      expect(writeFileMock).toHaveBeenCalledWith(
+        "/home/test/.local/state/pi/user-selection.json",
+        JSON.stringify(
+          {
+            modelProvider: userModel2.provider,
+            modelId: userModel2.id,
+            thinkingLevel: "high",
+          },
+          null,
+          2,
+        ),
+        "utf8",
       ),
-      "utf8",
     );
   });
 
@@ -398,19 +401,107 @@ describe("user snapshot route restoration", () => {
 
     await handlers.get("thinking_level_select")?.({ level: "xhigh" }, ctx);
 
-    expect(writeFileMock).toHaveBeenCalledWith(
-      "/home/test/.local/state/pi/user-selection.json",
-      JSON.stringify(
-        {
-          modelProvider: "user",
-          modelId: "base",
-          thinkingLevel: "xhigh",
-        },
-        null,
-        2,
+    await vi.waitFor(() =>
+      expect(writeFileMock).toHaveBeenCalledWith(
+        "/home/test/.local/state/pi/user-selection.json",
+        JSON.stringify(
+          {
+            modelProvider: "user",
+            modelId: "base",
+            thinkingLevel: "xhigh",
+          },
+          null,
+          2,
+        ),
+        "utf8",
       ),
-      "utf8",
     );
+  });
+
+  it("preserves a model preference when Pi clamps during a model switch", async () => {
+    const { ctx, handlers, pi, userModel, userModel2 } = setupExtension();
+
+    mockReadFiles(
+      JSON.stringify({
+        modelProvider: userModel.provider,
+        modelId: userModel.id,
+        thinkingLevel: "high",
+      }),
+    );
+    await handlers.get("session_start")?.({}, ctx);
+    vi.mocked(pi.setThinkingLevel).mockClear();
+
+    // Pi changes the active model and clamps the current level before model_select.
+    ctx.model = userModel2;
+    await handlers.get("thinking_level_select")?.({ level: "xhigh" }, ctx);
+    await handlers.get("model_select")?.(
+      { source: "set", model: userModel2 },
+      ctx,
+    );
+
+    // Returning to the first model clamps xhigh to max before model_select.
+    ctx.model = userModel;
+    await handlers.get("thinking_level_select")?.({ level: "max" }, ctx);
+    await handlers.get("model_select")?.(
+      { source: "set", model: userModel },
+      ctx,
+    );
+
+    expect(pi.setThinkingLevel).toHaveBeenCalledWith("high");
+  });
+
+  it("serializes user-selection writes so the latest selection wins", async () => {
+    let releaseFirstWrite!: () => void;
+    let firstWriteStarted!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      firstWriteStarted = resolve;
+    });
+    const firstWriteReleased = new Promise<void>((resolve) => {
+      releaseFirstWrite = resolve;
+    });
+    let writtenContent = "";
+    let writeCount = 0;
+
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockImplementation(async (_path, content) => {
+      writeCount += 1;
+      if (writeCount === 1) {
+        firstWriteStarted();
+        await firstWriteReleased;
+      }
+      writtenContent = String(content);
+    });
+    readFileMock.mockImplementation(async (path) => {
+      if (String(path).endsWith("/user-selection.json")) {
+        return writtenContent;
+      }
+      throw missingFileError();
+    });
+
+    const firstSelection = saveUserSelection({
+      modelProvider: "user",
+      modelId: "base",
+      thinkingLevel: "high",
+    });
+    await firstStarted;
+
+    const latestSelection = saveUserSelection({
+      modelProvider: "user",
+      modelId: "other",
+      thinkingLevel: "xhigh",
+    });
+    await Promise.resolve();
+    expect(writeCount).toBe(1);
+    const loadedSelection = loadUserSelection();
+
+    releaseFirstWrite();
+    await Promise.all([firstSelection, latestSelection]);
+
+    await expect(loadedSelection).resolves.toEqual({
+      modelProvider: "user",
+      modelId: "other",
+      thinkingLevel: "xhigh",
+    });
   });
 
   it("does not persist user selection during route activation", async () => {

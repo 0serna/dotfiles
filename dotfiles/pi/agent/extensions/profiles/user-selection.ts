@@ -15,7 +15,10 @@ function filePath(): string {
   return join(stateHome, "pi", "user-selection.json");
 }
 
+let writeQueue: Promise<void> = Promise.resolve();
+
 export async function loadUserSelection(): Promise<UserSelection | null> {
+  await writeQueue;
   try {
     const raw = await readFile(filePath(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
@@ -36,14 +39,17 @@ export async function loadUserSelection(): Promise<UserSelection | null> {
   }
 }
 
-export async function saveUserSelection(
-  selection: UserSelection,
-): Promise<void> {
-  try {
-    const path = filePath();
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, JSON.stringify(selection, null, 2), "utf8");
-  } catch {
-    // Persisting the selection is best effort; failures must not break session flow.
-  }
+export function saveUserSelection(selection: UserSelection): Promise<void> {
+  const content = JSON.stringify(selection, null, 2);
+  const write = writeQueue.then(async () => {
+    try {
+      const path = filePath();
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, content, "utf8");
+    } catch {
+      // Persisting the selection is best effort; failures must not break session flow.
+    }
+  });
+  writeQueue = write;
+  return write;
 }

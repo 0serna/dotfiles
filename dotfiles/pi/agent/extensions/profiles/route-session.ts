@@ -38,6 +38,7 @@ export function createProfileRouteSession(
 ) {
   let ignoreSelectionEvents = false;
   let routeActive = false;
+  let activeModelId: string | undefined;
 
   async function ignoreSelectionEventsWhile<T>(
     fn: () => Promise<T>,
@@ -53,7 +54,7 @@ export function createProfileRouteSession(
   async function restorePersistedUserSelection(
     ctx: ExtensionContext,
     persisted: UserSelection,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const model = ctx.modelRegistry.find(
       persisted.modelProvider,
       persisted.modelId,
@@ -63,12 +64,14 @@ export function createProfileRouteSession(
         `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`,
         "warning",
       );
-      return;
+      return false;
     }
+    let restored = false;
     await ignoreSelectionEventsWhile(async () => {
-      const ok = await pi.setModel(model as Model<Api>);
-      if (ok) pi.setThinkingLevel(persisted.thinkingLevel);
+      restored = await pi.setModel(model as Model<Api>);
+      if (restored) pi.setThinkingLevel(persisted.thinkingLevel);
     });
+    return restored;
   }
 
   async function start(ctx: ExtensionContext): Promise<void> {
@@ -76,14 +79,19 @@ export function createProfileRouteSession(
     const persisted = await loadUserSelection();
 
     if (persisted) {
-      await restorePersistedUserSelection(ctx, persisted);
+      const restored = await restorePersistedUserSelection(ctx, persisted);
+      if (restored && ctx.model) {
+        recordLevel(formatModelId(ctx.model), pi.getThinkingLevel());
+      }
     } else if (ctx.model) {
       await saveUserSelection({
         modelProvider: ctx.model.provider,
         modelId: ctx.model.id,
         thinkingLevel: pi.getThinkingLevel(),
       });
+      recordLevel(formatModelId(ctx.model), pi.getThinkingLevel());
     }
+    activeModelId = ctx.model ? formatModelId(ctx.model) : undefined;
 
     await runtime.refreshConfig(ctx);
     if (!runtime.configEnabled()) {
@@ -129,17 +137,19 @@ export function createProfileRouteSession(
     if (persisted) {
       await restorePersistedUserSelection(ctx, persisted);
     }
+    activeModelId = ctx.model ? formatModelId(ctx.model) : undefined;
   }
 
   function rememberModelSelection(
     event: ModelSelectEvent,
     ctx: ExtensionContext,
   ): void {
+    if (!ctx.model) return;
+    activeModelId = formatModelId(ctx.model);
     if (ignoreSelectionEvents) return;
     if (event.source !== "set" && event.source !== "cycle") return;
-    if (!ctx.model) return;
 
-    const remembered = getRememberedLevel(formatModelId(ctx.model));
+    const remembered = getRememberedLevel(activeModelId);
     if (remembered !== undefined) {
       pi.setThinkingLevel(remembered);
     }
@@ -155,7 +165,14 @@ export function createProfileRouteSession(
     ctx: ExtensionContext,
   ): void {
     if (ignoreSelectionEvents || !ctx.model) return;
-    recordLevel(formatModelId(ctx.model), event.level);
+
+    const modelId = formatModelId(ctx.model);
+    const modelChanged =
+      activeModelId !== undefined && activeModelId !== modelId;
+    activeModelId = modelId;
+    if (modelChanged) return;
+
+    recordLevel(modelId, event.level);
     void saveUserSelection({
       modelProvider: ctx.model.provider,
       modelId: ctx.model.id,
