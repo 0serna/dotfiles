@@ -24,7 +24,7 @@ export default function (pi: ExtensionAPI) {
     ctx.ui.setWorkingMessage(
       ctx.ui.theme.fg(
         "muted",
-        `Working ${formatDuration(elapsed)} · ${display}`,
+        `Working ${formatDuration(elapsed)} | ${display}`,
       ),
     );
   }
@@ -64,7 +64,7 @@ export default function (pi: ExtensionAPI) {
     if (startTime !== null) {
       const elapsed = Date.now() - startTime;
       const final = throughput.getFinalThroughput();
-      const details = final ? ` · ${final}` : "";
+      const details = final ? ` | ${final}` : "";
       ctx.ui.notify(
         `Completed in ${formatDuration(elapsed)}${details}`,
         "info",
