@@ -47,6 +47,11 @@ describe("computeAndPublishStatus", () => {
         reason: null,
         contextTokens: 12_345,
         contextWindow: 200_000,
+        missedCost: 0,
+        modelSwitched: false,
+        previousModel: null,
+        idleMs: 0,
+        belowThresholdStreak: 0,
       }),
     );
   });

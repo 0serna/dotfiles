@@ -35,6 +35,11 @@ function logCacheStatus(
     reason: cacheInfo.cacheUnavailableReason ?? null,
     contextTokens: usage?.tokens ?? null,
     contextWindow: usage?.contextWindow ?? null,
+    missedCost: cacheInfo.missedCost,
+    modelSwitched: cacheInfo.modelSwitched,
+    previousModel: cacheInfo.previousModel ?? null,
+    idleMs: cacheInfo.idleMs,
+    belowThresholdStreak: cacheInfo.belowThresholdStreak,
     lastDcp,
   });
 }

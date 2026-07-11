@@ -42,7 +42,7 @@ Simplify by making the scoped work leaner without changing observable behavior.
 - Preserve public behavior, APIs, persistence formats, side effects, accessibility, security boundaries, and error handling that prevents data loss.
 - Do not add dependencies; prefer native APIs, platform/framework features, or already-installed dependencies.
 - Do not replace clear code with clever code.
-- Prefer self-describing names over comments. When a comment explains what a symbol does, rename the symbol to carry that meaning, then delete the comment. Keep only why-comments (constraints, non-obvious intent, operational knowledge) when a rename cannot capture them.
+- Prefer self-describing names over comments. When a comment explains what code does, rename the symbol to carry that meaning, then delete the comment. Delete comments relentlessly: keep only when the information cannot physically live in a name (external constraint, bug tracker reference, regulatory requirement).
 - Do not reformat unrelated code.
 - Do not commit, stage, revert, or overwrite unrelated user changes.
 - If a simplification could change behavior, project structure, or user-facing documentation meaning, ask before editing.
