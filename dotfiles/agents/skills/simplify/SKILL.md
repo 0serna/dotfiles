@@ -23,6 +23,7 @@ Simplify by making the scoped work leaner without changing observable behavior.
    - Complete when each candidate change has enough context to classify as safe or unsafe.
 3. Build a candidate list with the lean ladder; stop at the first safe rung that applies:
    - Delete code, comments, docs, imports, exports, files, branches, or parameters that no longer need to exist.
+   - Rename symbols to be self-describing; delete the comments the rename made redundant.
    - Replace custom code with standard library, language, platform, or framework utilities.
    - Replace custom code with already-installed project dependencies.
    - Merge duplicated logic, documentation, or configuration into a single source of truth.
@@ -41,7 +42,7 @@ Simplify by making the scoped work leaner without changing observable behavior.
 - Preserve public behavior, APIs, persistence formats, side effects, accessibility, security boundaries, and error handling that prevents data loss.
 - Do not add dependencies; prefer native APIs, platform/framework features, or already-installed dependencies.
 - Do not replace clear code with clever code.
-- Do not remove comments or documentation that explain non-obvious intent, constraints, or operational knowledge.
+- Prefer self-describing names over comments. When a comment explains what a symbol does, rename the symbol to carry that meaning, then delete the comment. Keep only why-comments (constraints, non-obvious intent, operational knowledge) when a rename cannot capture them.
 - Do not reformat unrelated code.
 - Do not commit, stage, revert, or overwrite unrelated user changes.
 - If a simplification could change behavior, project structure, or user-facing documentation meaning, ask before editing.
