@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { emptyDcpMetrics } from "../format.ts";
 import { computeAndPublishStatus } from "../status.ts";
 
 type StatusContext = Parameters<typeof computeAndPublishStatus>[0];
@@ -36,7 +35,7 @@ describe("computeAndPublishStatus", () => {
   it("logs displayed context usage in cache status events", () => {
     const logger: StatusLogger = { log: vi.fn() };
 
-    computeAndPublishStatus(createContext(), logger, emptyDcpMetrics(), true);
+    computeAndPublishStatus(createContext(), logger, true);
 
     expect(logger.log).toHaveBeenCalledWith(
       "cache_status",

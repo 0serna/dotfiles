@@ -6,22 +6,6 @@ export type ContextUsage = {
   percent: number | null;
 };
 
-export type DcpStatusMetrics = {
-  contextSequence?: number;
-  stubbedCount: number;
-  estimatedSavedTokens: number;
-  reasonCounts: Record<string, number>;
-};
-
-export function emptyDcpMetrics(): DcpStatusMetrics {
-  return {
-    contextSequence: undefined,
-    stubbedCount: 0,
-    estimatedSavedTokens: 0,
-    reasonCounts: {},
-  };
-}
-
 export type CacheUsageEntry = {
   type: string;
   message?: {
