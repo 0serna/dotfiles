@@ -61,7 +61,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("working-time extension lifecycle", () => {
+describe("working-stats extension lifecycle", () => {
   it("publishes a working message with the elapsed time and throughput placeholder on agent_start", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
@@ -173,7 +173,7 @@ describe("working-time extension lifecycle", () => {
   });
 });
 
-describe("working-time extension throughput integration", () => {
+describe("working-stats extension throughput integration", () => {
   it("shows live throughput on the first interval tick after streaming starts", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);

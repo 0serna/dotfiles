@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Publish live agent elapsed time as part of the working message via `setWorkingMessage`, alongside assistant token throughput. This spec replaces the standalone duration footer extension; duration is now composed into the unified working-time message.
+Publish live agent elapsed time as part of the working message via `setWorkingMessage`, alongside assistant token throughput. This spec replaces the standalone duration footer extension; duration is now composed into the unified working-stats message.
 
 ## Requirements
 
 ### Requirement: Duration extension publishes live agent elapsed time
 
-The Pi working-time extension SHALL publish the agent elapsed time as part of the working message via `setWorkingMessage`, alongside assistant token throughput.
+The Pi working-stats extension SHALL publish the agent elapsed time as part of the working message via `setWorkingMessage`, alongside assistant token throughput.
 
 #### Scenario: Agent run starts
 
@@ -33,7 +33,7 @@ The Pi working-time extension SHALL publish the agent elapsed time as part of th
 
 ### Requirement: Duration extension manages lifecycle cleanup
 
-The Pi working-time extension SHALL clean up runtime resources when agent runs finish or sessions shut down.
+The Pi working-stats extension SHALL clean up runtime resources when agent runs finish or sessions shut down.
 
 #### Scenario: Session shuts down during active timing
 

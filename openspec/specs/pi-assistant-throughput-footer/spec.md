@@ -6,7 +6,7 @@ Display live and final assistant output throughput in the Pi working message, sh
 
 ### Requirement: Footer displays assistant output throughput
 
-The Pi working-time extension SHALL include assistant output throughput in the working message via `setWorkingMessage`, displayed inline alongside the agent elapsed time only during active streaming. After a stream ends the placeholder `- tok/s` is shown.
+The Pi working-stats extension SHALL include assistant output throughput in the working message via `setWorkingMessage`, displayed inline alongside the agent elapsed time only during active streaming. After a stream ends the placeholder `- tok/s` is shown.
 
 #### Scenario: Publish live throughput during generation
 
@@ -27,7 +27,7 @@ The Pi working-time extension SHALL include assistant output throughput in the w
 
 ### Requirement: Footer replaces live estimate with precise final throughput
 
-The Pi working-time extension SHALL store the precise final throughput value internally when an assistant stream closes with provider usage, and surface it only in the `agent_end` completion notification.
+The Pi working-stats extension SHALL store the precise final throughput value internally when an assistant stream closes with provider usage, and surface it only in the `agent_end` completion notification.
 
 #### Scenario: Store final throughput on message end
 
@@ -48,7 +48,7 @@ The Pi working-time extension SHALL store the precise final throughput value int
 
 ### Requirement: Throughput measurement is scoped to one assistant stream
 
-The Pi working-time extension SHALL measure each assistant stream independently rather than accumulating throughput across a full user prompt or agent run.
+The Pi working-stats extension SHALL measure each assistant stream independently rather than accumulating throughput across a full user prompt or agent run.
 
 #### Scenario: New assistant stream resets live measurement
 
@@ -63,7 +63,7 @@ The Pi working-time extension SHALL measure each assistant stream independently 
 
 ### Requirement: Throughput runtime state is session-scoped
 
-The Pi working-time extension SHALL clean up live update resources on agent end and session shutdown, and SHALL not reconstruct throughput values from prior sessions.
+The Pi working-stats extension SHALL clean up live update resources on agent end and session shutdown, and SHALL not reconstruct throughput values from prior sessions.
 
 #### Scenario: Session shutdown clears live resources
 

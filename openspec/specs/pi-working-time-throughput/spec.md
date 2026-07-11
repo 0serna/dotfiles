@@ -1,4 +1,4 @@
-# pi-working-time-throughput Specification
+# pi-working-stats Specification
 
 ## Purpose
 
@@ -8,7 +8,7 @@ Unified extension that composes agent elapsed time and assistant token throughpu
 
 ### Requirement: Working message shows elapsed agent time
 
-The working-time extension SHALL publish a working message via `setWorkingMessage` that displays the elapsed wall-clock time since `agent_start`.
+The working-stats extension SHALL publish a working message via `setWorkingMessage` that displays the elapsed wall-clock time since `agent_start`.
 
 #### Scenario: Agent run starts
 
@@ -32,7 +32,7 @@ The working-time extension SHALL publish a working message via `setWorkingMessag
 
 ### Requirement: Working message shows assistant token throughput
 
-The working-time extension SHALL include assistant output throughput in the working message only while an assistant stream is actively producing output deltas.
+The working-stats extension SHALL include assistant output throughput in the working message only while an assistant stream is actively producing output deltas.
 
 #### Scenario: Placeholder before first stream
 
@@ -52,7 +52,7 @@ The working-time extension SHALL include assistant output throughput in the work
 
 ### Requirement: Final throughput is stored for the completion notification
 
-The working-time extension SHALL store the last final throughput internally and surface it in the `agent_end` notification only.
+The working-stats extension SHALL store the last final throughput internally and surface it in the `agent_end` notification only.
 
 #### Scenario: Final throughput recorded on stream end with usage
 
@@ -71,7 +71,7 @@ The working-time extension SHALL store the last final throughput internally and 
 
 ### Requirement: Throughput measurement is scoped to one assistant stream
 
-The working-time extension SHALL measure each assistant stream independently.
+The working-stats extension SHALL measure each assistant stream independently.
 
 #### Scenario: New assistant stream resets measurement
 
@@ -85,7 +85,7 @@ The working-time extension SHALL measure each assistant stream independently.
 
 ### Requirement: Extension cleans up runtime resources
 
-The working-time extension SHALL clean up runtime resources on agent end and session shutdown.
+The working-stats extension SHALL clean up runtime resources on agent end and session shutdown.
 
 #### Scenario: Interval stops on agent end
 
