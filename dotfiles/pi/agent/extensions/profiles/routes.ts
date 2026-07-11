@@ -6,7 +6,7 @@ export const ROUTE_TYPES = {
   "/skill:openspec-archive-change": "cheap",
   "/skill:openspec-apply-change": "auxiliar",
   "/skill:simplify": "auxiliar",
-  "/skill:review": "auxiliar",
+  "/skill:code-review": "auxiliar",
 } as const satisfies Record<string, FixedRouteName>;
 
 export type RouteName = keyof typeof ROUTE_TYPES;

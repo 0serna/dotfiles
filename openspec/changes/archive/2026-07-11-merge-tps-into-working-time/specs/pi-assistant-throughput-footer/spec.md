@@ -1,8 +1,4 @@
-## Purpose
-
-Display live and final assistant output throughput in the Pi working message, showing tokens per second for each assistant stream. Throughput is now part of the working message via `setWorkingMessage` rather than a standalone footer status key.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Footer displays assistant output throughput
 
@@ -76,3 +72,11 @@ The Pi working-time extension SHALL clean up live update resources on agent end 
 - **WHEN** Pi starts, reloads, creates, or resumes a session
 - **THEN** the extension does not infer or publish a throughput value from session history
 - **AND** the extension waits for the next assistant stream to produce throughput data
+
+## REMOVED Requirements
+
+### Requirement: Footer orders throughput after model information
+
+**Reason**: Throughput is no longer published as a footer status key (`setStatus`). It is now part of the working message via `setWorkingMessage`, which renders inline with the spinner. Footer ordering is irrelevant.
+
+**Migration**: Custom footers that read the `tps` status key should remove that logic. The throughput is now displayed in the working message automatically.

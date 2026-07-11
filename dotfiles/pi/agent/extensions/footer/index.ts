@@ -11,7 +11,7 @@ function formatCwd(cwd: string): string {
   return basename(cwd);
 }
 
-const LEFT_EXTENSION_ORDER = ["tps", "context"];
+const LEFT_EXTENSION_ORDER = ["context"];
 const RIGHT_EXTENSION_ORDER = ["quota"];
 
 export default function (pi: ExtensionAPI) {

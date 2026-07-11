@@ -1,10 +1,4 @@
-# pi-agent-duration-footer Specification
-
-## Purpose
-
-Publish live agent elapsed time as part of the working message via `setWorkingMessage`, alongside assistant token throughput. This spec replaces the standalone duration footer extension; duration is now composed into the unified working-time message.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Duration extension publishes live agent elapsed time
 
@@ -41,3 +35,11 @@ The Pi working-time extension SHALL clean up runtime resources when agent runs f
 - **THEN** the extension clears the interval
 - **AND** resets all throughput and timing state
 - **AND** clears the working message
+
+## REMOVED Requirements
+
+### Requirement: Duration extension infers last duration from session history
+
+**Reason**: Not implemented in current code; the extension only tracks live agent runs. The unified extension does not add session history inference.
+
+**Migration**: No migration needed. The `session_start` handler in the extension only resets state; it does not publish inferred durations.
