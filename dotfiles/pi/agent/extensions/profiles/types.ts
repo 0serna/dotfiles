@@ -1,20 +1,17 @@
+import type { ModelThinkingLevel } from "@earendil-works/pi-ai";
+
 /** Thinking levels supported by Pi models */
-export type ThinkingLevel =
-  | "off"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh";
+export type ThinkingLevel = ModelThinkingLevel;
 
 /** The full set of supported thinking levels, in increasing order. */
-export const THINKING_LEVELS: readonly ThinkingLevel[] = [
+const THINKING_LEVELS: readonly ThinkingLevel[] = [
   "off",
   "minimal",
   "low",
   "medium",
   "high",
   "xhigh",
+  "max",
 ];
 
 export function isValidThinkingLevel(value: unknown): value is ThinkingLevel {

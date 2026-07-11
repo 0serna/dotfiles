@@ -2,29 +2,16 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  isValidThinkingLevel,
   ROUTE_NAMES,
   type ConfigValidationResult,
   type PersistedConfig,
-  type ThinkingLevel,
 } from "./types.ts";
-
-const THINKING_LEVELS: readonly ThinkingLevel[] = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-];
 
 function stateFilePath(): string {
   const stateHome =
     process.env.XDG_STATE_HOME ?? join(homedir(), ".local/state");
   return join(stateHome, "pi", "profiles.json");
-}
-
-function isValidThinkingLevel(value: unknown): value is ThinkingLevel {
-  return THINKING_LEVELS.includes(value as ThinkingLevel);
 }
 
 function isValidRoute(value: unknown): boolean {

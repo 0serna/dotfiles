@@ -1,3 +1,4 @@
+npm run sync-pi-deps
 npx lint-staged || LINT_STAGED_EXIT=$?
 npm run check || CHECK_EXIT=$?
 exit $((${LINT_STAGED_EXIT:-0} || ${CHECK_EXIT:-0}))

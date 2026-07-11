@@ -108,28 +108,31 @@ describe("selection transition reducer", () => {
     expect(result.state.activeModelId).toBe("user/a");
   });
 
-  it("persists a manual thinking-level selection for the active model", () => {
-    let state = createTransitionState();
-    state = { ...state, activeModelId: "user/a" };
-    const result = reduceTransition(
-      state,
-      {
-        kind: "thinking_level_selected",
-        level: "xhigh",
-        provider: "user",
-        modelId: "a",
-      },
-      emptyView,
-    );
-    expect(result.effects).toEqual([
-      {
-        kind: "persist_selection",
-        provider: "user",
-        modelId: "a",
-        thinkingLevel: "xhigh",
-      },
-    ]);
-  });
+  it.each(["xhigh", "max"] as const)(
+    "persists a manual thinking-level selection (%s) for the active model",
+    (level) => {
+      let state = createTransitionState();
+      state = { ...state, activeModelId: "user/a" };
+      const result = reduceTransition(
+        state,
+        {
+          kind: "thinking_level_selected",
+          level,
+          provider: "user",
+          modelId: "a",
+        },
+        emptyView,
+      );
+      expect(result.effects).toEqual([
+        {
+          kind: "persist_selection",
+          provider: "user",
+          modelId: "a",
+          thinkingLevel: level,
+        },
+      ]);
+    },
+  );
 
   it("treats a thinking-level event after the model identity changes as an automatic clamp", () => {
     let state = createTransitionState();
@@ -155,7 +158,7 @@ describe("selection transition reducer", () => {
       state,
       {
         kind: "thinking_level_selected",
-        level: "max",
+        level: "unsupported",
         provider: "user",
         modelId: "a",
       },

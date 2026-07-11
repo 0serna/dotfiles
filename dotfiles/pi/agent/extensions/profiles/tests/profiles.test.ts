@@ -412,7 +412,7 @@ describe("manual preferences restoration", () => {
     const { ctx, handlers } = setupExtension();
 
     await handlers.get("session_start")?.({}, ctx);
-    await handlers.get("thinking_level_select")?.({ level: "xhigh" }, ctx);
+    await handlers.get("thinking_level_select")?.({ level: "max" }, ctx);
 
     await vi.waitFor(() =>
       expect(writeFileMock).toHaveBeenCalledWith(
@@ -422,9 +422,9 @@ describe("manual preferences restoration", () => {
             selection: {
               modelProvider: "user",
               modelId: "base",
-              thinkingLevel: "xhigh",
+              thinkingLevel: "max",
             },
-            thinkingMemory: { "user/base": "xhigh" },
+            thinkingMemory: { "user/base": "max" },
           },
           null,
           2,
@@ -490,6 +490,35 @@ describe("manual preferences restoration", () => {
       modelId: "other",
       thinkingLevel: "high",
     });
+  });
+
+  it("restores a remembered max level when the user returns to a model", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue(undefined);
+    renameMock.mockResolvedValue();
+    const { ctx, handlers, pi, userModel, userModel2 } = setupExtension();
+
+    mockReadFiles(
+      manualPrefsJson(
+        {
+          modelProvider: userModel.provider,
+          modelId: userModel.id,
+          thinkingLevel: "high",
+        },
+        { "user/other": "max" },
+      ),
+    );
+    await handlers.get("session_start")?.({}, ctx);
+    vi.mocked(pi.setThinkingLevel).mockClear();
+
+    ctx.model = userModel2;
+    await handlers.get("thinking_level_select")?.({ level: "high" }, ctx);
+    await handlers.get("model_select")?.(
+      { source: "set", model: userModel2 },
+      ctx,
+    );
+
+    expect(pi.setThinkingLevel).toHaveBeenCalledWith("max");
   });
 
   it("preserves a model preference when Pi clamps during a model switch", async () => {
