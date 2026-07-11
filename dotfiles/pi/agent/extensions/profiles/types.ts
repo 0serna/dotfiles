@@ -7,6 +7,20 @@ export type ThinkingLevel =
   | "high"
   | "xhigh";
 
+/** The full set of supported thinking levels, in increasing order. */
+export const THINKING_LEVELS: readonly ThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+];
+
+export function isValidThinkingLevel(value: unknown): value is ThinkingLevel {
+  return THINKING_LEVELS.includes(value as ThinkingLevel);
+}
+
 /** A route configuration with model and thinking level */
 export type ModelRoute = {
   model: string;

@@ -1,10 +1,4 @@
-# per-model-thinking-memory Specification
-
-## Purpose
-
-Remember and restore the last selected thinking level per model so user preferences survive restarts.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Persist thinking level per model
 
