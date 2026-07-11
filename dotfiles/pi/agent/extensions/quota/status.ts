@@ -44,10 +44,11 @@ export function formatResetTime(resetAt: number): string {
   const minutes = String(date.getMinutes()).padStart(2, "0");
   const timeStr = `${hours}:${minutes}`;
 
-  if (date.toDateString() === new Date().toDateString()) return timeStr;
+  const now = new Date();
+  if (date.toDateString() === now.toDateString()) return timeStr;
   const days = Math.max(
     1,
-    Math.round((date.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+    Math.round((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
   );
   return `${days}d`;
 }
@@ -63,70 +64,8 @@ export function formatRelativeExpiry(expiresAt: number): string {
   return `in ${hours}h`;
 }
 
-// ---------------------------------------------------------------------------
-// Window candidate types and helpers
-// ---------------------------------------------------------------------------
-
-type WindowCandidate = {
-  label: "R" | "W" | "M";
-  percent: number;
-  resetLabel: string;
-};
-
-function codexWindowCandidates(data: CodexQuotaData): WindowCandidate[] {
-  const candidates: WindowCandidate[] = [];
-
-  if (data.remaining5h != null && data.resetAt5h != null) {
-    candidates.push({
-      label: "R",
-      percent: data.remaining5h,
-      resetLabel: formatResetTime(data.resetAt5h),
-    });
-  }
-
-  if (data.remaining7d != null && data.resetAt7d != null) {
-    candidates.push({
-      label: "W",
-      percent: data.remaining7d,
-      resetLabel: formatResetTime(data.resetAt7d),
-    });
-  }
-
-  return candidates;
-}
-
 function formatOpenCodeResetTime(resetInSec: number): string {
   return formatResetTime(Math.floor(Date.now() / 1000) + resetInSec);
-}
-
-function openCodeWindowCandidates(data: OpenCodeGoData): WindowCandidate[] {
-  const candidates: WindowCandidate[] = [];
-
-  if (data.rolling) {
-    candidates.push({
-      label: "R",
-      percent: clampPercent(data.rolling.remainingPercent),
-      resetLabel: formatOpenCodeResetTime(data.rolling.resetInSec),
-    });
-  }
-
-  if (data.weekly) {
-    candidates.push({
-      label: "W",
-      percent: clampPercent(data.weekly.remainingPercent),
-      resetLabel: formatOpenCodeResetTime(data.weekly.resetInSec),
-    });
-  }
-
-  if (data.monthly) {
-    candidates.push({
-      label: "M",
-      percent: clampPercent(data.monthly.remainingPercent),
-      resetLabel: formatOpenCodeResetTime(data.monthly.resetInSec),
-    });
-  }
-
-  return candidates;
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +73,8 @@ function openCodeWindowCandidates(data: OpenCodeGoData): WindowCandidate[] {
 // ---------------------------------------------------------------------------
 
 const DETAIL_WIDTH = 31;
+const DETAIL_LABEL_WIDTH = 10;
+const DETAIL_VALUE_WIDTH = 5;
 
 function detailBorder(title: string): string {
   const label = ` ${title} `;
@@ -141,7 +82,11 @@ function detailBorder(title: string): string {
 }
 
 function detailRow(label: string, value: string): string {
-  return `│${`${label.padEnd(10)} ${value}`.padEnd(DETAIL_WIDTH)}│`;
+  return `│${`${label.padEnd(DETAIL_LABEL_WIDTH)} ${value}`.padEnd(DETAIL_WIDTH)}│`;
+}
+
+function detailValueRow(label: string, value: string): string {
+  return detailRow(label, value.padStart(DETAIL_VALUE_WIDTH));
 }
 
 function detailSubRow(value: string): string {
@@ -157,30 +102,40 @@ function formatWindowRow(
   percent: number,
   resetLabel: string,
 ): string {
-  return detailRow(label, `${percent}% reset ${resetLabel}`);
+  const formattedPercent = String(percent).padStart(DETAIL_VALUE_WIDTH - 1);
+  return detailRow(label, `${formattedPercent}% reset ${resetLabel}`);
 }
 
 export function formatCodexFullDetail(data: CodexQuotaData): string[] {
   const lines: string[] = [detailBorder("Codex")];
 
-  const candidates = codexWindowCandidates(data);
-  for (const c of candidates) {
+  if (data.remaining5h != null && data.resetAt5h != null) {
     lines.push(
       formatWindowRow(
-        c.label === "R" ? "Rolling" : "Weekly",
-        c.percent,
-        c.resetLabel,
+        "Rolling",
+        data.remaining5h,
+        formatResetTime(data.resetAt5h),
+      ),
+    );
+  }
+
+  if (data.remaining7d != null && data.resetAt7d != null) {
+    lines.push(
+      formatWindowRow(
+        "Weekly",
+        data.remaining7d,
+        formatResetTime(data.resetAt7d),
       ),
     );
   }
 
   if (data.remainingCredits != null) {
-    lines.push(detailRow("Credits", `${data.remainingCredits}`));
+    lines.push(detailValueRow("Credits", `${data.remainingCredits}`));
   }
 
   if (data.bankedResetDetails != null) {
     const details = data.bankedResetDetails;
-    lines.push(detailRow("Resets", `${details.length}`));
+    lines.push(detailValueRow("Resets", `${details.length}`));
     details.forEach((detail, index) => {
       lines.push(
         detailSubRow(`#${index + 1} ${formatRelativeExpiry(detail.expiresAt)}`),
@@ -195,19 +150,45 @@ export function formatCodexFullDetail(data: CodexQuotaData): string[] {
 export function formatOpenCodeFullDetail(
   data: OpenCodeGoData,
   accountName?: string,
+  isActive?: boolean,
 ): string[] {
-  const title = accountName ? `OpenCode ${accountName}` : "OpenCode Go";
+  const title = accountName
+    ? `OpenCode ${accountName}${isActive ? " (active)" : ""}`
+    : "OpenCode Go";
   const lines: string[] = [detailBorder(title)];
 
-  const candidates = openCodeWindowCandidates(data);
-  for (const c of candidates) {
-    const label =
-      c.label === "R" ? "Rolling" : c.label === "W" ? "Weekly" : "Monthly";
-    lines.push(formatWindowRow(label, c.percent, c.resetLabel));
+  if (data.rolling) {
+    lines.push(
+      formatWindowRow(
+        "Rolling",
+        clampPercent(data.rolling.remainingPercent),
+        formatOpenCodeResetTime(data.rolling.resetInSec),
+      ),
+    );
+  }
+
+  if (data.weekly) {
+    lines.push(
+      formatWindowRow(
+        "Weekly",
+        clampPercent(data.weekly.remainingPercent),
+        formatOpenCodeResetTime(data.weekly.resetInSec),
+      ),
+    );
+  }
+
+  if (data.monthly) {
+    lines.push(
+      formatWindowRow(
+        "Monthly",
+        clampPercent(data.monthly.remainingPercent),
+        formatOpenCodeResetTime(data.monthly.resetInSec),
+      ),
+    );
   }
 
   if (data.balanceDollars != null) {
-    lines.push(detailRow("Balance", `$${data.balanceDollars.toFixed(2)}`));
+    lines.push(detailValueRow("Balance", `$${data.balanceDollars.toFixed(2)}`));
   }
 
   lines.push(detailFooter());

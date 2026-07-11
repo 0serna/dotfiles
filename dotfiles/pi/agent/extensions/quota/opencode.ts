@@ -1,5 +1,6 @@
 import { failureDetails } from "../shared/diagnostics.ts";
 import type { ExtensionLogger } from "../shared/logger.js";
+import { clampPercent } from "./status.js";
 import type { OpenCodeGoData, OpenCodeGoWindowData } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -17,6 +18,7 @@ async function fetchGoDashboardHtml(
   workspaceId: string,
   authCookie: string,
   logger: ExtensionLogger,
+  accountName: string,
 ): Promise<string | null> {
   try {
     const response = await fetch(`${GO_DASHBOARD_URL}/${workspaceId}/go`, {
@@ -26,12 +28,18 @@ async function fetchGoDashboardHtml(
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!response.ok) {
-      logger.log("go_fetch_failed", { status: response.status });
+      logger.log("go_fetch_failed", {
+        account: accountName,
+        status: response.status,
+      });
       return null;
     }
     return await response.text();
   } catch (error) {
-    logger.log("go_fetch_error", failureDetails(error));
+    logger.log("go_fetch_error", {
+      ...failureDetails(error),
+      account: accountName,
+    });
     return null;
   }
 }
@@ -109,7 +117,7 @@ function parseGoHydrationWindow(
   if (usagePercent == null || resetInSec == null) return undefined;
 
   return {
-    remainingPercent: Math.max(0, Math.min(100, 100 - Number(usagePercent))),
+    remainingPercent: clampPercent(100 - Number(usagePercent)),
     resetInSec: Number(resetInSec),
   };
 }
@@ -194,10 +202,7 @@ function isUsageWindow(v: unknown): v is Record<string, unknown> {
 
 function usageWindowToData(w: Record<string, unknown>): OpenCodeGoWindowData {
   return {
-    remainingPercent: Math.max(
-      0,
-      Math.min(100, 100 - (w["usagePercent"] as number)),
-    ),
+    remainingPercent: clampPercent(100 - (w["usagePercent"] as number)),
     resetInSec: w["resetInSec"] as number,
   };
 }
@@ -212,6 +217,7 @@ function rawBalanceToDollars(raw: number): number {
 
 /** Fetch + parse OpenCode Go dashboard, returning structured data or null. */
 export async function fetchOpenCodeGoData(
+  accountName: string,
   workspaceEnv: string,
   cookieEnv: string,
   logger: ExtensionLogger,
@@ -221,6 +227,7 @@ export async function fetchOpenCodeGoData(
 
   if (!workspaceId || !authCookie) {
     logger.log("go_skipped", {
+      account: accountName,
       reason: "not configured",
       workspaceEnv,
       cookieEnv,
@@ -228,21 +235,37 @@ export async function fetchOpenCodeGoData(
     return null;
   }
 
-  const html = await fetchGoDashboardHtml(workspaceId, authCookie, logger);
+  const html = await fetchGoDashboardHtml(
+    workspaceId,
+    authCookie,
+    logger,
+    accountName,
+  );
   if (!html) {
-    logger.log("go_fetch_failed", { reason: "no html" });
+    logger.log("go_fetch_failed", {
+      account: accountName,
+      reason: "no html",
+    });
     return null;
   }
   const data = parseGoDashboard(html);
   if (!data) {
-    logger.log("go_parse_failed", { reason: "no matching data found" });
+    logger.log("go_parse_failed", {
+      account: accountName,
+      reason: "no matching data found",
+    });
     return null;
   }
   logger.log("go_fetch_succeeded", {
+    account: accountName,
     hasRolling: data.rolling != null,
+    rollingRemaining: data.rolling?.remainingPercent,
     hasWeekly: data.weekly != null,
+    weeklyRemaining: data.weekly?.remainingPercent,
     hasMonthly: data.monthly != null,
+    monthlyRemaining: data.monthly?.remainingPercent,
     hasBalance: data.balanceDollars != null,
+    balanceDollars: data.balanceDollars,
   });
   return data;
 }

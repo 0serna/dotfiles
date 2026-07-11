@@ -78,6 +78,25 @@ describe("formatCodexFullDetail", () => {
     );
   });
 
+  it("aligns scalar values with percentage values", () => {
+    const codexLines = formatCodexFullDetail(
+      build({ remainingCredits: 0, bankedResetDetails: [] }),
+    );
+    const openCodeLines = formatOpenCodeFullDetail({
+      rolling: { remainingPercent: 80, resetInSec: 60 },
+      balanceDollars: 3.68,
+    });
+
+    const valueStarts = [
+      valueStart(codexLines, "Rolling", "  80%"),
+      valueStart(codexLines, "Credits", "    0"),
+      valueStart(codexLines, "Resets", "    0"),
+      valueStart(openCodeLines, "Balance", "$3.68"),
+    ];
+
+    expect(new Set(valueStarts).size).toBe(1);
+  });
+
   it("renders one sub-line per reset with relative expiry", () => {
     const lines = formatCodexFullDetail(build());
     const plain = lines.map(stripStyles);
@@ -186,6 +205,25 @@ describe("formatOpenCodeFullDetail", () => {
     ).toBe(true);
   });
 
+  it("aligns reset labels after percentages of different widths", () => {
+    const lines = formatOpenCodeFullDetail(
+      build({
+        rolling: { remainingPercent: 100, resetInSec: 60 },
+        weekly: { remainingPercent: 8, resetInSec: 120 },
+        monthly: { remainingPercent: 0, resetInSec: 180 },
+      }),
+    );
+    const rows = lines
+      .map(stripStyles)
+      .filter((line): line is string => line != null)
+      .filter((line) =>
+        ["Rolling", "Weekly", "Monthly"].some((label) => line.includes(label)),
+      );
+
+    expect(new Set(rows.map((row) => row.indexOf("%"))).size).toBe(1);
+    expect(new Set(rows.map((row) => row.indexOf("reset"))).size).toBe(1);
+  });
+
   it("omits balance when undefined", () => {
     const lines = formatOpenCodeFullDetail(
       build({ balanceDollars: undefined }),
@@ -210,3 +248,11 @@ describe("formatOpenCodeFullDetail", () => {
     expect(lines[lines.length - 1]).toContain("┘");
   });
 });
+
+function valueStart(lines: string[], label: string, value: string): number {
+  const line = lines
+    .map(stripStyles)
+    .find((candidate) => candidate?.includes(label));
+  expect(line).toBeDefined();
+  return line!.indexOf(value);
+}

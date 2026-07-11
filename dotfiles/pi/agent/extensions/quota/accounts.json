@@ -1,12 +1,19 @@
 [
   {
-    "name": "1",
-    "workspaceEnv": "OC_GO_WORKSPACE_1",
-    "cookieEnv": "OC_GO_COOKIE_1"
-  },
-  {
-    "name": "2",
-    "workspaceEnv": "OC_GO_WORKSPACE_2",
-    "cookieEnv": "OC_GO_COOKIE_2"
+    "provider": "opencode-go",
+    "accounts": [
+      {
+        "name": "1",
+        "apiKeyEnv": "OC_GO_API_KEY_1",
+        "workspaceEnv": "OC_GO_WORKSPACE_1",
+        "cookieEnv": "OC_GO_COOKIE_1"
+      },
+      {
+        "name": "2",
+        "apiKeyEnv": "OC_GO_API_KEY_2",
+        "workspaceEnv": "OC_GO_WORKSPACE_2",
+        "cookieEnv": "OC_GO_COOKIE_2"
+      }
+    ]
   }
 ]

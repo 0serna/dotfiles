@@ -8,8 +8,33 @@ export type ExtensionContext = Parameters<Parameters<ExtensionAPI["on"]>[1]>[1];
 
 export type AccountConfig = {
   name: string;
+  apiKeyEnv: string;
   workspaceEnv: string;
   cookieEnv: string;
+};
+
+export type ProviderAccountConfig = {
+  provider: string;
+  accounts: AccountConfig[];
+};
+
+// ---------------------------------------------------------------------------
+// Rotation state
+// ---------------------------------------------------------------------------
+
+export type AccountStatus = "rate-limited" | "unauthorized" | "untried";
+
+export type AccountState = {
+  name: string;
+  apiKey: string;
+  lastStatus: AccountStatus;
+  cooldownUntil: number;
+  failures: number;
+};
+
+export type RotationConfig = {
+  accounts: AccountConfig[];
+  cooldownMs: number;
 };
 
 // ---------------------------------------------------------------------------
