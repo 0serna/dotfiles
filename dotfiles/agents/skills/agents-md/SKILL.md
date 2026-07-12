@@ -24,7 +24,7 @@ Build a markdown code-fence tree starting at `.`. Show only maintained directori
 
 ## Repository Commands
 
-List explicit commands developers intentionally run from the repository root through a runner or CLI: `npm run ...`, `make ...`, `just ...`, `task ...`, or direct executable scripts when that is the public entrypoint. Keep commands for useful development, validation, build, and release workflows. Exclude dependency installation, lifecycle hooks such as `prepare`, internal helpers, and incidental scripts. Do not invent conventional commands.
+List explicit commands developers intentionally run from the repository root through a runner or CLI: `npm run ...`, `make ...`, `just ...`, `task ...`, or direct executable scripts when that is the public entrypoint. Keep every command a developer runs as part of the normal workflow (build, test, lint, format, typecheck, sync, publish, deploy, etc.), even when it delegates to a script. Exclude only obvious runner-only commands: `prepare`, `preinstall`, `postinstall`, `prepublish`, and other lifecycle hooks a developer never invokes manually. Do not invent conventional commands.
 
 ## Update Rules
 

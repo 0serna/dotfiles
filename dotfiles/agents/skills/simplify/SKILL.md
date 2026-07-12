@@ -1,55 +1,61 @@
 ---
 name: simplify
 description: >-
-  Simplify code, functions, documentation, or the current diff without behavior
-  changes. Use when the user asks to simplify, reduce complexity, deduplicate,
-  remove dead or orphaned code, prefer native/existing utilities, or make lean
-  maintainability improvements.
+  Lean code, docs, or the current diff — drop dead code, dedupe, prefer
+  native utilities, flatten wrappers. Use when the user says simplify, dedupe,
+  clean up, or remove dead code.
 ---
 
 # Simplify
 
-Simplify by making the scoped work leaner without changing observable behavior.
+Make the scoped work leaner without changing observable behavior. Inspect, list candidates, apply the smallest correct edits, verify, report.
 
 ## Workflow
 
-1. Lock scope:
-   - If no explicit scope is provided, inspect current working tree changes.
-   - If files, paths, symbols, docs, or a diff range are provided, use them.
-   - If scope or intended behavior is ambiguous, ask before editing.
-   - Complete when the exact files, symbols, or diff hunks to inspect are known.
-2. Read every in-scope file or diff hunk before writing.
-   - Include nearby callers, imports, exports, tests, and docs when needed to prove behavior is preserved.
-   - Complete when each candidate change has enough context to classify as safe or unsafe.
-3. Build a candidate list with the lean ladder; stop at the first safe rung that applies:
-   - Delete code, comments, docs, imports, exports, files, branches, or parameters that no longer need to exist.
-   - Rename symbols to be self-describing; delete the comments the rename made redundant.
-   - Replace custom code with standard library, language, platform, or framework utilities.
-   - Replace custom code with already-installed project dependencies.
-   - Merge duplicated logic, documentation, or configuration into a single source of truth.
-   - Flatten unnecessary nesting, branching, indirection, wrappers, helpers, or abstractions.
-   - Express the same behavior more directly with nearby conventions.
-   - Complete when every in-scope area has a high-confidence candidate or a reason to leave it unchanged.
-4. If there are no high-confidence candidates, say `Lean already. Ship.` and do not edit files.
-5. Apply the smallest correct edits.
-   - Remove orphaned imports, exports, variables, types, comments, docs references, tests, and unreachable code created by the edits.
-   - Complete when the codebase has no leftover references from the simplification.
-6. Run the project's quality gate if available; otherwise run applicable tests, typecheck, or lint.
-7. Report simplifications, verification, and any remaining risk.
+1. **Lock scope**
+   - If files, paths, symbols, docs, or a diff range are given, use them.
+   - Otherwise treat the current working tree (staged, unstaged, untracked) as scope and read every changed file.
+   - State the chosen scope at the top of the output so the user can redirect in one round.
+   - Complete when the files and hunks to simplify are named.
 
-## Rules
+2. **Read in-scope files**
+   - Read every candidate file or diff hunk before writing.
+   - Follow imports, callers, tests, and docs far enough to confirm a change preserves behavior.
+   - Complete when each candidate is classified safe or unsafe.
 
-- Preserve public behavior, APIs, persistence formats, side effects, accessibility, security boundaries, and error handling that prevents data loss.
-- Do not add dependencies; prefer native APIs, platform/framework features, or already-installed dependencies.
-- Do not replace clear code with clever code.
-- Prefer self-describing names over comments. When a comment explains what code does, rename the symbol to carry that meaning, then delete the comment. Delete comments relentlessly: keep only when the information cannot physically live in a name (external constraint, bug tracker reference, regulatory requirement).
-- Do not reformat unrelated code.
-- Do not commit, stage, revert, or overwrite unrelated user changes.
-- If a simplification could change behavior, project structure, or user-facing documentation meaning, ask before editing.
+3. **Build candidates with the lean ladder**
+   Stop at the first rung that yields a high-confidence, behavior-preserving edit:
+   - **Delete** code, comments, docs, imports, exports, files, branches, or parameters that no longer need to exist.
+   - **Rename** symbols to be self-describing; delete the comments the rename made redundant.
+   - **Replace** custom code with standard library, language, platform, or framework utilities.
+   - **Replace** custom code with already-installed project dependencies.
+   - **Merge** duplicated logic, docs, or configuration into one source of truth.
+   - **Flatten** unnecessary nesting, branching, indirection, wrappers, helpers, or abstractions.
+   - **Express** the same behavior more directly with nearby conventions.
 
-## Output
+4. **No candidates → stop.** If nothing in scope earns a high-confidence edit, return `Lean already. Ship.` and do not edit.
 
-Return a concise summary with:
+5. **Apply the smallest correct edits**
+   - Touch only the lines the candidate covers.
+   - Remove orphaned imports, exports, variables, types, comments, docs, tests, and unreachable code created by the edit.
+   - Complete when the working tree has no leftover references from the simplification.
 
-- key simplifications made
-- verification run and results
+6. **Verify**
+   - Run the project's quality gate when one exists.
+   - Otherwise run the tests, typecheck, or lint that cover the touched code.
+   - If verification fails, fix the regression before reporting; the simplification is not done until it passes.
+
+7. **Report**
+   - State the scope chosen in step 1.
+   - List the simplifications made and the lean-ladder rung each came from.
+   - State what verification ran and the result.
+   - Surface any candidate that was rejected because it would change behavior.
+
+## Guardrails
+
+- Preserve public behavior, APIs, persistence formats, side effects, accessibility, security boundaries, and error handling.
+- Prefer already-installed dependencies and native APIs; do not add new ones.
+- Stay obvious. Clever code is not simpler.
+- Prefer self-describing names over comments; delete the comments a rename makes redundant. Keep a comment only when the information cannot physically live in a name (external constraint, bug-tracker reference, regulatory requirement).
+- Do not commit, stage, revert, or stash user changes.
+- A candidate that changes behavior, structure, or user-facing meaning is **not** a simplification. Surface it in the report and do not apply it.
