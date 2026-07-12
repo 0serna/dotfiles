@@ -6,7 +6,7 @@ Display live and final assistant output throughput in the Pi working message, sh
 
 ### Requirement: Footer displays assistant output throughput
 
-The Pi working-stats extension SHALL include assistant output throughput in the working message via `setWorkingMessage`, displayed inline alongside the agent elapsed time only during active streaming. After a stream ends the placeholder `- tok/s` is shown.
+The Pi working-stats extension SHALL include assistant output throughput in the working message via `setWorkingMessage`, displayed inline alongside the agent elapsed time only during active streaming. After a stream ends the placeholder `0 tok/s` is shown.
 
 #### Scenario: Publish live throughput during generation
 
@@ -23,7 +23,7 @@ The Pi working-stats extension SHALL include assistant output throughput in the 
 #### Scenario: Placeholder after stream ends
 
 - **WHEN** an assistant stream ends (message_end fires, tools execute, or agent waits for a new stream)
-- **THEN** the working message displays the `- tok/s` placeholder
+- **THEN** the working message displays the `0 tok/s` placeholder
 
 ### Requirement: Footer replaces live estimate with precise final throughput
 
@@ -44,7 +44,7 @@ The Pi working-stats extension SHALL store the precise final throughput value in
 #### Scenario: Completion notification includes final throughput
 
 - **WHEN** Pi emits `agent_end` and a final throughput has been stored
-- **THEN** the completion notification includes the value formatted as `Completed in Xm Ys · N tok/s`
+- **THEN** the completion notification includes the value formatted as `✓ 0:00 · N tok/s` (check mark in accent color, data in muted)
 
 ### Requirement: Throughput measurement is scoped to one assistant stream
 

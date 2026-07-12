@@ -1,9 +1,11 @@
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  if (totalSeconds < 60) {
-    return `${totalSeconds}s`;
-  }
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return `${minutes}m ${seconds}s`;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${minutes}:${pad(seconds)}`;
 }

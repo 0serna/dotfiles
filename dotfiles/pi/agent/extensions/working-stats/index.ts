@@ -27,10 +27,7 @@ export default function (pi: ExtensionAPI) {
     const elapsed = Date.now() - startTime;
     const timeStr = formatDuration(elapsed);
     ctx.ui.setWorkingMessage(
-      ctx.ui.theme.fg(
-        "muted",
-        `Working ${buildLabel(timeStr, throughput.getDisplay())}`,
-      ),
+      ctx.ui.theme.fg("muted", buildLabel(timeStr, throughput.getDisplay())),
     );
   }
 
@@ -40,10 +37,8 @@ export default function (pi: ExtensionAPI) {
     clearLiveInterval();
     throughput.reset();
     ctx.ui.setWorkingIndicator({
-      frames: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"].map((f) =>
-        ctx.ui.theme.fg("accent", f),
-      ),
-      intervalMs: 80,
+      frames: ["◐", "◓", "◑", "◒"].map((f) => ctx.ui.theme.fg("accent", f)),
+      intervalMs: 120,
     });
     updateWorkingMessage(ctx);
     intervalId = setInterval(() => updateWorkingMessage(ctx), 1000);
@@ -70,10 +65,12 @@ export default function (pi: ExtensionAPI) {
     if (startTime !== null) {
       const elapsed = Date.now() - startTime;
       const timeStr = formatDuration(elapsed);
-      ctx.ui.notify(
-        `Completed ${buildLabel(timeStr, throughput.getFinalThroughput())}`,
-        "info",
+      const check = ctx.ui.theme.fg("accent", "✓");
+      const data = ctx.ui.theme.fg(
+        "muted",
+        buildLabel(timeStr, throughput.getFinalThroughput()),
       );
+      ctx.ui.notify(`${check} ${data}`, "info");
       startTime = null;
     }
     ctx.ui.setWorkingMessage();

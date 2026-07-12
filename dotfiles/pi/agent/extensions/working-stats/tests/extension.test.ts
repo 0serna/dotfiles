@@ -71,22 +71,11 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_start"]!({}, ctx);
 
     expect(ctx.ui.setWorkingIndicator).toHaveBeenCalledWith({
-      frames: [
-        "<accent>⠋</accent>",
-        "<accent>⠙</accent>",
-        "<accent>⠹</accent>",
-        "<accent>⠸</accent>",
-        "<accent>⠼</accent>",
-        "<accent>⠴</accent>",
-        "<accent>⠦</accent>",
-        "<accent>⠧</accent>",
-        "<accent>⠇</accent>",
-        "<accent>⠏</accent>",
-      ],
-      intervalMs: 80,
+      frames: ["◐", "◓", "◑", "◒"].map((f) => `<accent>${f}</accent>`),
+      intervalMs: 120,
     });
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted>Working gpt-5 · 0s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:00 · 0 tok/s</muted>",
     );
   });
 
@@ -115,7 +104,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_end"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Completed gpt-5 · 3s · 0 tok/s",
+      "<accent>✓</accent> <muted>gpt-5 · 0:03 · 0 tok/s</muted>",
       "info",
     );
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
@@ -140,7 +129,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_end"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Completed gpt-5 · 2s · 200 tok/s",
+      "<accent>✓</accent> <muted>gpt-5 · 0:02 · 200 tok/s</muted>",
       "info",
     );
   });
@@ -189,13 +178,13 @@ describe("working-stats extension throughput integration", () => {
     // Before the interval ticks again the placeholder remains
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 0s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:00 · 0 tok/s</muted>",
     );
 
     // On the next tick the live throughput appears
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 1s · 100 tok/s</muted>",
+      "<muted>gpt-5 · 0:01 · 100 tok/s</muted>",
     );
   });
 
@@ -220,7 +209,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(2000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 2s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:02 · 0 tok/s</muted>",
     );
   });
 
@@ -236,7 +225,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 2s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:02 · 0 tok/s</muted>",
     );
   });
 
@@ -253,13 +242,13 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 2s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:02 · 0 tok/s</muted>",
     );
 
     // Simulate tool execution: long idle interval
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 7s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:07 · 0 tok/s</muted>",
     );
   });
 
@@ -280,7 +269,7 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_update"]!(textDelta("hi"), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 3s · 1 tok/s</muted>",
+      "<muted>gpt-5 · 0:03 · 1 tok/s</muted>",
     );
   });
 
@@ -298,7 +287,7 @@ describe("working-stats extension throughput integration", () => {
     // After shutdown a new agent run should start with the placeholder
     handlers["agent_start"]!({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working gpt-5 · 0s · 0 tok/s</muted>",
+      "<muted>gpt-5 · 0:00 · 0 tok/s</muted>",
     );
   });
 });

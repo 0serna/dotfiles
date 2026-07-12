@@ -14,7 +14,7 @@ The working-stats extension SHALL publish a working message via `setWorkingMessa
 
 - **WHEN** Pi emits `agent_start`
 - **THEN** the extension records the run start time
-- **AND** publishes a working message formatted as `Working 0s · - tok/s`
+- **AND** publishes a working message formatted as `0:00 · 0 tok/s` (no state verb — the animated spinner carries the in-progress semantic)
 
 #### Scenario: Active run updates once per second
 
@@ -26,7 +26,8 @@ The working-stats extension SHALL publish a working message via `setWorkingMessa
 
 - **WHEN** Pi emits `agent_end` for an active run
 - **THEN** the extension stops the live update interval
-- **AND** notifies the total elapsed time via `ctx.ui.notify` formatted as `Completed in Xm Ys`
+- **AND** notifies the total elapsed time via `ctx.ui.notify` formatted as `✓ 0:00`
+- **AND** the check mark and the spinner share the `accent` theme color (visual identity unified between working and completed states)
 - **AND** appends the last final throughput (e.g. ` · 48 tok/s`) when available
 - **AND** clears the working message
 
@@ -37,7 +38,7 @@ The working-stats extension SHALL include assistant output throughput in the wor
 #### Scenario: Placeholder before first stream
 
 - **WHEN** no assistant stream has occurred in this agent run
-- **THEN** the working message displays `- tok/s` as the throughput portion
+- **THEN** the working message displays `0 tok/s` as the throughput portion
 
 #### Scenario: Live throughput during generation
 
@@ -48,7 +49,7 @@ The working-stats extension SHALL include assistant output throughput in the wor
 #### Scenario: Placeholder after stream ends
 
 - **WHEN** an assistant stream ends (tools execute or agent waits for a new stream)
-- **THEN** the working message reverts to the `- tok/s` placeholder
+- **THEN** the working message reverts to the `0 tok/s` placeholder
 
 ### Requirement: Final throughput is stored for the completion notification
 
@@ -67,7 +68,7 @@ The working-stats extension SHALL store the last final throughput internally and
 #### Scenario: Completion notification includes final throughput
 
 - **WHEN** Pi emits `agent_end` and a final throughput has been stored
-- **THEN** the completion notification includes the value formatted as `Completed in Xm Ys · N tok/s`
+- **THEN** the completion notification includes the value formatted as `✓ 0:00 · N tok/s` (check mark in accent color, data in muted)
 
 ### Requirement: Throughput measurement is scoped to one assistant stream
 
