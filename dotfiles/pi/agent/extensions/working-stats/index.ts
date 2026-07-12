@@ -8,6 +8,7 @@ import { ThroughputTracker, isOutputDeltaEvent } from "./throughput.ts";
 export default function (pi: ExtensionAPI) {
   let startTime: number | null = null;
   let intervalId: ReturnType<typeof setInterval> | null = null;
+  let modelLabel = "";
   const throughput = new ThroughputTracker();
 
   function clearLiveInterval(): void {
@@ -17,20 +18,26 @@ export default function (pi: ExtensionAPI) {
     }
   }
 
+  function buildLabel(timeStr: string, tokPerSec: string | null): string {
+    const value = tokPerSec?.replace(/ tok\/s$/, "") ?? "-";
+    return `(model: ${modelLabel}, time: ${timeStr}, tok/s: ${value})`;
+  }
+
   function updateWorkingMessage(ctx: ExtensionContext): void {
     if (startTime === null) return;
     const elapsed = Date.now() - startTime;
-    const display = throughput.getDisplay() ?? "- tok/s";
+    const timeStr = formatDuration(elapsed);
     ctx.ui.setWorkingMessage(
       ctx.ui.theme.fg(
         "muted",
-        `Working ${formatDuration(elapsed)} | ${display}`,
+        `Working ${buildLabel(timeStr, throughput.getDisplay())}`,
       ),
     );
   }
 
   pi.on("agent_start", (_event, ctx) => {
     startTime = Date.now();
+    modelLabel = ctx.model?.name ?? ctx.model?.id ?? "unknown";
     clearLiveInterval();
     throughput.reset();
     ctx.ui.setWorkingIndicator({
@@ -63,10 +70,9 @@ export default function (pi: ExtensionAPI) {
     clearLiveInterval();
     if (startTime !== null) {
       const elapsed = Date.now() - startTime;
-      const final = throughput.getFinalThroughput();
-      const details = final ? ` | ${final}` : "";
+      const timeStr = formatDuration(elapsed);
       ctx.ui.notify(
-        `Completed in ${formatDuration(elapsed)}${details}`,
+        `Completed ${buildLabel(timeStr, throughput.getFinalThroughput())}`,
         "info",
       );
       startTime = null;

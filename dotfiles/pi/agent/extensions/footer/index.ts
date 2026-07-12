@@ -40,7 +40,7 @@ export default function (pi: ExtensionAPI) {
             const branch = footerData.getGitBranch();
             const thinking = pi.getThinkingLevel();
             const modelLabel = ctx.model?.name ?? ctx.model?.id;
-            const separator = theme.fg("dim", " | ");
+            const separator = theme.fg("dim", " · ");
             const extStatuses = footerData.getExtensionStatuses();
             const orderedExtensionKeys = new Set([
               ...LEFT_EXTENSION_ORDER,

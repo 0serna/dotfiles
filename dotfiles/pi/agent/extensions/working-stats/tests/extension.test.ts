@@ -6,6 +6,7 @@ type Handler = (...args: unknown[]) => void;
 
 function mockCtx() {
   return {
+    model: { name: "gpt-5" },
     ui: {
       notify: vi.fn(),
       setWorkingIndicator: vi.fn(),
@@ -85,7 +86,7 @@ describe("working-stats extension lifecycle", () => {
       intervalMs: 80,
     });
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted>Working 0s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 0s, tok/s: -)</muted>",
     );
   });
 
@@ -113,7 +114,10 @@ describe("working-stats extension lifecycle", () => {
 
     handlers["agent_end"]!({}, ctx);
 
-    expect(ctx.ui.notify).toHaveBeenCalledWith("Completed in 3s", "info");
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "Completed (model: gpt-5, time: 3s, tok/s: -)",
+      "info",
+    );
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
   });
 
@@ -136,7 +140,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_end"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "Completed in 2s | 200 tok/s",
+      "Completed (model: gpt-5, time: 2s, tok/s: 200)",
       "info",
     );
   });
@@ -185,13 +189,13 @@ describe("working-stats extension throughput integration", () => {
     // Before the interval ticks again the placeholder remains
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 0s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 0s, tok/s: -)</muted>",
     );
 
     // On the next tick the live throughput appears
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 1s | 100 tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 1s, tok/s: 100)</muted>",
     );
   });
 
@@ -216,7 +220,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(2000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 2s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 2s, tok/s: -)</muted>",
     );
   });
 
@@ -232,7 +236,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 2s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 2s, tok/s: -)</muted>",
     );
   });
 
@@ -249,13 +253,13 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 2s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 2s, tok/s: -)</muted>",
     );
 
     // Simulate tool execution: long idle interval
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 7s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 7s, tok/s: -)</muted>",
     );
   });
 
@@ -276,7 +280,7 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_update"]!(textDelta("hi"), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 3s | 1 tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 3s, tok/s: 1)</muted>",
     );
   });
 
@@ -294,7 +298,7 @@ describe("working-stats extension throughput integration", () => {
     // After shutdown a new agent run should start with the placeholder
     handlers["agent_start"]!({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>Working 0s | - tok/s</muted>",
+      "<muted>Working (model: gpt-5, time: 0s, tok/s: -)</muted>",
     );
   });
 });
