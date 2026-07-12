@@ -1,25 +1,21 @@
 ---
 name: quality-check
 disable-model-invocation: true
-description: Configure repository quality commands and a pre-commit quality gate.
+description: Configure quality commands and a pre-commit hook that auto-formats, auto-fixes, and re-stages.
 ---
 
 ## Workflow
 
-1. Inspect the repository's stack, existing runner, quality tooling, commands, and pre-commit mechanism.
+1. Inspect the repository's stack, existing runner, available formatters, auto-fixers, and quality tools, plus any pre-commit framework already in use.
 
-2. Propose the smallest relevant set of individual quality commands. Cover build, format, lint, and test when applicable, plus any project-specific checks worth adding. Always ask whether to include OpenSpec, even when the repository has no OpenSpec evidence. Prefer existing conventions and runner targets. The proposal is complete when the user has confirmed:
-   - every individual command and target name
-   - the aggregate quality-gate target and its commands
-   - tools and dependencies to install
-   - the pre-commit mechanism
+2. Propose the individual quality commands (format, lint, typecheck, test, build — whichever apply to the stack) configured in the existing runner for manual use and CI, plus the pre-commit flow: format → auto-fix → re-stage. Prefer an existing tool that already orchestrates staged-file workflows over a hand-rolled hook — common options include `lint-staged` (Node), `pre-commit` (Python), `prek` (Rust), `lefthook` (multi-language). The proposal is complete when the user has confirmed:
+   - each individual command and target name
+   - the formatter and auto-fixer commands the hook will run
+   - the pre-commit tool/framework
+   - dependencies to install
 
-3. After confirmation, install approved tools and configure the individual commands in the repository's existing runner, such as package scripts or Make targets. Add an aggregate runner target that chains the confirmed quality-gate commands; keep orchestration in the runner rather than a standalone script.
+3. Install approved tools. Configure the individual commands in the existing runner. Do not add an aggregate runner target; full checks run manually or in CI, not at commit time.
 
-4. Configure pre-commit using the existing hook framework, or an approved project-appropriate mechanism when none exists. Run these steps in order:
-   1. format
-   2. auto-fix
-   3. re-stage files changed by those commands
-   4. invoke the aggregate quality-gate target
+4. Wire the pre-commit using the approved tool/framework. The hook runs format, then auto-fix, then re-stages the changed files. The hook does not invoke the quality commands; they belong in CI or manual runs.
 
-5. Run every configured quality command and verify the pre-commit flow with the least invasive supported method. Fix underlying failures. Finish when the commands and aggregate target pass, and the hook formats, fixes, re-stages, and blocks the commit when the quality gate fails.
+5. Verify each individual command passes, then verify the hook with the least invasive supported method. Fix underlying failures. Finish when each command passes and the hook formats, fixes, and re-stages on a test run.

@@ -7,7 +7,6 @@
     "link": "tsx src/dotfiles-installer.ts",
     "sync-pi-deps": "bash scripts/sync-pi-deps.sh",
     "sync-pi-settings": "bash scripts/publish-pi-settings.sh",
-    "check": "npm run lint && npm run typecheck && npm run test && npm run openspec",
     "format": "prettier --write .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

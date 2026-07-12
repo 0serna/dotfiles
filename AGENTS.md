@@ -20,7 +20,6 @@
 ## Repository Commands
 
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
-- `npm run check`: run the full quality gate (lint, typecheck, test, openspec).
 - `npm run test`: run Vitest tests.
 - `npm run lint`: lint with ESLint.
 - `npm run typecheck`: check types with TypeScript.
