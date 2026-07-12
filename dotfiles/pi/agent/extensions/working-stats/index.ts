@@ -19,7 +19,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   function buildLabel(timeStr: string, tokPerSec: string | null): string {
-    return `${modelSlug} · ${timeStr} · ${tokPerSec ?? "0 tok/s"}`;
+    return ` ${modelSlug} · ${timeStr} · ${tokPerSec ?? "0 tok/s"}`;
   }
 
   function updateWorkingMessage(ctx: ExtensionContext): void {
@@ -42,6 +42,11 @@ export default function (pi: ExtensionAPI) {
     });
     updateWorkingMessage(ctx);
     intervalId = setInterval(() => updateWorkingMessage(ctx), 1000);
+  });
+
+  pi.on("model_select", (event, ctx) => {
+    modelSlug = event.model.id;
+    updateWorkingMessage(ctx);
   });
 
   pi.on("message_update", (event) => {

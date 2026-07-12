@@ -54,6 +54,10 @@ function messageEnd(outputTokens?: number) {
   };
 }
 
+function modelSelect(newId: string) {
+  return { model: { id: newId } };
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -75,7 +79,7 @@ describe("working-stats extension lifecycle", () => {
       intervalMs: 120,
     });
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted>gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
     );
   });
 
@@ -104,7 +108,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_end"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted>gpt-5 · 0:03 · 0 tok/s</muted>",
+      "<accent>✓</accent> <muted> gpt-5 · 0:03 · 0 tok/s</muted>",
       "info",
     );
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
@@ -129,7 +133,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_end"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted>gpt-5 · 0:02 · 200 tok/s</muted>",
+      "<accent>✓</accent> <muted> gpt-5 · 0:02 · 200 tok/s</muted>",
       "info",
     );
   });
@@ -178,13 +182,13 @@ describe("working-stats extension throughput integration", () => {
     // Before the interval ticks again the placeholder remains
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
     );
 
     // On the next tick the live throughput appears
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:01 · 100 tok/s</muted>",
+      "<muted> gpt-5 · 0:01 · 100 tok/s</muted>",
     );
   });
 
@@ -209,7 +213,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(2000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
     );
   });
 
@@ -225,7 +229,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
     );
   });
 
@@ -242,13 +246,13 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
     );
 
     // Simulate tool execution: long idle interval
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:07 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:07 · 0 tok/s</muted>",
     );
   });
 
@@ -269,7 +273,7 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_update"]!(textDelta("hi"), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:03 · 1 tok/s</muted>",
+      "<muted> gpt-5 · 0:03 · 1 tok/s</muted>",
     );
   });
 
@@ -287,7 +291,41 @@ describe("working-stats extension throughput integration", () => {
     // After shutdown a new agent run should start with the placeholder
     handlers["agent_start"]!({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted>gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+    );
+  });
+});
+
+describe("working-stats extension model changes", () => {
+  it("updates the working message when the model changes mid-run", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    vi.advanceTimersByTime(2000);
+
+    handlers["model_select"]!(modelSelect("claude-opus-4-5"), ctx);
+
+    expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
+      "<muted> claude-opus-4-5 · 0:02 · 0 tok/s</muted>",
+    );
+  });
+
+  it("uses the new model in the completion notification after a model change", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    vi.advanceTimersByTime(1500);
+    handlers["model_select"]!(modelSelect("claude-opus-4-5"), ctx);
+    vi.advanceTimersByTime(1500);
+    handlers["agent_end"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "<accent>✓</accent> <muted> claude-opus-4-5 · 0:03 · 0 tok/s</muted>",
+      "info",
     );
   });
 });
