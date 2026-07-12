@@ -1,4 +1,3 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -12,9 +11,8 @@ import {
   type ManualSelection,
 } from "./manual-preferences.ts";
 import { formatModelId } from "./model-ids.ts";
-import { ROUTE_TYPES } from "./routes.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
-import type { ProfilesRuntime } from "./runtime.ts";
+import type { ModelRoutesRuntime } from "./runtime.ts";
 import {
   createTransitionState,
   reduceTransition,
@@ -43,9 +41,9 @@ function sourceFromString(source: string): ModelSelectionSource {
   return "other";
 }
 
-export function createProfileRouteSession(
+export function createModelRouteSession(
   pi: ExtensionAPI,
-  runtime: ProfilesRuntime,
+  runtime: ModelRoutesRuntime,
 ) {
   let routeActive = false;
   let transition: TransitionState = createTransitionState();
@@ -130,7 +128,7 @@ export function createProfileRouteSession(
       return false;
     }
     return suppressManualPersistenceWhile(async () => {
-      const ok = await pi.setModel(model as Model<Api>);
+      const ok = await pi.setModel(model);
       if (ok) pi.setThinkingLevel(persisted.thinkingLevel);
       return ok;
     });
@@ -147,19 +145,14 @@ export function createProfileRouteSession(
         preferences.selection,
       );
       if (restored && ctx.model) {
-        // The selection is restored under suppression, so the reducer
-        // does not persist again. Update the in-memory memory entry to
-        // reflect what Pi actually settled on so future manual picks
-        // resolve correctly.
         preferences = withSelection(preferences, {
           modelProvider: ctx.model.provider,
           modelId: ctx.model.id,
           thinkingLevel: pi.getThinkingLevel(),
         });
+        pendingPersist = saveManualPreferences(preferences);
       }
     } else if (ctx.model) {
-      // First start with no persisted selection: persist the current
-      // state so a later restart can restore it.
       preferences = withSelection(preferences, {
         modelProvider: ctx.model.provider,
         modelId: ctx.model.id,
@@ -173,7 +166,7 @@ export function createProfileRouteSession(
     };
 
     await runtime.refreshConfig(ctx);
-    if (!runtime.configEnabled()) {
+    if (runtime.getStatus() !== "valid") {
       await runtime.warnOnce(ctx);
     }
   }
@@ -183,16 +176,20 @@ export function createProfileRouteSession(
     ctx: ExtensionContext,
   ): Promise<{ action: "continue" }> {
     if (event.source === "extension") return { action: "continue" };
-    if (!runtime.configEnabled()) return { action: "continue" };
 
     const routeName = getRouteName(event.text);
     if (!routeName) return { action: "continue" };
 
-    const routeType = ROUTE_TYPES[routeName];
-    const config = runtime.getConfig();
-    if (!config) return { action: "continue" };
+    if (!runtime.isRouteUsable(routeName)) {
+      ctx.ui.notify(
+        `Route '${routeName}' is not configured or unavailable; continuing with current model.`,
+        "warning",
+      );
+      return { action: "continue" };
+    }
 
-    const route = config[routeType];
+    const route = runtime.getRouteConfig(routeName);
+    if (!route) return { action: "continue" };
 
     const activated = await suppressManualPersistenceWhile(() =>
       activateRoute(pi, route, ctx),
@@ -212,8 +209,6 @@ export function createProfileRouteSession(
   async function finishAgent(ctx: ExtensionContext): Promise<void> {
     if (!routeActive) return;
     routeActive = false;
-    // Refresh from disk in case another Pi instance changed the
-    // selection while the route was active.
     const latest = await loadManualPreferences();
     preferences = latest;
     if (latest.selection) {
@@ -281,5 +276,3 @@ export function createProfileRouteSession(
     shutdown,
   };
 }
-
-export type ProfileRouteSession = ReturnType<typeof createProfileRouteSession>;

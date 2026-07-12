@@ -19,14 +19,14 @@ export interface ManualSelection {
  * A map of formatted `provider/model` identity to the thinking level the user
  * last selected manually for that model. Survives Pi restarts.
  */
-export type ThinkingMemory = Record<string, ThinkingLevel>;
+type ThinkingMemory = Record<string, ThinkingLevel>;
 
 /**
  * The unified manual-preference state. Both fields are owned by the
- * profiles extension and are written together as one record.
+ * model-routing extension and are written together as one record.
  *
- * `profiles.json` is intentionally kept separate because it stores automatic
- * route configuration, which has a different lifecycle.
+ * `model-routes.json` is intentionally kept separate because it stores
+ * automatic route configuration, which has a different lifecycle.
  */
 export interface ManualPreferences {
   selection: ManualSelection | null;

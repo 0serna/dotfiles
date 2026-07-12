@@ -44,7 +44,7 @@ export interface TransitionView {
  * response to the model change, and the persisted snapshot must reflect
  * what the user effectively settled on.
  */
-export type TransitionFact =
+type TransitionFact =
   | {
       kind: "model_selected";
       source: ModelSelectionSource;

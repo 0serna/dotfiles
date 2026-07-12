@@ -1,18 +1,17 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isTuiMode } from "../shared/mode.ts";
 import { getModelLabels } from "./model-ids.ts";
-import { validateConfigSemantics } from "./routing.ts";
-import type { ProfilesRuntime } from "./runtime.ts";
+import type { ModelRoutesRuntime } from "./runtime.ts";
 import { saveConfig } from "./state.ts";
 import { editRoutes } from "./ui.ts";
 
-export async function runProfileCommand(
+export async function runModelRoutesCommand(
   ctx: ExtensionContext,
-  runtime: ProfilesRuntime,
+  runtime: ModelRoutesRuntime,
 ): Promise<void> {
   if (!isTuiMode(ctx)) {
     ctx.ui.notify(
-      "Profile route editor is only available in TUI mode.",
+      "Model route editor is only available in TUI mode.",
       "warning",
     );
     return;
@@ -27,21 +26,15 @@ export async function runProfileCommand(
   }
   const modelLabels = getModelLabels(availableModels);
 
-  const fullConfig = await editRoutes(
+  const result = await editRoutes(
     ctx,
-    runtime.getConfig(),
+    runtime.getConfigSnapshot(),
     modelLabels,
-    runtime.getConfigResult().status,
+    runtime.getStatus(),
   );
-  if (fullConfig === null) return;
+  if (result === null) return;
 
-  const semanticErrors = await validateConfigSemantics(fullConfig, ctx);
-  if (semanticErrors.length > 0) {
-    ctx.ui.notify(`Cannot save: ${semanticErrors.join("; ")}`, "warning");
-    return;
-  }
-
-  await saveConfig(fullConfig);
+  await saveConfig(result);
   await runtime.refreshConfig(ctx);
-  ctx.ui.notify("Profile routes saved.", "info");
+  ctx.ui.notify("Model routes saved.", "info");
 }

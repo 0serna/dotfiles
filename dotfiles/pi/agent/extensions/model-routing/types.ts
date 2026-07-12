@@ -24,15 +24,18 @@ export type ModelRoute = {
   thinkingLevel: ThinkingLevel;
 };
 
-export const ROUTE_NAMES = ["cheap", "auxiliar"] as const;
+/**
+ * Persisted automatic route configuration.
+ *
+ * Each declared route token can be configured independently. Omitting a
+ * token means the route is `[unset]`. Saving partial configuration is
+ * allowed, and the runtime never requires every declared token to be
+ * present.
+ */
+export type ModelRoutesConfig = Record<string, ModelRoute>;
 
-export type FixedRouteName = (typeof ROUTE_NAMES)[number];
-
-/** Full persisted configuration — flat structure with required cheap/balanced/strong routes */
-export type PersistedConfig = Record<FixedRouteName, ModelRoute>;
-
-/** Result of loading and structurally validating configuration */
-export type ConfigValidationResult =
-  | { status: "valid"; config: PersistedConfig }
-  | { status: "invalid"; config: PersistedConfig | null; errors: string[] }
+/** Result of loading and structurally validating route configuration. */
+export type RoutesValidationResult =
+  | { status: "valid"; config: ModelRoutesConfig }
+  | { status: "invalid"; config: ModelRoutesConfig | null; errors: string[] }
   | { status: "missing" };

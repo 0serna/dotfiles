@@ -7,13 +7,8 @@ import {
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 import { parseModelId } from "./model-ids.ts";
-import {
-  ROUTE_NAMES,
-  type ConfigValidationResult,
-  type FixedRouteName,
-  type PersistedConfig,
-  type ThinkingLevel,
-} from "./types.ts";
+import { ROUTE_TOKENS, type RouteName } from "./routes.ts";
+import type { ModelRoutesConfig, ThinkingLevel } from "./types.ts";
 
 function renderBorder(width: number, theme: Theme): string {
   return theme.fg("accent", "─".repeat(width));
@@ -32,32 +27,32 @@ function renderRouteFrame(
   width: number,
   routeItems: string[],
   selected: number,
-  configStatus: ConfigValidationResult["status"],
+  status: "valid" | "missing" | "invalid",
   theme: Theme,
 ): string[] {
   const lines: string[] = [];
   lines.push(renderBorder(width, theme));
-  lines.push(theme.fg("accent", theme.bold("Profile Routes")));
+  lines.push(theme.fg("accent", theme.bold("Model Routes")));
 
-  if (configStatus === "missing") {
+  if (status === "missing") {
     renderWrapped(
       lines,
       width,
-      "No configuration yet. Set up your routes below.",
+      "No configuration yet. Pick a model and thinking level for each route you want to use; unset routes are skipped.",
       theme,
     );
-  } else if (configStatus === "invalid") {
+  } else if (status === "invalid") {
     renderWrapped(
       lines,
       width,
-      "Configuration needs repair. Fix the missing values below.",
+      "The on-disk configuration could not be parsed. Build a new one below; the original file is preserved.",
       theme,
     );
   } else {
     renderWrapped(
       lines,
       width,
-      "Edit each route's model and thinking level. Esc saves when all routes are complete.",
+      "Edit each route's model and thinking level. Unset routes are skipped at runtime; Esc saves whatever is configured.",
       theme,
     );
   }
@@ -66,7 +61,7 @@ function renderRouteFrame(
   lines.push(
     theme.fg(
       "muted",
-      "  route      model                                         thinking",
+      "  route                            model                                         thinking",
     ),
   );
 
@@ -78,7 +73,10 @@ function renderRouteFrame(
   lines.push("");
   lines.push(
     truncateToWidth(
-      theme.fg("dim", "↑↓ navigate • Enter edit route • Esc save & return"),
+      theme.fg(
+        "dim",
+        "↑↓ navigate • Enter edit • Delete unset • Esc save & return",
+      ),
       width,
     ),
   );
@@ -86,31 +84,41 @@ function renderRouteFrame(
   return lines;
 }
 
+type EditResult =
+  | { kind: "edit"; token: RouteName }
+  | { kind: "unset"; token: RouteName };
+
+/**
+ * Open the route editor. Returns the (partial) configuration on save,
+ * or `null` when the user cancelled. Unset routes are kept absent in
+ * the returned shape; the caller omits them on disk.
+ */
 export async function editRoutes(
   ctx: ExtensionContext,
-  currentConfig: PersistedConfig | null,
+  currentConfig: ModelRoutesConfig,
   models: string[],
-  configStatus: ConfigValidationResult["status"],
-): Promise<PersistedConfig | null> {
-  const routes: PersistedConfig = {
-    cheap: currentConfig?.cheap ?? { model: "", thinkingLevel: "medium" },
-    auxiliar: currentConfig?.auxiliar ?? {
-      model: "",
-      thinkingLevel: "medium",
-    },
-  };
+  configStatus: "valid" | "missing" | "invalid",
+): Promise<ModelRoutesConfig | null> {
+  // Working copy seeded from the persisted config. Missing keys are
+  // `[unset]` here, represented by omission.
+  const working: ModelRoutesConfig = { ...currentConfig };
 
-  let routeBeingEdited: FixedRouteName = "cheap";
+  function renderItem(token: RouteName): string {
+    const configured = working[token];
+    const model = configured?.model ?? "[unset]";
+    const think = configured?.model ? configured.thinkingLevel : "[unset]";
+    return `${token.padEnd(32)} ${model.padEnd(45)} ${think}`;
+  }
 
-  async function pickModel(): Promise<string | null> {
-    const selected = await ctx.ui.select(
-      `Model for ${routeBeingEdited}:`,
-      models,
-    );
+  async function pickModel(token: RouteName): Promise<string | null> {
+    const selected = await ctx.ui.select(`Model for ${token}:`, models);
     return selected ?? null;
   }
 
-  async function pickThinking(modelStr: string): Promise<ThinkingLevel | null> {
+  async function pickThinking(
+    token: RouteName,
+    modelStr: string,
+  ): Promise<ThinkingLevel | null> {
     const [provider, modelId] = parseModelId(modelStr);
     const model = ctx.modelRegistry.find(provider, modelId);
     if (!model) {
@@ -126,24 +134,23 @@ export async function editRoutes(
       );
       return null;
     }
-    const selected = await ctx.ui.select(
-      `Thinking for ${routeBeingEdited}:`,
-      levels,
-    );
+    const selected = await ctx.ui.select(`Thinking for ${token}:`, levels);
     return (selected as ThinkingLevel) ?? null;
   }
 
-  while (true) {
-    const routeItems = ROUTE_NAMES.map((r) => {
-      const rt = routes[r];
-      const model = rt?.model || "[unset]";
-      const think = rt?.model ? rt.thinkingLevel : "[unset]";
-      return `${r.padEnd(10)} ${model.padEnd(45)} ${think}`;
-    });
+  async function confirmUnset(token: RouteName): Promise<boolean> {
+    return await ctx.ui.confirm(
+      `Unset ${token}?`,
+      "It will be omitted from saved configuration.",
+    );
+  }
 
-    const editResult = await ctx.ui.custom<FixedRouteName | null>(
+  while (true) {
+    const routeItems = ROUTE_TOKENS.map(renderItem);
+
+    const editResult = await ctx.ui.custom<EditResult | null>(
       (tui, theme, _kb, done) => {
-        let sel = ROUTE_NAMES.indexOf(routeBeingEdited);
+        let sel = 0;
         let cachedLines: string[] | undefined;
 
         function refresh() {
@@ -168,12 +175,17 @@ export async function editRoutes(
               refresh();
             } else if (
               matchesKey(data, Key.down) &&
-              sel < ROUTE_NAMES.length - 1
+              sel < ROUTE_TOKENS.length - 1
             ) {
               sel++;
               refresh();
             } else if (matchesKey(data, Key.enter)) {
-              done(ROUTE_NAMES[sel]!);
+              done({ kind: "edit", token: ROUTE_TOKENS[sel]! });
+            } else if (
+              matchesKey(data, Key.delete) ||
+              matchesKey(data, Key.backspace)
+            ) {
+              done({ kind: "unset", token: ROUTE_TOKENS[sel]! });
             } else if (matchesKey(data, Key.escape)) {
               done(null);
             }
@@ -186,27 +198,23 @@ export async function editRoutes(
     );
 
     if (editResult === null) {
-      const incomplete = ROUTE_NAMES.filter((r) => !routes[r]?.model);
-      if (incomplete.length > 0) {
-        ctx.ui.notify(
-          `Set a model for ${incomplete.join(", ")} before saving.`,
-          "warning",
-        );
-        continue;
-      }
-
-      return routes;
+      return working;
     }
 
-    routeBeingEdited = editResult;
+    if (editResult.kind === "unset") {
+      const ok = await confirmUnset(editResult.token);
+      if (ok) delete working[editResult.token];
+      continue;
+    }
 
-    const newModel = await pickModel();
+    const token = editResult.token;
+    const newModel = await pickModel(token);
     if (newModel === null) continue;
 
-    const newThinking = await pickThinking(newModel);
+    const newThinking = await pickThinking(token, newModel);
     if (newThinking === null) continue;
 
-    routes[routeBeingEdited] = {
+    working[token] = {
       model: newModel,
       thinkingLevel: newThinking,
     };

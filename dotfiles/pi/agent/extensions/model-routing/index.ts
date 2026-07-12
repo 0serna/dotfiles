@@ -1,29 +1,37 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { compact } from "@earendil-works/pi-coding-agent";
-import { runProfileCommand } from "./command.ts";
+import { runModelRoutesCommand } from "./command.ts";
 import { parseModelId } from "./model-ids.ts";
-import { createProfileRouteSession } from "./route-session.ts";
-import { ROUTE_TYPES } from "./routes.ts";
-import { createProfilesRuntime } from "./runtime.ts";
+import { createModelRouteSession } from "./route-session.ts";
+import { createModelRoutesRuntime } from "./runtime.ts";
 
 export default function (pi: ExtensionAPI) {
-  const runtime = createProfilesRuntime();
-  const routeSession = createProfileRouteSession(pi, runtime);
+  const runtime = createModelRoutesRuntime();
+  const routeSession = createModelRouteSession(pi, runtime);
 
   pi.on("session_start", async (_event, ctx) => {
     await routeSession.start(ctx);
   });
 
   pi.on("session_before_compact", async (event, ctx) => {
-    if (!runtime.configEnabled()) return;
-    const config = runtime.getConfig();
-    if (!config) return;
+    if (!runtime.isRouteUsable("/compact")) {
+      // Nothing configured or the configured model is unknown,
+      // unsupported, or temporarily without credentials. Let Pi fall
+      // back to its default compaction. Warn only when the user has
+      // actually tried to configure the route, to avoid noise on
+      // first-time sessions.
+      const activation = runtime.getActivation();
+      if (activation["/compact"].kind !== "unset") {
+        ctx.ui.notify(
+          "Compact route unavailable; falling back to default compaction.",
+          "warning",
+        );
+      }
+      return;
+    }
 
-    const routeType = (
-      ROUTE_TYPES as Partial<Record<string, keyof typeof config>>
-    )["/compact"];
-    if (!routeType) return;
-    const route = config[routeType];
+    const route = runtime.getRouteConfig("/compact");
+    if (!route) return;
 
     function warnFallback(message: string): void {
       ctx.ui.notify(
@@ -81,10 +89,10 @@ export default function (pi: ExtensionAPI) {
     routeSession.shutdown();
   });
 
-  pi.registerCommand("profile", {
-    description: "Configure profile routes (model and thinking level)",
+  pi.registerCommand("model-routes", {
+    description: "Configure model routes for slash commands and /compact",
     handler: async (_args, ctx) => {
-      await runProfileCommand(ctx, runtime);
+      await runModelRoutesCommand(ctx, runtime);
     },
   });
 }
