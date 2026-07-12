@@ -39,7 +39,7 @@ export default function (pi: ExtensionAPI) {
             const cwd = formatCwd(ctx.cwd);
             const branch = footerData.getGitBranch();
             const thinking = pi.getThinkingLevel();
-            const modelLabel = ctx.model?.name ?? ctx.model?.id;
+            const modelSlug = ctx.model?.id;
             const separator = theme.fg("dim", " · ");
             const extStatuses = footerData.getExtensionStatuses();
             const orderedExtensionKeys = new Set([
@@ -57,10 +57,10 @@ export default function (pi: ExtensionAPI) {
             ).filter(Boolean);
 
             const sections = [
-              theme.fg("dim", branch ? `${cwd} › ${branch}` : cwd),
+              theme.fg("dim", branch ? `${cwd}/${branch}` : cwd),
               theme.fg(
                 "dim",
-                modelLabel ? `${modelLabel} › ${thinking}` : thinking,
+                modelSlug ? `${modelSlug}/${thinking}` : thinking,
               ),
               ...leftExtensions,
             ].filter(Boolean);

@@ -8,7 +8,7 @@ import { ThroughputTracker, isOutputDeltaEvent } from "./throughput.ts";
 export default function (pi: ExtensionAPI) {
   let startTime: number | null = null;
   let intervalId: ReturnType<typeof setInterval> | null = null;
-  let modelLabel = "";
+  let modelSlug = "";
   const throughput = new ThroughputTracker();
 
   function clearLiveInterval(): void {
@@ -19,8 +19,7 @@ export default function (pi: ExtensionAPI) {
   }
 
   function buildLabel(timeStr: string, tokPerSec: string | null): string {
-    const value = tokPerSec?.replace(/ tok\/s$/, "") ?? "-";
-    return `(model: ${modelLabel}, time: ${timeStr}, tok/s: ${value})`;
+    return `${modelSlug} · ${timeStr} · ${tokPerSec ?? "0 tok/s"}`;
   }
 
   function updateWorkingMessage(ctx: ExtensionContext): void {
@@ -37,7 +36,7 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("agent_start", (_event, ctx) => {
     startTime = Date.now();
-    modelLabel = ctx.model?.name ?? ctx.model?.id ?? "unknown";
+    modelSlug = ctx.model?.id ?? "unknown";
     clearLiveInterval();
     throughput.reset();
     ctx.ui.setWorkingIndicator({
