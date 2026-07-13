@@ -1,24 +1,22 @@
 ## Communication
 
-- Use NEUTRAL SPANISH for all user-facing messages, but keep ENGLISH for code and all other files.
-- Keep your answers CONCISE and to the point. AVOID using filler words.
-- Use the `question` tool whenever presenting options or decisions to the user. This is mandatory during grilling sessions and any interactive questioning: every decision point goes through the tool, NEVER free-form bullet lists.
+- Use neutral Spanish for user-facing messages. Be concise without omitting necessary information.
+- Use English for code and files, except when language is part of the behavior, such as translations, fixtures, or localized data.
+- Route user-owned decisions about scope, requirements, or tradeoffs through the `question` tool or the platform's interactive equivalent. During grilling, ask exactly one question at a time through it.
 
 ## Principles
 
-- Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes.
-- Do not suppress tools. When a quality tool reports an issue, fix the underlying problem. Do not use suppression comments to deflect or silence warnings.
+- Run every quality gate affected by the change before declaring work complete. When impact is unclear, run the reasonably broadest applicable set. If a failure is pre-existing and unrelated, ask the user how to proceed.
+- Fix the root cause of every quality-tool finding. If no valid fix is viable, consult the user rather than adding a suppression.
 
-## Tools &amp; Workflow
+## Tools & Workflow
 
-- ALWAYS use `rg` (ripgrep) instead of `grep` for file searches — it's faster and respects `.gitignore`.
-- Use the `/tdd` skill when changing behavior or fixing bugs where a red → green loop is practical; skip it for mechanical edits, configuration-only changes, documentation-only changes, or exploratory work.
-- Use GitHub CLI when investigating GitHub repositories, pull requests, issues, and related metadata. Clone to `/tmp` when deep analysis is needed.
-- NEVER generate documentation files without the user's explicit permission.
-- NEVER use stash, stage, or commit without the user's explicit permission.
+- Prefer `rg` for repository text and file-name searches; use an available alternative when `rg` is unavailable.
+- Use the `/tdd` skill when an automated test can meaningfully fail on the changed behavior and prevent a real regression.
+- Prefer GitHub CLI for GitHub investigations; use an available alternative when it is unavailable. Clone into `/tmp` when inspecting code that is not available locally.
+- Obtain explicit user permission before creating documentation files.
 
 ## OpenSpec
 
-- Do not ask the user for OpenSpec change names. Choose a concise, descriptive change name from the context.
-- If only one change is active, proceed with that change without prompting the user.
-- After archiving a change (`openspec archive` or `openspec-archive-change`), run `openspec validate --all` and fix errors.
+- Derive a concise, descriptive change name from context when the user does not provide one.
+- After archiving a change, run `openspec validate --all`. Fix failures caused by the work; consult the user about unrelated failures.
