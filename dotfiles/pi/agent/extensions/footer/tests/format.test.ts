@@ -28,7 +28,7 @@ describe("formatDirectorySegment", () => {
           commonDir: "/home/oscar/repositories/dotfiles/.git",
         },
       }),
-    ).toBe("dotfiles@0serna/tautog");
+    ).toBe("dotfiles/0serna/tautog");
   });
 
   it("uses the checkout root name for a regular repository", () => {
@@ -43,7 +43,7 @@ describe("formatDirectorySegment", () => {
           commonDir: "/home/oscar/git-metadata/dotfiles.git",
         },
       }),
-    ).toBe("dotfiles@main");
+    ).toBe("dotfiles/main");
   });
 
   it("uses a tilde for the home directory outside Git", () => {

@@ -3,8 +3,8 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isTuiMode } from "../shared/mode.ts";
 import { formatDirectorySegment, parseGitMetadata } from "./format.ts";
 
-const LEFT_EXTENSION_ORDER = ["context"];
-const RIGHT_EXTENSION_ORDER = ["quota"];
+const LEFT_EXTENSION_ORDER = ["quota", "context"];
+const RIGHT_EXTENSION_ORDER = [];
 
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | null = null;
@@ -72,7 +72,7 @@ export default function (pi: ExtensionAPI) {
               theme.fg("dim", directory),
               theme.fg(
                 "dim",
-                modelSlug ? `${modelSlug}@${thinking}` : thinking,
+                modelSlug ? `${modelSlug}/${thinking}` : thinking,
               ),
               ...leftExtensions,
             ].filter(Boolean);

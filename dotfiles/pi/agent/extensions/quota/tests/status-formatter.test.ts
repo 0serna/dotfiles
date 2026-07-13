@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("formatCompactStatus", () => {
-  it("renders 'Codex 80% R2 │ OpenCode(2) 75%' for healthy providers", () => {
+  it("renders 'Codex 80% R2 · OpenCode(2) 75%' for healthy providers", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -78,7 +78,7 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toBe("Codex 80% R2 │ OpenCode(2) 75%");
+    expect(result).toBe("Codex 80% R2 · OpenCode(2) 75%");
   });
 
   it("renders 0% when any window is exhausted", () => {

@@ -31,5 +31,5 @@ export function formatDirectorySegment(input: DirectorySegmentInput): string {
     gitDir === commonDir
       ? basename(input.git.topLevel)
       : basename(dirname(commonDir));
-  return `${repository}@${input.branch}`;
+  return `${repository}/${input.branch}`;
 }
