@@ -5,6 +5,7 @@ import type {
   QuotaAdapter,
 } from "../adapter-registry.js";
 import type { SourceDescriptor, SourceWindow } from "../snapshot.js";
+import { clampPercent } from "../status.js";
 import type { OpenCodeGoData, OpenCodeGoWindowData } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -52,14 +53,6 @@ async function fetchGoDashboardHtml(
 // HTML parsing (private)
 // ---------------------------------------------------------------------------
 
-function clampPercent(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function toAbsoluteReset(resetInSec: number, now: number): number {
-  return Math.floor(now / 1000) + resetInSec;
-}
-
 function toWindow(
   parsed: OpenCodeGoWindowData | undefined,
   now: number,
@@ -67,7 +60,17 @@ function toWindow(
   if (!parsed) return undefined;
   return {
     remainingPercent: clampPercent(parsed.remainingPercent),
-    resetAt: toAbsoluteReset(parsed.resetInSec, now),
+    resetAt: Math.floor(now / 1000) + parsed.resetInSec,
+  };
+}
+
+function toWindowData(
+  usagePercent: number,
+  resetInSec: number,
+): OpenCodeGoWindowData {
+  return {
+    remainingPercent: clampPercent(100 - usagePercent),
+    resetInSec,
   };
 }
 
@@ -81,10 +84,7 @@ function parseGoHydrationWindow(
   const usagePercent = /\busagePercent:(\d+(?:\.\d+)?)/.exec(body)?.[1];
   const resetInSec = /\bresetInSec:(\d+(?:\.\d+)?)/.exec(body)?.[1];
   if (usagePercent == null || resetInSec == null) return undefined;
-  return {
-    remainingPercent: clampPercent(100 - Number(usagePercent)),
-    resetInSec: Number(resetInSec),
-  };
+  return toWindowData(Number(usagePercent), Number(resetInSec));
 }
 
 function parseGoHydrationLiterals(html: string): OpenCodeGoData {
@@ -150,21 +150,19 @@ function extractGoData(
   if (depth > 15 || typeof obj !== "object" || obj === null) return null;
   const result: Partial<OpenCodeGoData> = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (key === "rollingUsage" && isUsageWindow(value)) {
-      result.rolling = {
-        remainingPercent: clampPercent(100 - (value["usagePercent"] as number)),
-        resetInSec: value["resetInSec"] as number,
-      };
-    } else if (key === "weeklyUsage" && isUsageWindow(value)) {
-      result.weekly = {
-        remainingPercent: clampPercent(100 - (value["usagePercent"] as number)),
-        resetInSec: value["resetInSec"] as number,
-      };
-    } else if (key === "monthlyUsage" && isUsageWindow(value)) {
-      result.monthly = {
-        remainingPercent: clampPercent(100 - (value["usagePercent"] as number)),
-        resetInSec: value["resetInSec"] as number,
-      };
+    const usageKey =
+      key === "rollingUsage"
+        ? "rolling"
+        : key === "weeklyUsage"
+          ? "weekly"
+          : key === "monthlyUsage"
+            ? "monthly"
+            : null;
+    if (usageKey && isUsageWindow(value)) {
+      result[usageKey] = toWindowData(
+        value["usagePercent"] as number,
+        value["resetInSec"] as number,
+      );
     } else if (key === "balance" && typeof value === "number") {
       result.balanceDollars = rawBalanceToDollars(value);
     } else if (typeof value === "object" && value !== null) {
@@ -225,7 +223,7 @@ export const opencodeGoAdapter: QuotaAdapter = {
         sourceId: `${PROVIDER_ID}:${input.sourceId}`,
       },
       displayName: `OpenCode ${input.sourceId}`,
-      compactPrefix: "OpenCode",
+      compactPrefix: "OC",
       configFingerprint:
         input.configFingerprint ?? `fingerprint:opencode-go:${input.sourceId}`,
     };
@@ -245,9 +243,12 @@ export const opencodeGoAdapter: QuotaAdapter = {
       };
     }
 
-    const html = await fetchGoDashboardHtml(workspaceId, authCookie, signal, {
-      log: logger.log,
-    });
+    const html = await fetchGoDashboardHtml(
+      workspaceId,
+      authCookie,
+      signal,
+      logger,
+    );
     if (!html) {
       logger.log("go_fetch_failed", { reason: "no html" });
       return { state: "error", reason: "fetch_failed" };

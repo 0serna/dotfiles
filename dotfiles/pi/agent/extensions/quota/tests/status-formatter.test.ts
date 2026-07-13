@@ -16,7 +16,7 @@ const CODEX: SourceDescriptor = {
 const OPENCODE: SourceDescriptor = {
   identity: { providerId: "opencode-go", sourceId: "opencode-go:2" },
   displayName: "OpenCode 2",
-  compactPrefix: "OpenCode",
+  compactPrefix: "OC",
   configFingerprint: "fingerprint:opencode-go:2",
 };
 
@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("formatCompactStatus", () => {
-  it("renders 'Codex 80% R2 · OpenCode(2) 75%' for healthy providers", () => {
+  it("renders 'Codex 80% R2 · OC/2 75%' for healthy providers", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -78,7 +78,23 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toBe("Codex 80% R2 · OpenCode(2) 75%");
+    expect(result).toBe("Codex 80% R2 · OC/2 75%");
+  });
+
+  it("renders OC for persisted OpenCode descriptors", () => {
+    const legacyDescriptor: SourceDescriptor = {
+      ...OPENCODE,
+      compactPrefix: "OpenCode",
+    };
+    const snapshot = makeSnapshot([
+      makeRecord(legacyDescriptor, {
+        windows: {
+          rolling: { remainingPercent: 75, resetAt: NOW_SECONDS + 7200 },
+        },
+      }),
+    ]);
+
+    expect(formatCompactStatus(snapshot)).toBe("OC/2 75%");
   });
 
   it("renders 0% when any window is exhausted", () => {
@@ -171,7 +187,7 @@ describe("formatCompactStatus", () => {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
     expect(result).toContain("Provider …");
-    expect(result).toContain("OpenCode(2) 50%");
+    expect(result).toContain("OC/2 50%");
   });
 
   it("renders 'Quota …' when no usable observation exists", () => {

@@ -4,6 +4,7 @@ import {
   type SourceIdentity,
   type SourceRecord,
 } from "./snapshot.js";
+import { clampPercent } from "./status.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -24,8 +25,10 @@ export type CompactStatusOptions = {
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-function clampPercent(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
+function compactPrefix(record: SourceRecord): string {
+  return record.identity.providerId === "opencode-go"
+    ? "OC"
+    : record.descriptor.compactPrefix;
 }
 
 function isExhausted(record: SourceRecord): boolean {
@@ -79,21 +82,19 @@ function formatSourceCompact(
   active: boolean,
   now: number,
 ): string {
-  const prefix = record.descriptor.compactPrefix;
-  const account = record.descriptor.identity.sourceId.startsWith(prefix)
-    ? record.descriptor.identity.sourceId
-        .slice(prefix.length)
-        .replace(/^[:-]/, "")
+  const prefix = compactPrefix(record);
+  const account = record.descriptor.identity.sourceId.includes(":")
+    ? record.descriptor.identity.sourceId.split(":").slice(1).join(":")
     : record.descriptor.displayName.replace(prefix, "").trim();
+  const label = account ? `${prefix}/${account}` : prefix;
 
   if (record.state === "refreshing") {
-    return `${prefix} ${active ? `(${account}) ` : ""}…`.trim();
+    return `${active ? label : prefix} …`;
   }
 
   if (isExhausted(record)) {
-    const label = account ? `${prefix}(${account}) 0%` : `${prefix} 0%`;
     const resets = bankedResetLabel(record);
-    return `${label}${resets ? ` ${resets}` : ""}`;
+    return `${label} 0%${resets ? ` ${resets}` : ""}`;
   }
 
   const usable = isUsable(record, now);
@@ -105,8 +106,7 @@ function formatSourceCompact(
   const percentLabel = percent == null ? "0%" : `${percent}%`;
   const resets = bankedResetLabel(record);
   const degraded = record.state === "degraded" ? "!" : "";
-  const labelStart = account ? `${prefix}(${account})` : prefix;
-  return `${labelStart} ${percentLabel}${resets ? ` ${resets}` : ""}${degraded}`;
+  return `${label} ${percentLabel}${resets ? ` ${resets}` : ""}${degraded}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -128,9 +128,10 @@ export function formatCompactStatus(
 
   const grouped = new Map<string, SourceRecord[]>();
   for (const record of records) {
-    const list = grouped.get(record.descriptor.compactPrefix) ?? [];
+    const prefix = compactPrefix(record);
+    const list = grouped.get(prefix) ?? [];
     list.push(record);
-    grouped.set(record.descriptor.compactPrefix, list);
+    grouped.set(prefix, list);
   }
 
   const usableCount = records.filter((record) => isUsable(record, now)).length;
