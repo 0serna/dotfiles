@@ -15,8 +15,7 @@ Make the scoped work leaner without changing observable behavior. Inspect, list 
 1. **Lock scope**
    - If files, paths, symbols, docs, or a diff range are given, use them.
    - Otherwise treat the current working tree (staged, unstaged, untracked) as scope and read every changed file.
-   - State the chosen scope at the top of the output so the user can redirect in one round.
-   - Complete when the files and hunks to simplify are named.
+   - Complete when every changed file is identified and the file list is final.
 
 2. **Read in-scope files**
    - Read every candidate file or diff hunk before writing.
@@ -46,7 +45,7 @@ Make the scoped work leaner without changing observable behavior. Inspect, list 
    - If verification fails, fix the regression before reporting; the simplification is not done until it passes.
 
 7. **Report**
-   - State the scope chosen in step 1.
+   - State the scope locked in step 1 so the user can redirect in one round.
    - List the simplifications made and the lean-ladder rung each came from.
    - State what verification ran and the result.
    - Surface any candidate that was rejected because it would change behavior.
@@ -57,5 +56,6 @@ Make the scoped work leaner without changing observable behavior. Inspect, list 
 - Prefer already-installed dependencies and native APIs; do not add new ones.
 - Stay obvious. Clever code is not simpler.
 - Prefer self-describing names over comments; delete the comments a rename makes redundant. Keep a comment only when the information cannot physically live in a name (external constraint, bug-tracker reference, regulatory requirement).
+- Proceed immediately with the default scope (working tree) when none is given.
 - Do not commit, stage, revert, or stash user changes.
 - A candidate that changes behavior, structure, or user-facing meaning is **not** a simplification. Surface it in the report and do not apply it.

@@ -1,4 +1,8 @@
-## MODIFIED Requirements
+## Purpose
+
+Provides a dedicated `/compact` route so Pi context compaction can use a configured model and thinking level independent of the user's active model.
+
+## Requirements
 
 ### Requirement: Compact route configured directly
 

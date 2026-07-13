@@ -1,4 +1,8 @@
-## MODIFIED Requirements
+## Purpose
+
+Routes declared slash commands to their configured model and thinking level at runtime, enabling different commands to use different models independently.
+
+## Requirements
 
 ### Requirement: Disabled routing without usable route configuration
 
@@ -64,11 +68,3 @@ The system SHALL provide a `/model-routes` command that opens an editor listing 
 - **AND** the user saves from the route editor
 - **THEN** the system persists the configured routes
 - **AND** does not activate any route after saving
-
-## REMOVED Requirements
-
-### Requirement: Named model routes
-
-**Reason**: Shared `light`/`high`-style route categories are replaced by independent configuration keyed directly by each declared command token.
-
-**Migration**: Expand each shared route value onto the command tokens that previously referenced it, then edit each token independently through `/model-routes`.

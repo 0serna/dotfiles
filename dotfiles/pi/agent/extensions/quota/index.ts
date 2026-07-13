@@ -1,41 +1,52 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { ExtensionLogger } from "../shared/logger.js";
-import { createExtensionLogger } from "../shared/logger.js";
-import { fetchCodexQuotaStatus } from "./codex.js";
-import { withQuotaNotification } from "./loading.js";
-import { fetchOpenCodeGoData } from "./opencode.js";
-import { retryNullable } from "./retry.js";
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "../shared/logger.js";
+import { registerAdapter } from "./adapter-registry.js";
+import {
+  codexAdapter,
+  type CodexAdapterCredentials,
+} from "./adapters/codex-adapter.js";
+import {
+  opencodeGoAdapter,
+  type OpenCodeAdapterCredentials,
+} from "./adapters/opencode-adapter.js";
+import { buildConfigurationFingerprint } from "./config-fingerprint.js";
+import { type SourceInput } from "./coordinator.js";
+import { createQuotaLifecycle, type QuotaLifecycle } from "./lifecycle.js";
+import { formatQuotaDetail } from "./quota-detail.js";
+import { decidePreventiveReselection } from "./reselection.js";
 import {
   DEFAULT_COOLDOWN_MS,
   initAccountStates,
-  isAvailable,
   isQuotaExhaustionError,
   markBad,
-  pickBestQuotaAccount,
   pickNextAccount,
-  type AccountQuotaCandidate,
   type RotationReason,
 } from "./rotation.js";
-import { formatCodexFullDetail, formatOpenCodeFullDetail } from "./status.js";
-import type {
-  AccountConfig,
-  AccountState,
-  CodexQuotaData,
-  ExtensionContext,
-  OpenCodeGoData,
-  ProviderAccountConfig,
-  RotationConfig,
+import { selectFromSnapshot as pickFromSnapshot } from "./snapshot-selection.js";
+import type { QuotaSnapshot, SourceIdentity } from "./snapshot.js";
+import {
+  type AccountConfig,
+  type AccountState,
+  type ExtensionContext,
+  type ProviderAccountConfig,
+  type RotationConfig,
 } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const FETCH_RETRY_ATTEMPTS = 3;
-const FETCH_RETRY_INITIAL_DELAY_MS = 5000;
 const OPENCODE_PROVIDER = "opencode-go";
+const CODEX_PROVIDER = "openai-codex";
+const STATUS_KEY = "quota";
+
+registerAdapter(codexAdapter);
+registerAdapter(opencodeGoAdapter);
 
 // ---------------------------------------------------------------------------
 // Module state (cleared on session_shutdown)
@@ -47,6 +58,10 @@ let currentAccountIndex = -1;
 let continuationSentThisTurn = false;
 let triedAccountsThisTurn: Set<string> = new Set();
 let logger: ExtensionLogger | undefined;
+let lifecycle: QuotaLifecycle | undefined;
+let latestSnapshot: QuotaSnapshot | undefined;
+let blindFallbackActive = false;
+let pendingPreventiveReselection = false;
 
 // ---------------------------------------------------------------------------
 // Config loading
@@ -95,6 +110,10 @@ function activateAccount(index: number, ctx: ExtensionContext): boolean {
     state.apiKey,
   );
   currentAccountIndex = index;
+  lifecycle?.setActiveSource({
+    providerId: OPENCODE_PROVIDER,
+    sourceId: `${OPENCODE_PROVIDER}:${state.name}`,
+  });
   getLogger(ctx).log("account_activated", {
     provider: OPENCODE_PROVIDER,
     account: state.name,
@@ -103,100 +122,76 @@ function activateAccount(index: number, ctx: ExtensionContext): boolean {
   return true;
 }
 
-type AvailableAccountQuota = AccountQuotaCandidate & {
-  configIndex: number;
-  stateIndex: number;
-};
-
-type SelectionResult = {
-  /** Index of the selected account in accountStates, or -1 if none. */
-  index: number;
-  /** True when at least one account's fetch returned quota data. */
-  hadSuccessfulFetch: boolean;
-};
-
-/**
- * Fetch quota for every configured account and select the most balanced
- * account whose monthly, weekly, and rolling windows all have quota.
- */
-async function selectBestAccount(
+function selectFromSnapshot(
+  snapshot: QuotaSnapshot,
   ctx: ExtensionContext,
-): Promise<SelectionResult> {
-  const fetchLogger = getLogger(ctx);
-  fetchLogger.log("select_best_account_start", {
-    provider: OPENCODE_PROVIDER,
-    accountCount: rotationConfig?.accounts.length ?? 0,
-  });
-
-  const quotas: AccountQuotaCandidate[] = await Promise.all(
-    rotationConfig?.accounts.map(async (account) => {
-      const data = await retryNullable(
-        () =>
-          fetchOpenCodeGoData(
-            account.name,
-            account.workspaceEnv,
-            account.cookieEnv,
-            fetchLogger,
-          ),
-        {
-          maxAttempts: FETCH_RETRY_ATTEMPTS,
-          initialDelayMs: FETCH_RETRY_INITIAL_DELAY_MS,
-        },
-      );
-      return { account, data };
-    }) ?? [],
-  );
-
-  const anyFetchSucceeded = quotas.some((q) => q.data !== null);
-
+): number {
   const now = Date.now();
-  const candidates: AvailableAccountQuota[] = [];
-
-  for (let configIndex = 0; configIndex < quotas.length; configIndex++) {
-    const quota = quotas[configIndex];
-    if (!quota) continue;
-
-    const stateIndex = accountStates.findIndex(
-      (state) => state.name === quota.account.name,
-    );
-    const state = accountStates[stateIndex];
-    if (stateIndex < 0 || !state || !isAvailable(state, now)) continue;
-
-    candidates.push({ ...quota, configIndex, stateIndex });
+  const result = pickFromSnapshot(
+    snapshot,
+    accountStates,
+    rotationConfig?.accounts ?? [],
+    now,
+  );
+  if (result >= 0) {
+    const selected = accountStates[result];
+    if (selected) {
+      getLogger(ctx).log("snapshot_select_chosen", {
+        provider: OPENCODE_PROVIDER,
+        account: selected.name,
+        stateIndex: result,
+      });
+    }
   }
+  return result;
+}
 
-  const selectedCandidateIndex = pickBestQuotaAccount(candidates);
-  const selected =
-    selectedCandidateIndex >= 0
-      ? candidates[selectedCandidateIndex]
-      : undefined;
+function activeSourceIdentity(): SourceIdentity | undefined {
+  const active = currentAccount();
+  return active
+    ? {
+        providerId: OPENCODE_PROVIDER,
+        sourceId: `${OPENCODE_PROVIDER}:${active.name}`,
+      }
+    : undefined;
+}
 
-  if (selected) {
-    fetchLogger.log("select_best_account_chosen", {
+function applyPreventiveReselection(
+  snapshot: QuotaSnapshot,
+  ctx: ExtensionContext,
+): void {
+  const selectedIndex = selectFromSnapshot(snapshot, ctx);
+  if (selectedIndex < 0) return;
+  blindFallbackActive = false;
+  pendingPreventiveReselection = false;
+  if (selectedIndex !== currentAccountIndex) {
+    activateAccount(selectedIndex, ctx);
+    getLogger(ctx).log("preventive_reselection", {
       provider: OPENCODE_PROVIDER,
-      account: selected.account.name,
-      index: selected.stateIndex,
-      configIndex: selected.configIndex,
-      monthlyRemaining: selected.data?.monthly?.remainingPercent,
-      weeklyRemaining: selected.data?.weekly?.remainingPercent,
-      rollingRemaining: selected.data?.rolling?.remainingPercent,
-      selectionScore: Math.min(
-        selected.data!.monthly!.remainingPercent,
-        selected.data!.weekly!.remainingPercent,
-        selected.data!.rolling!.remainingPercent,
-      ),
+      account: currentAccount()?.name,
     });
-    return { index: selected.stateIndex, hadSuccessfulFetch: true };
   }
+}
 
-  fetchLogger.log("select_best_account_fallback", {
-    provider: OPENCODE_PROVIDER,
-    fallbackIndex: -1,
-    reason: anyFetchSucceeded
-      ? "no account has all quota windows available"
-      : "all account fetches failed",
+function handleSnapshotRevision(
+  snapshot: QuotaSnapshot,
+  ctx: ExtensionContext,
+): void {
+  latestSnapshot = snapshot;
+  if (currentAccountIndex < 0) return;
+  const decision = decidePreventiveReselection(snapshot, {
+    activeSource: activeSourceIdentity(),
+    piSettled: ctx.isIdle(),
+    blindFallback: blindFallbackActive,
+    now: Date.now(),
   });
-  return { index: -1, hadSuccessfulFetch: anyFetchSucceeded };
+  if (decision.reason === "agent_busy") {
+    pendingPreventiveReselection = true;
+    return;
+  }
+  if (decision.reselect) {
+    applyPreventiveReselection(snapshot, ctx);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +254,66 @@ function rotateToNext(reason: RotationReason, ctx: ExtensionContext): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Source inputs
+// ---------------------------------------------------------------------------
+
+async function buildSnapshotSources(
+  ctx: ExtensionContext,
+  log: ExtensionLogger,
+): Promise<SourceInput[]> {
+  const inputs: SourceInput[] = [];
+
+  const codexToken = await ctx.modelRegistry.authStorage
+    .getApiKey(CODEX_PROVIDER)
+    .catch(() => null);
+  const codexCredentials: CodexAdapterCredentials | undefined =
+    codexToken?.trim()
+      ? {
+          accessToken: codexToken.trim(),
+        }
+      : undefined;
+  inputs.push({
+    providerId: CODEX_PROVIDER,
+    sourceId: "codex-login",
+    configFingerprint: buildConfigurationFingerprint({
+      providerId: CODEX_PROVIDER,
+      sourceId: "codex-login",
+      accountName: "codex-login",
+    }),
+    credentials: codexCredentials,
+  });
+  if (!codexCredentials) {
+    log.log("codex_auth_missing", { provider: CODEX_PROVIDER });
+  }
+
+  for (const account of rotationConfig?.accounts ?? []) {
+    const workspaceId = process.env[account.workspaceEnv]?.trim();
+    const authCookie = process.env[account.cookieEnv]?.trim();
+    const credentials: OpenCodeAdapterCredentials | undefined =
+      workspaceId && authCookie ? { workspaceId, authCookie } : undefined;
+    inputs.push({
+      providerId: OPENCODE_PROVIDER,
+      sourceId: account.name,
+      configFingerprint: buildConfigurationFingerprint({
+        providerId: OPENCODE_PROVIDER,
+        sourceId: account.name,
+        accountName: account.name,
+        workspaceEnv: account.workspaceEnv,
+        cookieEnv: account.cookieEnv,
+      }),
+      credentials,
+    });
+    if (!credentials) {
+      log.log("opencode_config_missing", {
+        provider: OPENCODE_PROVIDER,
+        account: account.name,
+      });
+    }
+  }
+  return inputs;
+}
+
+// ---------------------------------------------------------------------------
 // Lifecycle handlers
 // ---------------------------------------------------------------------------
 
@@ -272,6 +327,9 @@ async function handleSessionStart(
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
   triedAccountsThisTurn = new Set();
+  latestSnapshot = undefined;
+  blindFallbackActive = false;
+  pendingPreventiveReselection = false;
 
   logger.log("session_start", {
     provider: OPENCODE_PROVIDER,
@@ -284,35 +342,42 @@ async function handleSessionStart(
       provider: OPENCODE_PROVIDER,
       reason: "no configured accounts had API keys",
     });
-    return;
   }
 
-  const selection = await selectBestAccount(ctx);
-  if (selection.index >= 0) {
-    activateAccount(selection.index, ctx);
-    return;
-  }
-
-  if (selection.hadSuccessfulFetch) {
-    // At least one account responded, but none passed hasUsableQuota.
-    logger.log("session_start_no_eligible_account", {
-      provider: OPENCODE_PROVIDER,
-      reason: "no account has all quota windows available",
-    });
-    ctx.ui.notify(
-      "No OpenCode Go account has all quota windows available.",
-      "warning",
-    );
-    return;
-  }
-
-  // Blind fallback: all account fetches timed out. Activate the first
-  // configured account and let runtime rotation handle errors.
-  logger.log("session_start_blind_fallback", {
-    provider: OPENCODE_PROVIDER,
-    reason: "all account fetches failed, activating first account blindly",
+  lifecycle = createQuotaLifecycle({
+    logger,
   });
-  activateAccount(0, ctx);
+  lifecycle.onSnapshot((snapshot) => {
+    handleSnapshotRevision(snapshot, ctx);
+  });
+
+  await lifecycle.start({
+    sources: await buildSnapshotSources(ctx, logger),
+    registerStatus: (value) => {
+      if (value === undefined) {
+        ctx.ui.setStatus(STATUS_KEY, undefined);
+      } else {
+        ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", value));
+      }
+    },
+    activeSource: undefined,
+  });
+
+  if (accountStates.length > 0) {
+    // Read the latest snapshot and select the best account, or fall back.
+    const snapshot = latestSnapshot ?? (await lifecycle.read());
+    latestSnapshot = snapshot;
+    const selectionIndex = selectFromSnapshot(snapshot, ctx);
+    const chosen = selectionIndex >= 0 ? selectionIndex : 0;
+    activateAccount(chosen, ctx);
+    blindFallbackActive = selectionIndex < 0;
+    if (blindFallbackActive) {
+      logger.log("session_start_blind_fallback", {
+        provider: OPENCODE_PROVIDER,
+        reason: "no usable snapshot observation, activating first account",
+      });
+    }
+  }
 }
 
 function makeMessageEndHandler(pi: ExtensionAPI) {
@@ -328,12 +393,20 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
     const msg = event.message;
     if (msg?.role !== "assistant" || msg?.stopReason !== "error") return;
 
-    // Only rotate on explicit quota exhaustion. Transient errors (timeouts,
-    // stream interruptions, network failures) are handled by pi's built-in
-    // retry and must not trigger a key rotation.
     if (!isQuotaExhaustionError(msg.errorMessage)) return;
 
     const current = currentAccount();
+    if (current && lifecycle) {
+      const identity: SourceIdentity = {
+        providerId: OPENCODE_PROVIDER,
+        sourceId: `${OPENCODE_PROVIDER}:${current.name}`,
+      };
+      await lifecycle.coordinator().recordExhaustion(identity, {
+        confirmedAt: Date.now(),
+        reportedBy: ctx.sessionManager.getSessionId() ?? "unknown",
+      });
+    }
+
     if (current) {
       triedAccountsThisTurn.add(current.name);
     }
@@ -356,8 +429,6 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
     if (continuationSentThisTurn) return;
 
-    // Provider did not recover automatically. Try one more rotation and queue
-    // a continuation so the agent resumes without manual intervention.
     getLogger(ctx).log("message_end_error", {
       provider: OPENCODE_PROVIDER,
       currentAccount: current?.name,
@@ -379,94 +450,64 @@ function handleTurnStart(): void {
   triedAccountsThisTurn = new Set();
 }
 
-function handleSessionShutdown(_event: unknown, ctx: ExtensionContext): void {
+function handleAgentSettled(_event: unknown, ctx: ExtensionContext): void {
+  if (!pendingPreventiveReselection || !latestSnapshot || !ctx.isIdle()) return;
+  const decision = decidePreventiveReselection(latestSnapshot, {
+    activeSource: activeSourceIdentity(),
+    piSettled: true,
+    blindFallback: blindFallbackActive,
+    now: Date.now(),
+  });
+  if (decision.reselect) {
+    applyPreventiveReselection(latestSnapshot, ctx);
+  } else {
+    pendingPreventiveReselection = false;
+  }
+}
+
+async function handleSessionShutdown(
+  _event: unknown,
+  ctx: ExtensionContext,
+): Promise<void> {
   ctx.modelRegistry.authStorage.removeRuntimeApiKey(OPENCODE_PROVIDER);
+  if (lifecycle) {
+    await lifecycle.shutdown();
+  }
+  ctx.ui.setStatus(STATUS_KEY, undefined);
   rotationConfig = undefined;
   accountStates = [];
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
   triedAccountsThisTurn = new Set();
+  latestSnapshot = undefined;
+  blindFallbackActive = false;
+  pendingPreventiveReselection = false;
   logger = undefined;
+  lifecycle = undefined;
 }
 
 // ---------------------------------------------------------------------------
 // /quota command
 // ---------------------------------------------------------------------------
 
-function formatQuotaOutput(
-  codex: CodexQuotaData | null,
-  accounts: Array<{ name: string; data: OpenCodeGoData | null }>,
-): string {
-  const activeName = currentAccount()?.name;
-  const blocks: string[] = [];
-
-  if (codex) {
-    blocks.push(formatCodexFullDetail(codex).join("\n"));
-  }
-
-  for (const account of accounts) {
-    if (account.data) {
-      blocks.push(
-        formatOpenCodeFullDetail(
-          account.data,
-          account.name,
-          account.name === activeName,
-        ).join("\n"),
-      );
-    }
-  }
-
-  return blocks.join("\n\n");
-}
-
 async function handleQuotaCommand(
   _args: string,
   ctx: ExtensionContext,
 ): Promise<void> {
-  const commandLogger = getLogger(ctx);
-  const [codexData, ...accountResults] = await withQuotaNotification(
-    ctx,
-    async () => {
-      const accounts =
-        rotationConfig?.accounts ??
-        (await loadProviderConfig(OPENCODE_PROVIDER));
-
-      commandLogger.log("quota_command", {
-        provider: OPENCODE_PROVIDER,
-        accountCount: accounts.length,
-        currentAccount: currentAccount()?.name,
-      });
-
-      return Promise.all([
-        retryNullable(() => fetchCodexQuotaStatus(ctx, commandLogger), {
-          maxAttempts: FETCH_RETRY_ATTEMPTS,
-          initialDelayMs: FETCH_RETRY_INITIAL_DELAY_MS,
-        }),
-        ...accounts.map((account) =>
-          retryNullable(
-            () =>
-              fetchOpenCodeGoData(
-                account.name,
-                account.workspaceEnv,
-                account.cookieEnv,
-                commandLogger,
-              ),
-            {
-              maxAttempts: FETCH_RETRY_ATTEMPTS,
-              initialDelayMs: FETCH_RETRY_INITIAL_DELAY_MS,
-            },
-          ).then((data) => ({ name: account.name, data })),
-        ),
-      ]);
-    },
-  );
-
-  const output = formatQuotaOutput(codexData, accountResults);
-
-  if (!output) {
-    ctx.ui.notify("No quota data available", "info");
+  const snapshot =
+    latestSnapshot ?? (lifecycle ? await lifecycle.read() : null);
+  if (!snapshot || Object.keys(snapshot.sources).length === 0) {
+    ctx.ui.notify("No quota data available yet", "info");
     return;
   }
+  const activeName = currentAccount()?.name;
+  const activeSource: SourceIdentity | undefined = activeName
+    ? {
+        providerId: OPENCODE_PROVIDER,
+        sourceId: `${OPENCODE_PROVIDER}:${activeName}`,
+      }
+    : undefined;
+  const output = formatQuotaDetail(snapshot, { activeSource });
   ctx.ui.notify(output, "info");
 }
 
@@ -477,6 +518,7 @@ async function handleQuotaCommand(
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", handleSessionStart);
   pi.on("turn_start", handleTurnStart);
+  pi.on("agent_settled", handleAgentSettled);
   pi.on("message_end", makeMessageEndHandler(pi));
   pi.on("session_shutdown", handleSessionShutdown);
 
@@ -485,3 +527,5 @@ export default function (pi: ExtensionAPI) {
     handler: handleQuotaCommand,
   });
 }
+
+export { buildSnapshotSources };

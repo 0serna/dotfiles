@@ -33,6 +33,18 @@ const accountsJson = {
 
 vi.mock("node:fs/promises", () => ({
   readFile: vi.fn().mockResolvedValue(JSON.stringify([accountsJson])),
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  rename: vi.fn().mockResolvedValue(undefined),
+  unlink: vi.fn().mockResolvedValue(undefined),
+  stat: vi
+    .fn()
+    .mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" })),
+  chmod: vi.fn().mockResolvedValue(undefined),
+  open: vi
+    .fn()
+    .mockRejectedValue(Object.assign(new Error("EEXIST"), { code: "EEXIST" })),
+  watch: vi.fn().mockReturnValue({ close: () => undefined }),
 }));
 
 vi.mock("../opencode.js", () => ({
@@ -49,6 +61,25 @@ vi.mock("../loading.js", () => ({
   ),
 }));
 
+vi.mock("../lifecycle.js", () => ({
+  createQuotaLifecycle: vi.fn(() => ({
+    onSnapshot: vi.fn(),
+    onStatus: vi.fn(),
+    setActiveSource: vi.fn(),
+    read: vi.fn().mockResolvedValue({
+      version: 1,
+      revision: 1,
+      cycle: { cycleStartedAt: 0 },
+      sources: {},
+    }),
+    start: vi.fn().mockResolvedValue(undefined),
+    shutdown: vi.fn().mockResolvedValue(undefined),
+    coordinator: vi.fn().mockReturnValue({
+      recordExhaustion: vi.fn().mockResolvedValue(undefined),
+    }),
+  })),
+}));
+
 const logEvents: Array<{ event: string; data?: Record<string, unknown> }> = [];
 vi.mock("../../shared/logger.js", () => ({
   createExtensionLogger: vi.fn().mockReturnValue({
@@ -60,6 +91,7 @@ vi.mock("../../shared/logger.js", () => ({
 
 // Now safe to import the extension
 const extensionFactory = (await import("../index.ts")).default;
+const { createQuotaLifecycle } = await import("../lifecycle.js");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -83,17 +115,22 @@ function bindCtx() {
   const notify = vi.fn();
   const setRuntimeApiKey = vi.fn();
   const removeRuntimeApiKey = vi.fn();
+  const getApiKey = vi.fn().mockResolvedValue(null);
+  const setStatus = vi.fn();
   return {
     notify,
     setRuntimeApiKey,
     removeRuntimeApiKey,
+    getApiKey,
+    setStatus,
     ctx: {
       model: { provider: "opencode-go" },
-      ui: { notify },
+      ui: { notify, setStatus },
       modelRegistry: {
-        authStorage: { setRuntimeApiKey, removeRuntimeApiKey },
+        authStorage: { setRuntimeApiKey, removeRuntimeApiKey, getApiKey },
       },
       hasUI: true,
+      isIdle: vi.fn().mockReturnValue(true),
       sessionManager: { getSessionId: () => null },
     },
   };
@@ -141,6 +178,41 @@ function streamError(provider = "opencode-go") {
   };
 }
 
+function quotaSnapshot(account1: number, account2: number) {
+  const source = (name: string, remainingPercent: number) => ({
+    identity: {
+      providerId: "opencode-go",
+      sourceId: `opencode-go:${name}`,
+    },
+    descriptor: {
+      identity: {
+        providerId: "opencode-go",
+        sourceId: `opencode-go:${name}`,
+      },
+      displayName: `OpenCode ${name}`,
+      compactPrefix: "OpenCode",
+      configFingerprint: `f-${name}`,
+    },
+    state: "fresh" as const,
+    observedAt: Date.now(),
+    lastSuccessAt: Date.now(),
+    windows: {
+      rolling: { remainingPercent, resetAt: 1_900_000_000 },
+      weekly: { remainingPercent, resetAt: 1_900_000_000 },
+      monthly: { remainingPercent, resetAt: 1_900_000_000 },
+    },
+  });
+  return {
+    version: 1,
+    revision: 2,
+    cycle: { cycleStartedAt: Date.now(), lastCompletedAt: Date.now() },
+    sources: {
+      "opencode-go/opencode-go:1": source("1", account1),
+      "opencode-go/opencode-go:2": source("2", account2),
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
@@ -173,6 +245,74 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
+
+describe("session_start — source declaration", () => {
+  it("declares Codex even when authentication is missing", () => {
+    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
+    expect(lifecycle?.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: expect.arrayContaining([
+          expect.objectContaining({
+            providerId: "openai-codex",
+            sourceId: "codex-login",
+            credentials: undefined,
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it("starts quota lifecycle even when no OpenCode runtime API key exists", async () => {
+    await handlers["session_shutdown"]!({}, ctx);
+    vi.stubEnv("OC_GO_API_KEY_1", "");
+    vi.stubEnv("OC_GO_API_KEY_2", "");
+    const callsBefore = vi.mocked(createQuotaLifecycle).mock.calls.length;
+
+    await handlers["session_start"]!({}, ctx);
+
+    expect(vi.mocked(createQuotaLifecycle).mock.calls.length).toBe(
+      callsBefore + 1,
+    );
+  });
+});
+
+describe("snapshot-driven reselection", () => {
+  it("replaces a blind fallback when the first usable snapshot arrives idle", () => {
+    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
+    const onSnapshot = vi.mocked(lifecycle!.onSnapshot).mock.calls[0]![0];
+
+    onSnapshot(quotaSnapshot(20, 80));
+
+    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-2");
+  });
+
+  it("defers blind-fallback reselection until agent_settled", () => {
+    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
+    const onSnapshot = vi.mocked(lifecycle!.onSnapshot).mock.calls[0]![0];
+    vi.mocked(ctx.isIdle).mockReturnValue(false);
+
+    onSnapshot(quotaSnapshot(20, 80));
+    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-1");
+
+    vi.mocked(ctx.isIdle).mockReturnValue(true);
+    handlers["agent_settled"]!({}, ctx);
+    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-2");
+  });
+
+  it("keeps an active usable account stable when another becomes better", () => {
+    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
+    const onSnapshot = vi.mocked(lifecycle!.onSnapshot).mock.calls[0]![0];
+    onSnapshot(quotaSnapshot(20, 80));
+    const activationCount = setRuntimeApiKey.mock.calls.length;
+
+    const newer = quotaSnapshot(90, 50);
+    newer.revision = 3;
+    onSnapshot(newer);
+
+    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-2");
+    expect(setRuntimeApiKey).toHaveBeenCalledTimes(activationCount);
+  });
+});
 
 describe("handleMessageEnd — rotation gating", () => {
   it("rotates and queues continue on GoUsageLimitError", async () => {

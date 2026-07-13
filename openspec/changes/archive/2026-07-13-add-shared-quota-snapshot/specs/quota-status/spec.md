@@ -1,10 +1,4 @@
-# quota-status Specification
-
-## Purpose
-
-TBD - created by archiving change refactor-quota-status. Update Purpose after archive.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Status format
 
@@ -109,6 +103,8 @@ Compact Codex status SHALL always display banked-reset state as `R<n>` when know
 - **WHEN** Codex usage is available but banked-reset data is unavailable
 - **THEN** status includes `R?`
 - **AND** it does not append the general degraded marker solely for that partial failure
+
+## ADDED Requirements
 
 ### Requirement: Status reflects source lifecycle state
 

@@ -1,4 +1,8 @@
-## MODIFIED Requirements
+## Purpose
+
+Enables configurable model routes where each declared command token can be assigned an independent model and thinking level, with validation against Pi's model registry.
+
+## Requirements
 
 ### Requirement: Configurable model routes
 
@@ -114,11 +118,3 @@ The system SHALL persist only configured, declared routes and SHALL allow any nu
 - **AND** omits unset routes
 - **AND** removes undeclared entries
 - **AND** does not activate any route after saving
-
-## REMOVED Requirements
-
-### Requirement: Repair mode for invalid configuration
-
-**Reason**: Global invalid configuration and repair mode are replaced by independent route sanitization and partial editing.
-
-**Migration**: Open `/model-routes` to configure any routes shown as unset.

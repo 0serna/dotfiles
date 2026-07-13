@@ -1,10 +1,4 @@
-# quota-command Specification
-
-## Purpose
-
-Displays detailed quota information for all providers with account rotation support.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: /quota command displays full detail
 
@@ -63,40 +57,7 @@ The `/quota` output SHALL use box-drawing provider/source blocks with aligned qu
 - **AND** its state is `degraded`
 - **AND** its observation age and summarized latest failure are displayed
 
-### Requirement: Per-credit expiry display
-
-The `/quota` Codex block SHALL list each available reset credit on a separate sub-line under the `Resets` row, showing the time remaining until expiry in relative form.
-
-#### Scenario: Sub-line per available credit
-
-- **WHEN** Codex has N available reset credits with valid expiry dates
-- **THEN** the Codex block renders one sub-line per credit under the `Resets N` row
-- **AND** each sub-line uses the format `  #<index> in <relative>`
-- **AND** the sub-lines are ordered by `expiresAt` ascending (soonest first)
-
-#### Scenario: Relative time formatting
-
-- **WHEN** a sub-line is rendered
-- **THEN** the relative label is `in <d>d` for remaining time ≥ 24 hours (rounded to nearest day)
-- **AND** `in <h>h` for remaining time between 1 hour and 24 hours (rounded to nearest hour, minimum 1h)
-- **AND** `expired` when `expiresAt` is in the past
-- **AND** the `status` field is not displayed in the sub-line
-
-#### Scenario: Non-available credits are excluded
-
-- **WHEN** the response includes credits with `status` other than `available`
-- **THEN** those credits are excluded from the sub-line list and from the `Resets` count
-- **AND** they do not appear anywhere in the Codex block
-
-### Requirement: Active account indication
-
-The `/quota` output SHALL indicate which OpenCode Go account is currently active via the runtime API key.
-
-#### Scenario: Account 1 active
-
-- **WHEN** `/quota` is executed and account "1" is active
-- **THEN** the OpenCode Go section header reads `OpenCode 1` for the active account
-- **AND** inactive accounts are labeled with their account names
+## ADDED Requirements
 
 ### Requirement: /quota is a read-only snapshot projection
 
@@ -112,3 +73,11 @@ The `/quota` command SHALL NOT request, force, join, or wait for a quota refresh
 - **WHEN** `/quota` renders stale, degraded, or expired source state
 - **THEN** it reports that state and its age
 - **AND** it does not initiate network activity
+
+## REMOVED Requirements
+
+### Requirement: Command refreshes data
+
+**Reason**: Provider fetching is centralized in the shared startup/periodic refresh coordinator; command-triggered fetching would duplicate work and violate the read-only snapshot contract.
+
+**Migration**: `/quota` now renders the latest aggregated snapshot immediately. Freshness is supplied by session startup and the five-minute periodic refresh cycle.

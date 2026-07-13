@@ -1,10 +1,4 @@
-# opencode-account-rotation Specification
-
-## Purpose
-
-Provides automatic account selection and rotation for OpenCode Go accounts to maximize quota utilization and handle rate limits gracefully.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Balanced account selection on session start
 
@@ -60,6 +54,28 @@ At session start, the system SHALL select an OpenCode Go account from usable obs
 - **WHEN** a blind fallback is active and the first usable refreshed observations identify another best account
 - **THEN** the system schedules reevaluation
 - **AND** it changes the runtime account only after Pi is fully settled and idle
+
+## REMOVED Requirements
+
+### Requirement: Automatic rotation on provider error
+
+**Reason**: Rotation is now driven by shared snapshot revisions rather than inline provider-error detection at the end of a message. Provider-confirmed exhaustion is published through the shared snapshot, and preventive reselection triggers when the active account becomes unusable.
+
+**Migration**: See "Preventive reselection uses snapshot revisions" and "Shared observations do not globalize rotation state".
+
+### Requirement: Cooldown state tracking
+
+**Reason**: Cooldown timers were part of the direct-fetch rotation flow. The snapshot-driven approach does not use cooldowns; selection and reselection are based on observation freshness (≤30 min) and quota exhaustion.
+
+### Requirement: Fallback continuation after rotation
+
+**Reason**: The snapshot-driven lifecycle does not perform inline rotation on provider error, so no continuation message is queued during rotation. Reselection happens preventively between runs.
+
+### Requirement: Session-scoped state
+
+**Reason**: Per-session rotation state (cooldowns, attempted accounts, continuation pending) is no longer tracked since rotation is driven by shared snapshot revisions and local runtime state is lightweight.
+
+## ADDED Requirements
 
 ### Requirement: Preventive reselection uses snapshot revisions
 

@@ -9,7 +9,7 @@
 - Keep all quality gates green. Before declaring work complete, ensure the full check suite or equivalent passes.
 - Do not suppress tools. When a quality tool reports an issue, fix the underlying problem. Do not use suppression comments to deflect or silence warnings.
 
-## Tools & Workflow
+## Tools &amp; Workflow
 
 - ALWAYS use `rg` (ripgrep) instead of `grep` for file searches — it's faster and respects `.gitignore`.
 - Use the `/tdd` skill when changing behavior or fixing bugs where a red → green loop is practical; skip it for mechanical edits, configuration-only changes, documentation-only changes, or exploratory work.
@@ -21,3 +21,4 @@
 
 - Do not ask the user for OpenSpec change names. Choose a concise, descriptive change name from the context.
 - If only one change is active, proceed with that change without prompting the user.
+- After archiving a change (`openspec archive` or `openspec-archive-change`), run `openspec validate --all` and fix errors.
