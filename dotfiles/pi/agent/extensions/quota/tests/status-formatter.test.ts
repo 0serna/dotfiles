@@ -16,7 +16,7 @@ const CODEX: SourceDescriptor = {
 const OPENCODE: SourceDescriptor = {
   identity: { providerId: "opencode-go", sourceId: "opencode-go:2" },
   displayName: "OpenCode 2",
-  compactPrefix: "OC",
+  compactPrefix: "OpenCode",
   configFingerprint: "fingerprint:opencode-go:2",
 };
 
@@ -59,14 +59,11 @@ afterEach(() => {
 });
 
 describe("formatCompactStatus", () => {
-  it("renders 'Codex 80%r R2 - OC 75%r' for healthy providers", () => {
+  it("renders 'Codex 80%r · OpenCode 75%r' for healthy providers", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
           rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 3600 },
-        },
-        extras: {
-          bankedResets: { kind: "available", details: [{}, {}] as never },
         },
       }),
       makeRecord(OPENCODE, {
@@ -78,7 +75,7 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toBe("Codex 80%r R2 - OC 75%r");
+    expect(result).toBe("Codex 80%r · OpenCode 75%r");
   });
 
   it("shows only provider prefix, not account name", () => {
@@ -89,7 +86,7 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(snapshot)).toBe("OC 75%r");
+    expect(formatCompactStatus(snapshot)).toBe("OpenCode 75%r");
   });
 
   it("uses %r suffix for rolling, %w for weekly, %m for monthly", () => {
@@ -141,30 +138,13 @@ describe("formatCompactStatus", () => {
           rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
           weekly: { remainingPercent: 0, resetAt: NOW_SECONDS + 7200 },
         },
-        extras: {
-          bankedResets: {
-            kind: "available",
-            details: [
-              {
-                expiresAt: NOW_SECONDS + 3600,
-                grantedAt: NOW_SECONDS,
-                status: "available",
-              },
-              {
-                expiresAt: NOW_SECONDS + 7200,
-                grantedAt: NOW_SECONDS,
-                status: "available",
-              },
-            ],
-          },
-        },
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toBe("Codex 0% R2");
+    expect(result).toBe("Codex 0%");
   });
 
-  it("renders R0 when reset data is confirmed empty", () => {
+  it("renders 80% without reset when banked resets are confirmed empty", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -174,10 +154,11 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Codex 80%r R0");
+    expect(result).toContain("Codex 80%r");
+    expect(result).not.toContain("R");
   });
 
-  it("renders R? when banked reset data is unavailable", () => {
+  it("renders 80% without reset when banked resets are unavailable", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -187,7 +168,8 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Codex 80%r R?");
+    expect(result).toContain("Codex 80%r");
+    expect(result).not.toContain("R?");
   });
 
   it("uses ⚠ prefix for degraded observations within the 30-minute window", () => {
@@ -199,11 +181,10 @@ describe("formatCompactStatus", () => {
         windows: {
           rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 3600 },
         },
-        extras: { bankedResets: { kind: "available", details: [{}] as never } },
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toMatch(/⚠ Codex 80%r R1/);
+    expect(result).toMatch(/⚠ Codex 80%r/);
   });
 
   it("uses real provider prefix instead of generic 'Provider' placeholder", () => {
@@ -224,7 +205,7 @@ describe("formatCompactStatus", () => {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
     expect(result).toContain("Codex …");
-    expect(result).toContain("OC 50%r");
+    expect(result).toContain("OpenCode 50%r");
   });
 
   it("renders 'Quota …' when no usable observation exists", () => {
@@ -247,7 +228,7 @@ describe("formatCompactStatus", () => {
     expect(result).toContain("Codex error");
   });
 
-  it("does not include reset times or spendable balances", () => {
+  it("does not include reset times, spendable balances, or banked reset counts", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -262,6 +243,7 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
     expect(result).not.toContain("100");
     expect(result).not.toContain("13:00");
+    expect(result).not.toContain("R");
   });
 
   describe("color intents", () => {
@@ -358,11 +340,11 @@ describe("formatCompactStatus", () => {
       formatCompactStatus(snapshot, {
         activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
         colorize: (intent, text) => {
-          if (text !== " - ") intents.push(intent);
+          if (text !== " · ") intents.push(intent);
           return text;
         },
       });
-      // Codex refrescando → dim, OC healthy → dim
+      // Codex refrescando → dim, OpenCode healthy → dim
       expect(intents).toEqual(["dim", "dim"]);
     });
 
@@ -387,11 +369,11 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      // Codex <10% → warning, OC → dim, separator → dim
+      // Codex <10% → warning, OpenCode → dim, separator → dim
       expect(calls).toEqual([
         { intent: "warning", text: "Codex 5%r" },
-        { intent: "dim", text: "OC 80%r" },
-        { intent: "dim", text: " - " },
+        { intent: "dim", text: "OpenCode 80%r" },
+        { intent: "dim", text: " · " },
       ]);
     });
   });

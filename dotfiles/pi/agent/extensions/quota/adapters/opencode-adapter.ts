@@ -227,7 +227,7 @@ export const opencodeGoAdapter: QuotaAdapter = {
         sourceId: `${PROVIDER_ID}:${input.sourceId}`,
       },
       displayName: `OpenCode ${input.sourceId}`,
-      compactPrefix: "OC",
+      compactPrefix: "OpenCode",
       configFingerprint:
         input.configFingerprint ?? `fingerprint:opencode-go:${input.sourceId}`,
     };

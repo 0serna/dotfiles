@@ -34,10 +34,10 @@ export function formatRelativeExpiry(expiresAt: number): string {
   if (remainingSeconds <= 0) return "expired";
   const days = Math.round(remainingSeconds / 86_400);
   if (days >= 1) {
-    return `in ${days}d`;
+    return `expires in ${days}d`;
   }
   const hours = Math.max(1, Math.round(remainingSeconds / 3600));
-  return `in ${hours}h`;
+  return `expires in ${hours}h`;
 }
 
 // ---------------------------------------------------------------------------

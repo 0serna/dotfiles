@@ -28,7 +28,7 @@ describe("opencodeGoAdapter.describe", () => {
       sourceId: "opencode-go:1",
     });
     expect(descriptor.displayName).toBe("OpenCode 1");
-    expect(descriptor.compactPrefix).toBe("OC");
+    expect(descriptor.compactPrefix).toBe("OpenCode");
     expect(descriptor.configFingerprint).not.toContain("cookie");
   });
 });

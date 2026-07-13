@@ -12,6 +12,34 @@ _Avoid_: verbose output, extra delimiters
 Reduction of transient tool-result content before it is sent back into the Pi agent context. It preserves the useful record of what happened while replacing low-value large output with compact stubs.
 _Avoid_: DCP internals, context cleanup, pruning helper
 
+**Agent attempt**:
+A single uninterrupted pass of the agent loop. It may finish while automatic recovery or queued work still remains.
+_Avoid_: agent run, completed work, processing cycle
+
+**Processing cycle**:
+A contiguous period of agent work that includes its attempts, automatic retries, compaction recovery, queued continuations, and extension-started work that prevents an idle boundary. It finishes only when Pi is observably idle.
+_Avoid_: agent run, attempt, model request
+
+**Processing cycle duration**:
+The wall-clock time from the beginning of a processing cycle until it fully finishes. It includes model generation, tool execution, retry backoff, compaction recovery, and waits between attempts.
+_Avoid_: active compute time, attempt duration, request latency
+
+**Routed processing cycle**:
+A processing cycle whose model and thinking level come from a declared command route. Every attempt and queued continuation inherits that route until the cycle finishes.
+_Avoid_: routed prompt, temporary model, routed attempt
+
+**Route restoration**:
+The return from a routed selection to the latest persisted manual selection after routed work finishes. It occurs only while Pi is idle and remains pending if another processing cycle has already started.
+_Avoid_: route deactivation, default model reset, model fallback
+
+**Completion marker**:
+The `✓` shown when a processing cycle finishes, regardless of whether its final outcome succeeded, failed, or was aborted. It communicates settlement, not success.
+_Avoid_: success indicator, pass result, outcome status
+
+**Last producing model**:
+The model that generated the most recent assistant stream in a processing cycle. Idle model restoration after the cycle does not change this attribution.
+_Avoid_: selected model, restored model, initial model
+
 **Output total throughput**:
 The model output generation rate measured as output tokens per second for one assistant stream. It counts the provider-reported total output, including visible text, reasoning/thinking output, and tool-call output when those are part of output usage.
 _Avoid_: latency, request duration, visible text speed
@@ -25,8 +53,8 @@ A high-precision output total throughput value shown after an assistant stream c
 _Avoid_: estimated speed, prompt throughput
 
 **Last final throughput**:
-The most recent final throughput value retained while the agent is no longer actively receiving model output, such as during tool execution between assistant streams.
-_Avoid_: live speed, session statistic
+The most recent valid final throughput retained within a processing cycle, including across tool execution and later attempts without usable output metrics.
+_Avoid_: live speed, cycle average, session statistic
 
 **Exhausted quota window**:
 A quota window whose remaining allowance is exactly zero. Compact quota status represents an active source with any exhausted window as `0%` using the same shape as a healthy source.

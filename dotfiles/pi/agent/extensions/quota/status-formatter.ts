@@ -10,7 +10,7 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const COMPACT_SEPARATOR = " - ";
+const COMPACT_SEPARATOR = " · ";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,9 +30,7 @@ export type CompactStatusOptions = {
 // ---------------------------------------------------------------------------
 
 function providerLabel(record: SourceRecord): string {
-  return record.identity.providerId === "opencode-go"
-    ? "OC"
-    : record.descriptor.compactPrefix;
+  return record.descriptor.compactPrefix;
 }
 
 function isExhausted(record: SourceRecord): boolean {
@@ -83,14 +81,6 @@ function isLow(record: SourceRecord): boolean {
   );
 }
 
-function bankedResetLabel(record: SourceRecord): string {
-  const resets = record.extras?.bankedResets;
-  if (!resets) return "";
-  if (resets.kind === "available") return `R${resets.details.length}`;
-  if (resets.kind === "empty") return "R0";
-  return "R?";
-}
-
 type CompactSegment = {
   text: string;
   intent: ColorIntent;
@@ -107,9 +97,8 @@ function formatSourceCompact(
   }
 
   if (isExhausted(record)) {
-    const resets = bankedResetLabel(record);
     return {
-      text: `${label} 0%${resets ? ` ${resets}` : ""}`,
+      text: `${label} 0%`,
       intent: "warning",
     };
   }
@@ -121,14 +110,13 @@ function formatSourceCompact(
 
   const percent = selectPercent(record);
   const percentLabel = percent ?? "0%";
-  const resets = bankedResetLabel(record);
   const degraded = record.state === "degraded";
 
   const degradedPrefix = degraded ? "⚠ " : "";
   const intent: ColorIntent = degraded || isLow(record) ? "warning" : "dim";
 
   return {
-    text: `${degradedPrefix}${label} ${percentLabel}${resets ? ` ${resets}` : ""}`,
+    text: `${degradedPrefix}${label} ${percentLabel}`,
     intent,
   };
 }
