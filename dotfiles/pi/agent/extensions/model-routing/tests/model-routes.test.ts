@@ -1075,11 +1075,11 @@ describe("route catalog", () => {
   it("declares the expected tokens in order", () => {
     expect(ROUTE_TOKENS).toEqual([
       "/compact",
-      "/skill:commit",
-      "/skill:openspec-archive-change",
       "/skill:openspec-apply-change",
+      "/skill:openspec-archive-change",
       "/skill:code-review",
       "/skill:simplify",
+      "/skill:commit",
     ]);
   });
 });

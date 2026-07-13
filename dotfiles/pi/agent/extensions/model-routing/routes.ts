@@ -12,11 +12,11 @@
  */
 export const ROUTE_TOKENS = [
   "/compact",
-  "/skill:commit",
-  "/skill:openspec-archive-change",
   "/skill:openspec-apply-change",
+  "/skill:openspec-archive-change",
   "/skill:code-review",
   "/skill:simplify",
+  "/skill:commit",
 ] as const;
 
 export type RouteName = (typeof ROUTE_TOKENS)[number];
