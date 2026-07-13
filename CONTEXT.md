@@ -39,3 +39,19 @@ _Avoid_: credit line, quota percent
 **Banked reset**:
 A Codex reset credit that can restore quota before its expiry. Compact Codex status keeps the `R<n>` reset count even when the active quota window is exhausted.
 _Avoid_: reset timer, quota window
+
+**Account selection**:
+The process that evaluates all configured OpenCode Go accounts at session start and picks the one with the most balanced remaining quota across all windows.
+_Avoid_: account picker, provider selection
+
+**Quota window**:
+A time-bound usage allowance — rolling, weekly, or monthly — with a remaining percentage and a reset time. An account is ineligible for selection if any of its windows reaches zero.
+_Avoid_: rate limit window, usage bucket, allowance period
+
+**Account cooldown**:
+A temporary ban applied to an account after a rate-limit or authorization error, preventing it from being selected again until the cooldown expires.
+_Avoid_: account lockout, penalty period, backoff
+
+**Blind fallback**:
+Activating the first configured OpenCode Go account without verifying its quota, used when all account fetches fail at session start. Relies on runtime rotation to switch accounts if the blind pick is exhausted.
+_Avoid_: default account, emergency fallback, unverified activation

@@ -8,7 +8,7 @@ import type { OpenCodeGoData, OpenCodeGoWindowData } from "./types.js";
 // ---------------------------------------------------------------------------
 
 const GO_DASHBOARD_URL = "https://opencode.ai/workspace";
-const REQUEST_TIMEOUT_MS = 10000;
+const REQUEST_TIMEOUT_MS = 15000;
 
 // ---------------------------------------------------------------------------
 // Dashboard fetch

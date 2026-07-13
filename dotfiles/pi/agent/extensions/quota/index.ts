@@ -108,11 +108,20 @@ type AvailableAccountQuota = AccountQuotaCandidate & {
   stateIndex: number;
 };
 
+type SelectionResult = {
+  /** Index of the selected account in accountStates, or -1 if none. */
+  index: number;
+  /** True when at least one account's fetch returned quota data. */
+  hadSuccessfulFetch: boolean;
+};
+
 /**
  * Fetch quota for every configured account and select the most balanced
  * account whose monthly, weekly, and rolling windows all have quota.
  */
-async function selectBestAccount(ctx: ExtensionContext): Promise<number> {
+async function selectBestAccount(
+  ctx: ExtensionContext,
+): Promise<SelectionResult> {
   const fetchLogger = getLogger(ctx);
   fetchLogger.log("select_best_account_start", {
     provider: OPENCODE_PROVIDER,
@@ -137,6 +146,8 @@ async function selectBestAccount(ctx: ExtensionContext): Promise<number> {
       return { account, data };
     }) ?? [],
   );
+
+  const anyFetchSucceeded = quotas.some((q) => q.data !== null);
 
   const now = Date.now();
   const candidates: AvailableAccountQuota[] = [];
@@ -175,15 +186,17 @@ async function selectBestAccount(ctx: ExtensionContext): Promise<number> {
         selected.data!.rolling!.remainingPercent,
       ),
     });
-    return selected.stateIndex;
+    return { index: selected.stateIndex, hadSuccessfulFetch: true };
   }
 
   fetchLogger.log("select_best_account_fallback", {
     provider: OPENCODE_PROVIDER,
     fallbackIndex: -1,
-    reason: "no account has all quota windows available",
+    reason: anyFetchSucceeded
+      ? "no account has all quota windows available"
+      : "all account fetches failed",
   });
-  return -1;
+  return { index: -1, hadSuccessfulFetch: anyFetchSucceeded };
 }
 
 // ---------------------------------------------------------------------------
@@ -274,20 +287,32 @@ async function handleSessionStart(
     return;
   }
 
-  const bestIndex = await selectBestAccount(ctx);
-  if (bestIndex >= 0) {
-    activateAccount(bestIndex, ctx);
+  const selection = await selectBestAccount(ctx);
+  if (selection.index >= 0) {
+    activateAccount(selection.index, ctx);
     return;
   }
 
-  logger.log("session_start_no_eligible_account", {
+  if (selection.hadSuccessfulFetch) {
+    // At least one account responded, but none passed hasUsableQuota.
+    logger.log("session_start_no_eligible_account", {
+      provider: OPENCODE_PROVIDER,
+      reason: "no account has all quota windows available",
+    });
+    ctx.ui.notify(
+      "No OpenCode Go account has all quota windows available.",
+      "warning",
+    );
+    return;
+  }
+
+  // Blind fallback: all account fetches timed out. Activate the first
+  // configured account and let runtime rotation handle errors.
+  logger.log("session_start_blind_fallback", {
     provider: OPENCODE_PROVIDER,
-    reason: "no account has all quota windows available",
+    reason: "all account fetches failed, activating first account blindly",
   });
-  ctx.ui.notify(
-    "No OpenCode Go account has all quota windows available.",
-    "warning",
-  );
+  activateAccount(0, ctx);
 }
 
 function makeMessageEndHandler(pi: ExtensionAPI) {
