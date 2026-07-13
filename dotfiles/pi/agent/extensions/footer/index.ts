@@ -1,15 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
-import { basename } from "node:path";
 import { isTuiMode } from "../shared/mode.ts";
-
-function formatCwd(cwd: string): string {
-  if (cwd === process.env.HOME) {
-    return "~";
-  }
-
-  return basename(cwd);
-}
+import { formatDirectorySegment, parseGitMetadata } from "./format.ts";
 
 const LEFT_EXTENSION_ORDER = ["context"];
 const RIGHT_EXTENSION_ORDER = ["quota"];
@@ -21,8 +13,23 @@ export default function (pi: ExtensionAPI) {
     requestRender?.();
   });
 
-  pi.on("session_start", (_event, ctx) => {
+  pi.on("session_start", async (_event, ctx) => {
     if (!isTuiMode(ctx)) return;
+
+    const gitResult = await pi
+      .exec(
+        "git",
+        [
+          "rev-parse",
+          "--show-toplevel",
+          "--absolute-git-dir",
+          "--git-common-dir",
+        ],
+        { cwd: ctx.cwd, timeout: 1_000 },
+      )
+      .catch(() => null);
+    const git =
+      gitResult?.code === 0 ? parseGitMetadata(gitResult.stdout) : null;
 
     try {
       ctx.ui.setFooter((tui, theme, footerData) => {
@@ -36,8 +43,13 @@ export default function (pi: ExtensionAPI) {
           dispose: unsubscribe,
           invalidate() {},
           render(width: number): string[] {
-            const cwd = formatCwd(ctx.cwd);
             const branch = footerData.getGitBranch();
+            const directory = formatDirectorySegment({
+              cwd: ctx.cwd,
+              home: process.env.HOME,
+              branch,
+              git,
+            });
             const thinking = pi.getThinkingLevel();
             const modelSlug = ctx.model?.id;
             const separator = theme.fg("dim", " · ");
@@ -57,10 +69,10 @@ export default function (pi: ExtensionAPI) {
             ).filter(Boolean);
 
             const sections = [
-              theme.fg("dim", branch ? `${cwd}/${branch}` : cwd),
+              theme.fg("dim", directory),
               theme.fg(
                 "dim",
-                modelSlug ? `${modelSlug}/${thinking}` : thinking,
+                modelSlug ? `${modelSlug}@${thinking}` : thinking,
               ),
               ...leftExtensions,
             ].filter(Boolean);
