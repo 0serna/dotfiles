@@ -354,12 +354,9 @@ async function handleSessionStart(
   await lifecycle.start({
     sources: await buildSnapshotSources(ctx, logger),
     registerStatus: (value) => {
-      if (value === undefined) {
-        ctx.ui.setStatus(STATUS_KEY, undefined);
-      } else {
-        ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("dim", value));
-      }
+      ctx.ui.setStatus(STATUS_KEY, value ?? undefined);
     },
+    colorize: (intent, text) => ctx.ui.theme.fg(intent, text),
     activeSource: undefined,
   });
 

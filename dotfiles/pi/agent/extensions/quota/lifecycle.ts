@@ -12,7 +12,7 @@ import {
 } from "./snapshot-store.js";
 import { watchSnapshot, type WatcherSubscription } from "./snapshot-watcher.js";
 import type { QuotaSnapshot, SourceIdentity } from "./snapshot.js";
-import { formatCompactStatus } from "./status-formatter.js";
+import { formatCompactStatus, type ColorIntent } from "./status-formatter.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -38,6 +38,7 @@ export type QuotaLifecycle = {
     sources: SourceInput[];
     registerStatus: (value: string | undefined) => void;
     activeSource?: SourceIdentity;
+    colorize?: (intent: ColorIntent, text: string) => string;
   }): Promise<void>;
   setActiveSource(identity: SourceIdentity | undefined): void;
   onStatus(callback: (value: string | undefined) => void): void;
@@ -55,8 +56,9 @@ export type QuotaLifecycle = {
 function formatQuota(
   snapshot: QuotaSnapshot,
   activeSource: SourceIdentity | undefined,
+  colorize?: (intent: ColorIntent, text: string) => string,
 ): string {
-  const value = formatCompactStatus(snapshot, { activeSource });
+  const value = formatCompactStatus(snapshot, { activeSource, colorize });
   return value || STATUS_FALLBACK;
 }
 
@@ -88,6 +90,9 @@ export function createQuotaLifecycle(
   let declaredSources: SourceInput[] = [];
   let latestSnapshot: QuotaSnapshot | undefined;
   let lastSeenRevision = -1;
+  let storedColorize:
+    | ((intent: ColorIntent, text: string) => string)
+    | undefined;
   const statusCallbacks = new Set<(value: string | undefined) => void>();
   const snapshotCallbacks = new Set<(snapshot: QuotaSnapshot) => void>();
 
@@ -115,7 +120,7 @@ export function createQuotaLifecycle(
     if (snapshot.revision <= lastSeenRevision) return;
     lastSeenRevision = snapshot.revision;
     latestSnapshot = snapshot;
-    publishStatus(formatQuota(snapshot, activeSource));
+    publishStatus(formatQuota(snapshot, activeSource, storedColorize));
     publishSnapshot(snapshot);
     scheduleNext(snapshot);
   };
@@ -142,7 +147,13 @@ export function createQuotaLifecycle(
   };
 
   return {
-    async start({ sources, registerStatus, activeSource: initialActive }) {
+    async start({
+      sources,
+      registerStatus,
+      activeSource: initialActive,
+      colorize,
+    }) {
+      storedColorize = colorize;
       activeSource = initialActive;
       declaredSources = sources;
       statusCallbacks.add(registerStatus);
@@ -166,7 +177,9 @@ export function createQuotaLifecycle(
     setActiveSource(identity) {
       activeSource = identity;
       if (latestSnapshot) {
-        publishStatus(formatQuota(latestSnapshot, activeSource));
+        publishStatus(
+          formatQuota(latestSnapshot, activeSource, storedColorize),
+        );
       } else {
         void coordinator
           .read()

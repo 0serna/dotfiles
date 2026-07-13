@@ -1,31 +1,35 @@
+import { clampPercent } from "./formatting.js";
 import { OBSERVATION_RETENTION_MS } from "./snapshot-transitions.js";
 import {
   type QuotaSnapshot,
   type SourceIdentity,
   type SourceRecord,
 } from "./snapshot.js";
-import { clampPercent } from "./status.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const COMPACT_SEPARATOR = " · ";
+const COMPACT_SEPARATOR = " - ";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+export type ColorIntent = "dim" | "warning";
+
 export type CompactStatusOptions = {
   activeSource?: SourceIdentity;
   now?: number;
+  /** When provided, each segment is wrapped with the colorizer and joined. */
+  colorize?: (intent: ColorIntent, text: string) => string;
 };
 
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
 
-function compactPrefix(record: SourceRecord): string {
+function providerLabel(record: SourceRecord): string {
   return record.identity.providerId === "opencode-go"
     ? "OC"
     : record.descriptor.compactPrefix;
@@ -57,16 +61,26 @@ function isUsable(record: SourceRecord, now: number): boolean {
   return true;
 }
 
-function selectPercent(record: SourceRecord): number | undefined {
+/** Returns the most-constrained window percentage with its suffix. */
+function selectPercent(record: SourceRecord): string | undefined {
   const windows = record.windows;
   if (!windows) return undefined;
-  const rolling = windows.rolling?.remainingPercent;
-  const weekly = windows.weekly?.remainingPercent;
-  const monthly = windows.monthly?.remainingPercent;
-  if (rolling != null) return clampPercent(rolling);
-  if (weekly != null) return clampPercent(weekly);
-  if (monthly != null) return clampPercent(monthly);
+  if (windows.rolling)
+    return `${clampPercent(windows.rolling.remainingPercent)}%r`;
+  if (windows.weekly)
+    return `${clampPercent(windows.weekly.remainingPercent)}%w`;
+  if (windows.monthly)
+    return `${clampPercent(windows.monthly.remainingPercent)}%m`;
   return undefined;
+}
+
+function isLow(record: SourceRecord): boolean {
+  if (!record.windows) return false;
+  return (
+    (record.windows.rolling?.remainingPercent ?? 100) <= 10 ||
+    (record.windows.weekly?.remainingPercent ?? 100) <= 10 ||
+    (record.windows.monthly?.remainingPercent ?? 100) <= 10
+  );
 }
 
 function bankedResetLabel(record: SourceRecord): string {
@@ -77,36 +91,46 @@ function bankedResetLabel(record: SourceRecord): string {
   return "R?";
 }
 
+type CompactSegment = {
+  text: string;
+  intent: ColorIntent;
+};
+
 function formatSourceCompact(
   record: SourceRecord,
-  active: boolean,
   now: number,
-): string {
-  const prefix = compactPrefix(record);
-  const account = record.descriptor.identity.sourceId.includes(":")
-    ? record.descriptor.identity.sourceId.split(":").slice(1).join(":")
-    : record.descriptor.displayName.replace(prefix, "").trim();
-  const label = account ? `${prefix}/${account}` : prefix;
+): CompactSegment {
+  const label = providerLabel(record);
 
   if (record.state === "refreshing") {
-    return `${active ? label : prefix} …`;
+    return { text: `${label} …`, intent: "dim" };
   }
 
   if (isExhausted(record)) {
     const resets = bankedResetLabel(record);
-    return `${label} 0%${resets ? ` ${resets}` : ""}`;
+    return {
+      text: `${label} 0%${resets ? ` ${resets}` : ""}`,
+      intent: "warning",
+    };
   }
 
   const usable = isUsable(record, now);
   if (!usable) {
-    return `${prefix} error`;
+    return { text: `${label} error`, intent: "warning" };
   }
 
   const percent = selectPercent(record);
-  const percentLabel = percent == null ? "0%" : `${percent}%`;
+  const percentLabel = percent ?? "0%";
   const resets = bankedResetLabel(record);
-  const degraded = record.state === "degraded" ? "!" : "";
-  return `${label} ${percentLabel}${resets ? ` ${resets}` : ""}${degraded}`;
+  const degraded = record.state === "degraded";
+
+  const degradedPrefix = degraded ? "⚠ " : "";
+  const intent: ColorIntent = degraded || isLow(record) ? "warning" : "dim";
+
+  return {
+    text: `${degradedPrefix}${label} ${percentLabel}${resets ? ` ${resets}` : ""}`,
+    intent,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -116,19 +140,23 @@ function formatSourceCompact(
 /**
  * Render the compact quota status from the latest snapshot. Returns a single
  * string suitable for the footer's `quota` status slot.
+ *
+ * When `colorize` is provided, each segment is individually colored according
+ * to its intent (dim or warning). Without it, plain text is returned.
  */
 export function formatCompactStatus(
   snapshot: QuotaSnapshot,
   options: CompactStatusOptions = {},
 ): string {
   const now = options.now ?? Date.now();
+  const colorize = options.colorize;
   const records = Object.values(snapshot.sources);
 
   if (records.length === 0) return " ";
 
   const grouped = new Map<string, SourceRecord[]>();
   for (const record of records) {
-    const prefix = compactPrefix(record);
+    const prefix = providerLabel(record);
     const list = grouped.get(prefix) ?? [];
     list.push(record);
     grouped.set(prefix, list);
@@ -139,25 +167,31 @@ export function formatCompactStatus(
 
   // Global "Quota …" when nothing is usable and the cycle is still in flight.
   if (usableCount === 0 && anyRefreshing) {
-    return "Quota …";
+    return colorize ? colorize("dim", "Quota …") : "Quota …";
   }
 
-  const parts: string[] = [];
-  for (const [, group] of grouped) {
+  const segments: CompactSegment[] = [];
+  for (const [groupPrefix, group] of grouped) {
     const active = pickActiveSource(group, options.activeSource);
     if (active) {
-      parts.push(formatSourceCompact(active, true, now));
+      segments.push(formatSourceCompact(active, now));
     } else {
       const refreshing = group.find((r) => r.state === "refreshing");
       if (refreshing && usableCount > 0) {
-        parts.push(`Provider …`);
+        segments.push({ text: `${groupPrefix} …`, intent: "dim" });
       } else {
-        parts.push("Provider error");
+        segments.push({ text: `${groupPrefix} error`, intent: "warning" });
       }
     }
   }
 
-  return parts.join(COMPACT_SEPARATOR);
+  if (colorize) {
+    const colored = segments.map((seg) => colorize(seg.intent, seg.text));
+    if (colored.length <= 1) return colored.join("");
+    const dimSep = colorize("dim", COMPACT_SEPARATOR);
+    return colored.join(dimSep);
+  }
+  return segments.map((seg) => seg.text).join(COMPACT_SEPARATOR);
 }
 
 function pickActiveSource(

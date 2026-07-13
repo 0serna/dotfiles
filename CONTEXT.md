@@ -69,7 +69,7 @@ The source chosen by one Pi runtime to represent and supply a provider, independ
 _Avoid_: active model, global source, shared account
 
 **Compact quota status**:
-The footer projection of active quota sources, formatted as `Codex 80% R2 │ OpenCode(2) 75%`. It shows `Quota …` during the first refresh when no usable observations exist and `Provider …` when an individual source is still loading alongside resolved providers. Otherwise it shows rolling remaining quota unless any source window is exhausted, appends a warning-styled `!` to degraded data, and reduces unusable data to `Provider error`. Reset times and spendable balances are omitted.
+A single-line footer summary of every active quota source, showing the most constrained window's remaining percentage, banked reset count when known, and a visual prefix for degraded or error states. Spendable balances and reset times are excluded; the `/quota` command provides full detail.
 _Avoid_: quota detail, provider status, live quota
 
 **Aggregated quota snapshot**:

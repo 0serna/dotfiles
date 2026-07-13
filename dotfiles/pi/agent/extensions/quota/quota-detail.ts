@@ -1,82 +1,21 @@
 import {
+  clampPercent,
+  detailBorder,
+  detailFooter,
+  detailRow,
+  detailSubRow,
+  detailValueRow,
+  formatRelativeExpiry,
+  formatResetTime,
+  formatWindowRow,
+} from "./formatting.js";
+import {
   type BankedResetDetail,
   type QuotaSnapshot,
   type SourceIdentity,
   type SourceRecord,
   type SourceWindow,
 } from "./snapshot.js";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const DETAIL_WIDTH = 31;
-const DETAIL_LABEL_WIDTH = 10;
-const DETAIL_VALUE_WIDTH = 5;
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function clampPercent(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function detailBorder(title: string): string {
-  const label = ` ${title} `;
-  return `┌${label}${"─".repeat(DETAIL_WIDTH - label.length)}┐`;
-}
-
-function detailRow(label: string, value: string): string {
-  return `│${`${label.padEnd(DETAIL_LABEL_WIDTH)} ${value}`.padEnd(DETAIL_WIDTH)}│`;
-}
-
-function detailValueRow(label: string, value: string): string {
-  return detailRow(label, value.padStart(DETAIL_VALUE_WIDTH));
-}
-
-function detailSubRow(value: string): string {
-  return `│${`  ${value}`.padEnd(DETAIL_WIDTH)}│`;
-}
-
-function detailFooter(): string {
-  return `└${"─".repeat(DETAIL_WIDTH)}┘`;
-}
-
-function formatResetTime(resetAt: number): string {
-  const date = new Date(resetAt * 1000);
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const timeStr = `${hours}:${minutes}`;
-
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) return timeStr;
-  const days = Math.max(
-    1,
-    Math.round((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
-  );
-  return `${days}d`;
-}
-
-function formatRelativeExpiry(expiresAt: number): string {
-  const remainingSeconds = expiresAt - Math.floor(Date.now() / 1000);
-  if (remainingSeconds <= 0) return "expired";
-  const days = Math.round(remainingSeconds / 86_400);
-  if (days >= 1) {
-    return `in ${days}d`;
-  }
-  const hours = Math.max(1, Math.round(remainingSeconds / 3600));
-  return `in ${hours}h`;
-}
-
-function formatWindowRow(
-  label: string,
-  percent: number,
-  resetLabel: string,
-): string {
-  const formattedPercent = String(percent).padStart(DETAIL_VALUE_WIDTH - 1);
-  return detailRow(label, `${formattedPercent}% reset ${resetLabel}`);
-}
 
 function formatWindowBlock(
   label: string,

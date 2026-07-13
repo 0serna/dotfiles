@@ -9,6 +9,7 @@ import type {
   SourceExtras,
   SourceWindow,
 } from "../snapshot.js";
+import { parseCredits, toRemainingPercent } from "../status.js";
 import type {
   CodexResetCreditsResponse,
   CodexUsageResponse,
@@ -36,37 +37,10 @@ export type CodexAdapterCredentials = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function clampPercent(value: number): number {
-  return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function toRemainingPercent(
-  window: CodexUsageWindow | undefined,
-): number | undefined {
-  if (window == null) return undefined;
-  if (typeof window.remaining_percent === "number") {
-    return clampPercent(window.remaining_percent);
-  }
-  if (typeof window.used_percent === "number") {
-    return clampPercent(100 - window.used_percent);
-  }
-  return undefined;
-}
-
 function parseIsoSeconds(value: string | undefined): number | undefined {
   if (typeof value !== "string" || value.length === 0) return undefined;
   const ms = Date.parse(value);
   return Number.isFinite(ms) ? Math.floor(ms / 1000) : undefined;
-}
-
-function parseCredits(
-  credits: CodexUsageResponse["credits"] | undefined,
-): number | undefined {
-  const balance = credits?.balance;
-  const unlimited = credits?.unlimited;
-  if (unlimited) return undefined;
-  const value = typeof balance === "number" ? balance : Number(balance);
-  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : undefined;
 }
 
 type BankedResetDetail = {
@@ -136,6 +110,65 @@ async function fetchJson<T>(
 }
 
 // ---------------------------------------------------------------------------
+// Window classification
+// ---------------------------------------------------------------------------
+
+/** Threshold in seconds: windows ≤ 6h are rolling, everything else is weekly. */
+const ROLLING_MAX_SECONDS = 6 * 60 * 60;
+
+function classifyWindow(
+  primary: CodexUsageWindow | undefined,
+  secondary: CodexUsageWindow | undefined,
+  kind: "rolling" | "weekly",
+): CodexUsageWindow | undefined {
+  const candidates = [primary, secondary].filter(
+    (w): w is CodexUsageWindow => w != null,
+  );
+  if (candidates.length === 0) return undefined;
+  if (candidates.length === 1) {
+    // Single window: use heuristics based on duration if available.
+    const only = candidates[0]!;
+    const secs = only.limit_window_seconds;
+    if (secs != null && secs > 0) {
+      const isRolling = secs <= ROLLING_MAX_SECONDS;
+      if (kind === "rolling") return isRolling ? only : undefined;
+      return isRolling ? undefined : only;
+    }
+    // No duration info: assume the single window is rolling.
+    return kind === "rolling" ? only : undefined;
+  }
+  // Two windows: classify by duration when available, fall back to position.
+  const [a, b] = candidates;
+  const aSecs = a?.limit_window_seconds;
+  const bSecs = b?.limit_window_seconds;
+  const aIsRolling =
+    aSecs != null && aSecs > 0 ? aSecs <= ROLLING_MAX_SECONDS : undefined;
+  const bIsRolling =
+    bSecs != null && bSecs > 0 ? bSecs <= ROLLING_MAX_SECONDS : undefined;
+
+  // Determine which candidate is the rolling window from available data.
+  let rolling: CodexUsageWindow | undefined;
+  if (aIsRolling === true) {
+    rolling = a;
+  } else if (aIsRolling === false) {
+    rolling = b; // a is weekly → b must be rolling
+  } else if (bIsRolling === true) {
+    rolling = b;
+  } else if (bIsRolling === false) {
+    rolling = a; // b is weekly → a must be rolling
+  }
+
+  if (rolling !== undefined) {
+    if (kind === "rolling") return rolling;
+    return rolling === a ? b : a;
+  }
+
+  // No duration info at all: positional fallback (primary = rolling).
+  if (kind === "rolling") return primary;
+  return secondary;
+}
+
+// ---------------------------------------------------------------------------
 // Adapter
 // ---------------------------------------------------------------------------
 
@@ -191,15 +224,20 @@ export const codexAdapter: QuotaAdapter = {
     const primary = rateLimit?.primary_window;
     const secondary = rateLimit?.secondary_window;
 
+    // Classify windows by actual duration rather than primary/secondary position.
+    // Rolling window is ~5h (≤ 6h), weekly window is ~7d.
+    const rollingWindow = classifyWindow(primary, secondary, "rolling");
+    const weeklyWindow = classifyWindow(primary, secondary, "weekly");
+
     const extras: SourceExtras = {
-      credits: parseCredits(usage.credits),
+      credits: parseCredits(usage.credits?.balance, usage.credits?.unlimited),
       bankedResets: toBankedResetsState(resetResponse),
     };
 
     logger.log("fetch_succeeded", {
       provider: PROVIDER_ID,
-      has5h: primary != null,
-      has7d: secondary != null,
+      hasRolling: rollingWindow != null,
+      hasWeekly: weeklyWindow != null,
       hasCredits: extras.credits != null,
       hasBankedResets: extras.bankedResets != null,
     });
@@ -207,8 +245,8 @@ export const codexAdapter: QuotaAdapter = {
     return {
       state: "ok",
       windows: {
-        rolling: toWindow(primary),
-        weekly: toWindow(secondary),
+        rolling: toWindow(rollingWindow),
+        weekly: toWindow(weeklyWindow),
       },
       extras,
     };

@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("formatCompactStatus", () => {
-  it("renders 'Codex 80% R2 · OC/2 75%' for healthy providers", () => {
+  it("renders 'Codex 80%r R2 - OC 75%r' for healthy providers", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -78,23 +78,60 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toBe("Codex 80% R2 · OC/2 75%");
+    expect(result).toBe("Codex 80%r R2 - OC 75%r");
   });
 
-  it("renders OC for persisted OpenCode descriptors", () => {
-    const legacyDescriptor: SourceDescriptor = {
-      ...OPENCODE,
-      compactPrefix: "OpenCode",
-    };
+  it("shows only provider prefix, not account name", () => {
     const snapshot = makeSnapshot([
-      makeRecord(legacyDescriptor, {
+      makeRecord(OPENCODE, {
         windows: {
           rolling: { remainingPercent: 75, resetAt: NOW_SECONDS + 7200 },
         },
       }),
     ]);
+    expect(formatCompactStatus(snapshot)).toBe("OC 75%r");
+  });
 
-    expect(formatCompactStatus(snapshot)).toBe("OC/2 75%");
+  it("uses %r suffix for rolling, %w for weekly, %m for monthly", () => {
+    const rollingOnly = makeSnapshot([
+      makeRecord(CODEX, {
+        windows: {
+          rolling: { remainingPercent: 60, resetAt: NOW_SECONDS + 3600 },
+        },
+      }),
+    ]);
+    expect(formatCompactStatus(rollingOnly)).toBe("Codex 60%r");
+
+    const weeklyOnly = makeSnapshot([
+      makeRecord(CODEX, {
+        windows: {
+          weekly: { remainingPercent: 70, resetAt: NOW_SECONDS + 7200 },
+        },
+      }),
+    ]);
+    expect(formatCompactStatus(weeklyOnly)).toBe("Codex 70%w");
+
+    const monthlyOnly = makeSnapshot([
+      makeRecord(CODEX, {
+        windows: {
+          monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
+        },
+      }),
+    ]);
+    expect(formatCompactStatus(monthlyOnly)).toBe("Codex 90%m");
+  });
+
+  it("prefers rolling over weekly over monthly", () => {
+    const snapshot = makeSnapshot([
+      makeRecord(CODEX, {
+        windows: {
+          rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 3600 },
+          weekly: { remainingPercent: 70, resetAt: NOW_SECONDS + 7200 },
+          monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
+        },
+      }),
+    ]);
+    expect(formatCompactStatus(snapshot)).toBe("Codex 80%r");
   });
 
   it("renders 0% when any window is exhausted", () => {
@@ -137,7 +174,7 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Codex 80% R0");
+    expect(result).toContain("Codex 80%r R0");
   });
 
   it("renders R? when banked reset data is unavailable", () => {
@@ -150,10 +187,10 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Codex 80% R?");
+    expect(result).toContain("Codex 80%r R?");
   });
 
-  it("appends ! for degraded observations within the 30-minute window", () => {
+  it("uses ⚠ prefix for degraded observations within the 30-minute window", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         state: "degraded",
@@ -166,10 +203,10 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toMatch(/Codex 80% R1!/);
+    expect(result).toMatch(/⚠ Codex 80%r R1/);
   });
 
-  it("renders 'Provider …' while a provider is refreshing", () => {
+  it("uses real provider prefix instead of generic 'Provider' placeholder", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         state: "refreshing",
@@ -186,8 +223,8 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toContain("Provider …");
-    expect(result).toContain("OC/2 50%");
+    expect(result).toContain("Codex …");
+    expect(result).toContain("OC 50%r");
   });
 
   it("renders 'Quota …' when no usable observation exists", () => {
@@ -202,12 +239,12 @@ describe("formatCompactStatus", () => {
     expect(result).toContain("Quota …");
   });
 
-  it("renders 'Provider error' when no usable data remains", () => {
+  it("renders '<prefix> error' when no usable data remains", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, { state: "unavailable" }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Provider error");
+    expect(result).toContain("Codex error");
   });
 
   it("does not include reset times or spendable balances", () => {
@@ -225,5 +262,137 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
     expect(result).not.toContain("100");
     expect(result).not.toContain("13:00");
+  });
+
+  describe("color intents", () => {
+    it("returns dim for healthy segments above 10%", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 3600 },
+          },
+        }),
+      ]);
+      const intents: string[] = [];
+      formatCompactStatus(snapshot, {
+        activeSource: undefined,
+        colorize: (intent, text) => {
+          intents.push(intent);
+          return text;
+        },
+      });
+      expect(intents).toEqual(["dim"]);
+    });
+
+    it("returns warning for segments below 10%", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 5, resetAt: NOW_SECONDS + 3600 },
+          },
+        }),
+      ]);
+      const intents: string[] = [];
+      formatCompactStatus(snapshot, {
+        activeSource: undefined,
+        colorize: (intent, text) => {
+          intents.push(intent);
+          return text;
+        },
+      });
+      expect(intents).toEqual(["warning"]);
+    });
+
+    it("returns warning for degraded segments", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          state: "degraded",
+          observedAt: Date.now() - 10 * 60 * 1000,
+          lastSuccessAt: Date.now() - 10 * 60 * 1000,
+          windows: {
+            rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 3600 },
+          },
+        }),
+      ]);
+      const intents: string[] = [];
+      formatCompactStatus(snapshot, {
+        activeSource: undefined,
+        colorize: (intent, text) => {
+          intents.push(intent);
+          return text;
+        },
+      });
+      expect(intents).toEqual(["warning"]);
+    });
+
+    it("returns warning for error segments", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, { state: "unavailable" }),
+      ]);
+      const intents: string[] = [];
+      formatCompactStatus(snapshot, {
+        activeSource: undefined,
+        colorize: (intent, text) => {
+          intents.push(intent);
+          return text;
+        },
+      });
+      expect(intents).toEqual(["warning"]);
+    });
+
+    it("returns dim for refreshing placeholders", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          state: "refreshing",
+          observedAt: 0,
+          lastSuccessAt: 0,
+        }),
+        makeRecord(OPENCODE, {
+          state: "fresh",
+          windows: {
+            rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
+          },
+        }),
+      ]);
+      const intents: string[] = [];
+      formatCompactStatus(snapshot, {
+        activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
+        colorize: (intent, text) => {
+          if (text !== " - ") intents.push(intent);
+          return text;
+        },
+      });
+      // Codex refrescando → dim, OC healthy → dim
+      expect(intents).toEqual(["dim", "dim"]);
+    });
+
+    it("mixes dim and warning intents across providers with dim separator", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 5, resetAt: NOW_SECONDS + 3600 },
+          },
+        }),
+        makeRecord(OPENCODE, {
+          windows: {
+            rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
+          },
+        }),
+      ]);
+      const calls: { intent: string; text: string }[] = [];
+      formatCompactStatus(snapshot, {
+        activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
+        colorize: (intent, text) => {
+          calls.push({ intent, text });
+          return text;
+        },
+      });
+      // Codex <10% → warning, OC → dim, separator → dim
+      expect(calls).toEqual([
+        { intent: "warning", text: "Codex 5%r" },
+        { intent: "dim", text: "OC 80%r" },
+        { intent: "dim", text: " - " },
+      ]);
+    });
   });
 });

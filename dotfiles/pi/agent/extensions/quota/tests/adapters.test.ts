@@ -196,6 +196,166 @@ describe("codexAdapter.fetch", () => {
     if (result.state !== "ok") return;
     expect(result.extras?.bankedResets).toEqual({ kind: "empty" });
   });
+
+  it("classifies windows by limit_window_seconds when primary is weekly and secondary is rolling", async () => {
+    const usageJson = JSON.stringify({
+      rate_limit: {
+        primary_window: {
+          remaining_percent: 90,
+          reset_at: 1_700_000_999,
+          limit_window_seconds: 604800,
+        },
+        secondary_window: {
+          used_percent: 20,
+          reset_at: 1_700_000_000,
+          limit_window_seconds: 18000,
+        },
+      },
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(usageJson, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 500 }));
+    const result = await codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+    expect(result.state).toBe("ok");
+    if (result.state !== "ok") return;
+    // secondary (18000s / 5h) → rolling, primary (604800s / 7d) → weekly
+    expect(result.windows.rolling?.remainingPercent).toBe(80);
+    expect(result.windows.weekly?.remainingPercent).toBe(90);
+  });
+
+  it("classifies a single window by duration: short → rolling, long → weekly", async () => {
+    // Single window with 7d duration → should be weekly, not rolling
+    const usageJson = JSON.stringify({
+      rate_limit: {
+        primary_window: {
+          remaining_percent: 70,
+          reset_at: 1_700_000_000,
+          limit_window_seconds: 604800,
+        },
+      },
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(usageJson, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 500 }));
+    const result = await codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+    expect(result.state).toBe("ok");
+    if (result.state !== "ok") return;
+    expect(result.windows.rolling).toBeUndefined();
+    expect(result.windows.weekly?.remainingPercent).toBe(70);
+  });
+
+  it("classifies by partial duration: primary has duration, secondary doesn't", async () => {
+    const usageJson = JSON.stringify({
+      rate_limit: {
+        primary_window: {
+          remaining_percent: 90,
+          reset_at: 1_700_000_000,
+          limit_window_seconds: 604800,
+        },
+        secondary_window: {
+          used_percent: 15,
+          reset_at: 1_700_000_999,
+        },
+      },
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(usageJson, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 500 }));
+    const result = await codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+    expect(result.state).toBe("ok");
+    if (result.state !== "ok") return;
+    // primary (604800s / 7d) → weekly, secondary (no duration) → rolling
+    expect(result.windows.weekly?.remainingPercent).toBe(90);
+    expect(result.windows.rolling?.remainingPercent).toBe(85);
+  });
+
+  it("classifies by partial duration: secondary has duration, primary doesn't", async () => {
+    const usageJson = JSON.stringify({
+      rate_limit: {
+        primary_window: {
+          used_percent: 30,
+          reset_at: 1_700_000_000,
+        },
+        secondary_window: {
+          remaining_percent: 85,
+          reset_at: 1_700_000_999,
+          limit_window_seconds: 3600,
+        },
+      },
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(usageJson, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 500 }));
+    const result = await codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+    expect(result.state).toBe("ok");
+    if (result.state !== "ok") return;
+    // secondary (3600s / 1h) → rolling, primary (no duration) → weekly
+    expect(result.windows.rolling?.remainingPercent).toBe(85);
+    expect(result.windows.weekly?.remainingPercent).toBe(70);
+  });
+
+  it("falls back to positional mapping when limit_window_seconds is absent", async () => {
+    const usageJson = JSON.stringify({
+      rate_limit: {
+        primary_window: { used_percent: 30, reset_at: 1_700_000_000 },
+        secondary_window: { remaining_percent: 85, reset_at: 1_700_000_999 },
+      },
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(usageJson, { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 500 }));
+    const result = await codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+    expect(result.state).toBe("ok");
+    if (result.state !== "ok") return;
+    // No duration → positional: primary = rolling, secondary = weekly
+    expect(result.windows.rolling?.remainingPercent).toBe(70);
+    expect(result.windows.weekly?.remainingPercent).toBe(85);
+  });
 });
 
 function dashboardHtml(): string {
