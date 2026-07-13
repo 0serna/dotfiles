@@ -3,8 +3,8 @@ import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isTuiMode } from "../shared/mode.ts";
 import { formatDirectorySegment, parseGitMetadata } from "./format.ts";
 
-const LEFT_EXTENSION_ORDER = ["quota", "context"];
-const RIGHT_EXTENSION_ORDER = [];
+const LEFT_EXTENSION_ORDER = ["context", "quota"];
+const RIGHT_EXTENSION_ORDER: string[] = [];
 
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | null = null;

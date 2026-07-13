@@ -4,7 +4,6 @@ import type { ExtensionLogger } from "../shared/logger.js";
 import {
   formatCacheHit,
   formatCurrentUsage,
-  isCacheBelowThreshold,
   type CacheInfo,
   type CacheUsageEntry,
   type ContextUsage,
@@ -42,28 +41,22 @@ function logCacheStatus(
 function publishStatus(
   ctx: ExtensionContext,
   logger: ExtensionLogger,
-  shouldLog: boolean = false,
+  shouldLog: boolean,
 ): void {
   const usage = ctx.getContextUsage();
-  const entries = ctx.sessionManager.getBranch() as CacheUsageEntry[];
-  const cacheInfo = formatCacheHit(entries);
 
   if (shouldLog) {
+    const entries = ctx.sessionManager.getBranch() as CacheUsageEntry[];
+    const cacheInfo = formatCacheHit(entries);
     logCacheStatus(logger, cacheInfo, usage);
   }
 
-  const contextText = `Σ ${formatCurrentUsage(usage)}`;
+  const contextText = formatCurrentUsage(usage);
   const styledContext = isContextOverLimit(usage)
     ? ctx.ui.theme.fg("warning", contextText)
     : ctx.ui.theme.fg("dim", contextText);
-  const styledCache = isCacheBelowThreshold(cacheInfo)
-    ? ctx.ui.theme.fg("warning", cacheInfo.text)
-    : ctx.ui.theme.fg("dim", cacheInfo.text);
 
-  ctx.ui.setStatus(
-    STATUS_KEY,
-    `${styledContext}${ctx.ui.theme.fg("dim", " ")}${styledCache}`,
-  );
+  ctx.ui.setStatus(STATUS_KEY, styledContext);
 }
 
 export function computeAndPublishStatus(

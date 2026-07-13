@@ -12,7 +12,7 @@ function createContext(): StatusContext {
       percent: 6.2,
     }),
     sessionManager: {
-      getBranch: () => [
+      getBranch: vi.fn().mockReturnValue([
         {
           type: "message",
           message: {
@@ -20,7 +20,7 @@ function createContext(): StatusContext {
             usage: { input: 100, cacheRead: 900 },
           },
         },
-      ],
+      ]),
     },
     ui: {
       theme: {
@@ -32,11 +32,23 @@ function createContext(): StatusContext {
 }
 
 describe("computeAndPublishStatus", () => {
-  it("logs displayed context usage in cache status events", () => {
+  it("publishes only context tokens in the status", () => {
+    const ctx = createContext();
+
+    computeAndPublishStatus(ctx, { log: vi.fn() });
+
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith("context", "12k");
+    expect(ctx.sessionManager.getBranch).not.toHaveBeenCalled();
+  });
+
+  it("logs cache status when shouldLog is true", () => {
+    const ctx = createContext();
     const logger: StatusLogger = { log: vi.fn() };
 
-    computeAndPublishStatus(createContext(), logger, true);
+    computeAndPublishStatus(ctx, logger, true);
 
+    expect(ctx.ui.setStatus).toHaveBeenCalledWith("context", "12k");
+    expect(ctx.sessionManager.getBranch).toHaveBeenCalled();
     expect(logger.log).toHaveBeenCalledWith(
       "cache_status",
       expect.objectContaining({
