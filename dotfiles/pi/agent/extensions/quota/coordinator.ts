@@ -46,6 +46,8 @@ export type { QuotaAdapter };
 
 const DEFAULT_FRESHNESS_MS = 5 * 60 * 1000;
 const LEASE_TTL_MS = 60_000;
+const SOURCE_MAX_ATTEMPTS = 3;
+const SOURCE_RETRY_BASE_DELAY_MS = 2_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,8 +63,6 @@ export type QuotaCoordinatorOptions = {
   /** Lease directory used by acquireRefreshLease. */
   leaseDir?: string;
   logger: AdapterLogger;
-  /** Total attempts per source per cycle. */
-  maxAttempts?: number;
   /** Freshness threshold for an ensure-fresh refresh. */
   freshnessMs?: number;
 };
@@ -85,6 +85,15 @@ export type Coordinator = {
 // Implementation
 // ---------------------------------------------------------------------------
 
+async function waitForRetry(ms: number, signal: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal.aborted) return;
+  const combined = AbortSignal.any([signal, AbortSignal.timeout(ms)]);
+  if (combined.aborted) return;
+  await new Promise<void>((resolve) => {
+    combined.addEventListener("abort", () => resolve(), { once: true });
+  });
+}
+
 export function createCoordinator(
   options: QuotaCoordinatorOptions,
 ): Coordinator {
@@ -96,7 +105,6 @@ export function createCoordinator(
   const leaseDir = options.leaseDir ?? pathJoin(stateDir, "lease");
   setLeaseDirectory(leaseDir);
 
-  const maxAttempts = options.maxAttempts ?? 2;
   const freshnessMs = options.freshnessMs ?? DEFAULT_FRESHNESS_MS;
 
   const listeners = new Set<(snapshot: QuotaSnapshot) => void>();
@@ -168,7 +176,7 @@ export function createCoordinator(
       state: "error",
       reason: "fetch_failed",
     };
-    for (let i = 0; i < maxAttempts; i++) {
+    for (let i = 0; i < SOURCE_MAX_ATTEMPTS; i++) {
       attempts += 1;
       logger.log("source_attempt", {
         providerId: descriptor.identity.providerId,
@@ -186,6 +194,14 @@ export function createCoordinator(
       }
       if (lastResult.state !== "error" || signal.aborted) {
         return { descriptor, result: lastResult, attempts };
+      }
+      if (attempts < SOURCE_MAX_ATTEMPTS) {
+        const backoffCeiling = SOURCE_RETRY_BASE_DELAY_MS * 2 ** (attempts - 1);
+        const delayMs = Math.floor(Math.random() * backoffCeiling);
+        await waitForRetry(delayMs, signal);
+        if (signal.aborted) {
+          return { descriptor, result: lastResult, attempts };
+        }
       }
     }
     return { descriptor, result: lastResult, attempts };

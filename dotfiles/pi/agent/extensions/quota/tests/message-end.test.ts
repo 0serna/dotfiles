@@ -47,14 +47,6 @@ vi.mock("node:fs/promises", () => ({
   watch: vi.fn().mockReturnValue({ close: () => undefined }),
 }));
 
-vi.mock("../opencode.js", () => ({
-  fetchOpenCodeGoData: vi.fn().mockResolvedValue({
-    monthly: { remainingPercent: 50, resetInSec: 3600 },
-    weekly: { remainingPercent: 50, resetInSec: 3600 },
-    rolling: { remainingPercent: 50, resetInSec: 3600 },
-  }),
-}));
-
 vi.mock("../loading.js", () => ({
   withQuotaNotification: vi.fn(async (_ctx: unknown, op: () => unknown) =>
     op(),

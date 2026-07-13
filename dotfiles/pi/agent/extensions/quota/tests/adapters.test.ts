@@ -36,6 +36,7 @@ describe("opencodeGoAdapter.describe", () => {
 describe("opencodeGoAdapter.fetch", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("returns skipped when credentials are missing", async () => {
@@ -72,6 +73,44 @@ describe("opencodeGoAdapter.fetch", () => {
     expect(rolling.resetAt).toBeGreaterThanOrEqual(nowSeconds + 9);
     expect(rolling.resetAt).toBeLessThanOrEqual(nowSeconds + 11);
     expect(rolling.remainingPercent).toBe(100);
+  });
+
+  it("applies a 15-second request timeout", async () => {
+    const timeoutController = new AbortController();
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(timeoutController.signal);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => reject(init.signal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+
+    const resultPromise = opencodeGoAdapter.fetch(
+      {
+        providerId: "opencode-go",
+        sourceId: "1",
+        credentials: { workspaceId: "ws-1", authCookie: "auth=cookie" },
+      },
+      ABORT,
+      silentLogger,
+    );
+    await Promise.resolve();
+    try {
+      expect(timeoutSpy).toHaveBeenCalledWith(15_000);
+    } finally {
+      timeoutController.abort(new Error("request timeout"));
+    }
+
+    await expect(resultPromise).resolves.toMatchObject({ state: "error" });
   });
 
   it("honors the abort signal", async () => {
@@ -128,6 +167,7 @@ describe("codexAdapter.fetch", () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("skips network fetching when the access token is missing", async () => {
@@ -143,6 +183,44 @@ describe("codexAdapter.fetch", () => {
     expect(result.state).toBe("skipped");
     if (result.state !== "skipped") return;
     expect(result.reason).toBe("auth_missing");
+  });
+
+  it("applies a 15-second request timeout", async () => {
+    const timeoutController = new AbortController();
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(timeoutController.signal);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_input: Parameters<typeof fetch>[0], init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => reject(init.signal?.reason),
+              { once: true },
+            );
+          }),
+      ),
+    );
+
+    const resultPromise = codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+    await Promise.resolve();
+    try {
+      expect(timeoutSpy).toHaveBeenCalledWith(15_000);
+    } finally {
+      timeoutController.abort(new Error("request timeout"));
+    }
+
+    await expect(resultPromise).resolves.toMatchObject({ state: "error" });
   });
 
   it("publishes successful usage and marks reset credits as unavailable when the reset endpoint fails", async () => {
@@ -195,6 +273,68 @@ describe("codexAdapter.fetch", () => {
     expect(result.state).toBe("ok");
     if (result.state !== "ok") return;
     expect(result.extras?.bankedResets).toEqual({ kind: "empty" });
+  });
+
+  it("filters, parses, and sorts available banked resets", async () => {
+    const usageJson = JSON.stringify({
+      rate_limit: { primary_window: { remaining_percent: 80 } },
+    });
+    const resetJson = JSON.stringify({
+      credits: [
+        {
+          status: "available",
+          granted_at: "invalid",
+          expires_at: "2026-08-01T00:00:00Z",
+        },
+        {
+          status: "redeemed",
+          granted_at: "2026-06-01T00:00:00Z",
+          expires_at: "2026-07-01T00:00:00Z",
+        },
+        {
+          status: "available",
+          granted_at: "2026-06-01T00:00:00Z",
+          expires_at: "2026-07-01T00:00:00Z",
+        },
+        {
+          status: "available",
+          granted_at: "2026-06-01T00:00:00Z",
+          expires_at: "not-a-date",
+        },
+      ],
+    });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(new Response(usageJson, { status: 200 }))
+      .mockResolvedValueOnce(new Response(resetJson, { status: 200 }));
+
+    const result = await codexAdapter.fetch(
+      {
+        providerId: "openai-codex",
+        sourceId: "codex-login",
+        credentials: makeCredentials(),
+      },
+      ABORT,
+      silentLogger,
+    );
+
+    expect(result.state).toBe("ok");
+    if (result.state !== "ok") return;
+    expect(result.extras?.bankedResets).toEqual({
+      kind: "available",
+      details: [
+        {
+          grantedAt: Date.parse("2026-06-01T00:00:00Z") / 1000,
+          expiresAt: Date.parse("2026-07-01T00:00:00Z") / 1000,
+          status: "available",
+        },
+        {
+          grantedAt: 0,
+          expiresAt: Date.parse("2026-08-01T00:00:00Z") / 1000,
+          status: "available",
+        },
+      ],
+    });
   });
 
   it("classifies windows by limit_window_seconds when primary is weekly and secondary is rolling", async () => {

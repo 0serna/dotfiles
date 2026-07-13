@@ -100,6 +100,7 @@ describe("structured quota logs", () => {
     const now = 1_700_000_000_000;
     vi.spyOn(Date, "now").mockReturnValue(now);
     const stateDir = `/tmp/quota-logs-state-${process.pid}-${Math.random()}`;
+    vi.spyOn(Math, "random").mockReturnValue(0);
     resetSnapshotStore({ stateDir, lockDir: `${stateDir}/locks` });
     setLeaseDirectory(`${stateDir}/lease`);
     const coordinator = createCoordinator({
@@ -196,6 +197,7 @@ describe("structured quota logs", () => {
       leaseDir: `${stateDir}/lease`,
       logger,
     });
+    vi.spyOn(Math, "random").mockReturnValue(0);
     await coordinator.refresh([
       {
         providerId: "provider-with-creds",
@@ -205,6 +207,7 @@ describe("structured quota logs", () => {
     ]);
     const eventNames = events.map((e) => e.event);
     expect(eventNames).toContain("fetch_failed");
+    vi.restoreAllMocks();
     await coordinator.shutdown();
   });
 

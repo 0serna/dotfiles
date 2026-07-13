@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { silentLogger } from "../adapter-test-utils.js";
 import {
   createCoordinator,
@@ -78,14 +78,15 @@ beforeEach(() => {
     lockDir: join(root, "locks"),
     leaseDir: join(root, "lease"),
     logger: silentLogger,
-    maxAttempts: 2,
   };
+  vi.spyOn(Math, "random").mockReturnValue(0);
   coordinator = createCoordinator(options);
 });
 
 afterEach(async () => {
   await coordinator.shutdown();
   resetAdapterRegistry();
+  vi.restoreAllMocks();
   rmSync(root, { recursive: true, force: true });
 });
 
@@ -162,26 +163,30 @@ describe("coordinator.refresh", () => {
     expect(partial.sources[`${PROVIDER_A}/a`]?.state).toBe("refreshing");
   });
 
-  it("retries failed sources up to two total attempts", async () => {
+  it("retries failed sources three times with exponential full-jitter backoff", async () => {
     let attempts = 0;
-    const fetch: QuotaAdapter["fetch"] = async (_input, signal) => {
-      attempts += 1;
-      if (attempts === 1) {
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, 5);
-        });
-        return { state: "error", reason: "fetch_failed" };
-      }
-      await new Promise<void>((resolve) => {
-        setTimeout(resolve, 5);
-      });
-      if (signal.aborted) return { state: "error", reason: "aborted" };
-      return {
-        state: "ok",
-        windows: { rolling: { remainingPercent: 90, resetAt: 1_700_000_000 } },
-      };
-    };
-    registerAdapter(makeAdapter(PROVIDER_A, fetch));
+    const delays: number[] = [];
+    vi.mocked(Math.random).mockReturnValue(0.5);
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+      delays.push(ms);
+      const controller = new AbortController();
+      queueMicrotask(() => controller.abort());
+      return controller.signal;
+    });
+    registerAdapter(
+      makeAdapter(PROVIDER_A, async () => {
+        attempts += 1;
+        if (attempts < 3) {
+          return { state: "error", reason: "fetch_failed" };
+        }
+        return {
+          state: "ok",
+          windows: {
+            rolling: { remainingPercent: 90, resetAt: 1_700_000_000 },
+          },
+        };
+      }),
+    );
 
     await coordinator.refresh([
       {
@@ -192,12 +197,12 @@ describe("coordinator.refresh", () => {
     ]);
 
     const snapshot = await coordinator.read();
-    const key = `${PROVIDER_A}/a`;
-    expect(snapshot.sources[key]?.state).toBe("fresh");
-    expect(attempts).toBe(2);
+    expect(snapshot.sources[`${PROVIDER_A}/a`]?.state).toBe("fresh");
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([1_000, 2_000]);
   });
 
-  it("preserves a successful source when a sibling source exhausts both attempts", async () => {
+  it("preserves a successful source when a sibling source exhausts all attempts", async () => {
     registerAdapter(makeAdapter(PROVIDER_A, sourceFetch("a", 70)));
     registerAdapter(
       makeAdapter(PROVIDER_B, async () => ({

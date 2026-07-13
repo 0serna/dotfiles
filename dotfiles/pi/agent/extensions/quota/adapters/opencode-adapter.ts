@@ -14,6 +14,7 @@ import type { OpenCodeGoData, OpenCodeGoWindowData } from "../types.js";
 
 const GO_DASHBOARD_URL = "https://opencode.ai/workspace";
 const PROVIDER_ID = "opencode-go";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 // ---------------------------------------------------------------------------
 // Credentials
@@ -37,7 +38,10 @@ async function fetchGoDashboardHtml(
   try {
     const response = await fetch(`${GO_DASHBOARD_URL}/${workspaceId}/go`, {
       headers: { Cookie: `auth=${authCookie}` },
-      signal,
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ]),
     });
     if (!response.ok) return null;
     return await response.text();
@@ -59,7 +63,7 @@ function toWindow(
 ): SourceWindow | undefined {
   if (!parsed) return undefined;
   return {
-    remainingPercent: clampPercent(parsed.remainingPercent),
+    remainingPercent: parsed.remainingPercent,
     resetAt: Math.floor(now / 1000) + parsed.resetInSec,
   };
 }

@@ -24,6 +24,7 @@ const CODEX_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const CODEX_RESET_CREDITS_URL =
   "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits";
 const PROVIDER_ID = "openai-codex";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 // ---------------------------------------------------------------------------
 // Credentials
@@ -89,7 +90,10 @@ async function fetchJson<T>(
   try {
     const response = await fetch(url, {
       headers,
-      signal,
+      signal: AbortSignal.any([
+        signal,
+        AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      ]),
     });
     if (!response.ok) {
       logger.log("fetch_failed", {

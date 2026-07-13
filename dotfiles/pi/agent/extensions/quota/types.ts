@@ -78,21 +78,6 @@ export type CodexResetCreditsResponse = {
   credits?: CodexResetCredit[];
 };
 
-export type BankedResetDetail = {
-  expiresAt: number;
-  grantedAt: number;
-  status: string;
-};
-
-export type CodexQuotaData = {
-  remaining5h?: number;
-  remaining7d?: number;
-  remainingCredits?: number;
-  bankedResetDetails?: BankedResetDetail[];
-  resetAt5h?: number;
-  resetAt7d?: number;
-};
-
 // ---------------------------------------------------------------------------
 // OpenCode Go types
 // ---------------------------------------------------------------------------
