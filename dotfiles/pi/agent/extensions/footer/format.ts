@@ -1,5 +1,25 @@
 import { basename, dirname, resolve } from "node:path";
 
+export const CONTEXT_USAGE_WARNING_TOKENS = 150_000;
+
+type ContextUsage = {
+  tokens: number | null;
+  contextWindow: number;
+  percent: number | null;
+};
+
+export function formatK(value: number): string {
+  return `${Math.round(value / 1000)}k`;
+}
+
+export function formatCurrentUsage(usage: ContextUsage | undefined): string {
+  if (usage == null || usage.tokens == null) {
+    return formatK(0);
+  }
+
+  return formatK(usage.tokens);
+}
+
 export interface GitMetadata {
   topLevel: string;
   gitDir: string;

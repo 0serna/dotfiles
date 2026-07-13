@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatDirectorySegment, parseGitMetadata } from "../format.ts";
+import {
+  CONTEXT_USAGE_WARNING_TOKENS,
+  formatCurrentUsage,
+  formatDirectorySegment,
+  formatK,
+  parseGitMetadata,
+} from "../format.ts";
 
 describe("parseGitMetadata", () => {
   it("parses Git rev-parse output", () => {
@@ -12,6 +18,56 @@ describe("parseGitMetadata", () => {
       gitDir: "/repositories/dotfiles/.git/worktrees/tautog",
       commonDir: "/repositories/dotfiles/.git",
     });
+  });
+});
+
+describe("formatK", () => {
+  it("returns zero in integer k-format", () => {
+    expect(formatK(0)).toBe("0k");
+  });
+
+  it("rounds values below 1000 to integer k-format", () => {
+    expect(formatK(900)).toBe("1k");
+  });
+
+  it("rounds values above 999 to integer k-format", () => {
+    expect(formatK(1234)).toBe("1k");
+  });
+
+  it("rounds decimal thousands to integer k-format", () => {
+    expect(formatK(41_900)).toBe("42k");
+  });
+});
+
+describe("formatCurrentUsage", () => {
+  it("returns zero tokens when usage is undefined", () => {
+    expect(formatCurrentUsage(undefined)).toBe("0k");
+  });
+
+  it("returns zero tokens when tokens are null", () => {
+    expect(
+      formatCurrentUsage({
+        tokens: null,
+        contextWindow: 200_000,
+        percent: null,
+      }),
+    ).toBe("0k");
+  });
+
+  it("formats provided token value", () => {
+    expect(
+      formatCurrentUsage({
+        tokens: 12_345,
+        contextWindow: 200_000,
+        percent: 6.2,
+      }),
+    ).toBe("12k");
+  });
+});
+
+describe("CONTEXT_USAGE_WARNING_TOKENS", () => {
+  it("is 150k", () => {
+    expect(CONTEXT_USAGE_WARNING_TOKENS).toBe(150_000);
   });
 });
 

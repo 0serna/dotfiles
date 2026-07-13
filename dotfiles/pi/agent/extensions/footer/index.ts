@@ -1,9 +1,14 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { isTuiMode } from "../shared/mode.ts";
-import { formatDirectorySegment, parseGitMetadata } from "./format.ts";
+import {
+  CONTEXT_USAGE_WARNING_TOKENS,
+  formatCurrentUsage,
+  formatDirectorySegment,
+  parseGitMetadata,
+} from "./format.ts";
 
-const LEFT_EXTENSION_ORDER = ["context", "quota"];
+const LEFT_EXTENSION_ORDER = ["quota"];
 const RIGHT_EXTENSION_ORDER: string[] = [];
 
 export default function (pi: ExtensionAPI) {
@@ -68,12 +73,20 @@ export default function (pi: ExtensionAPI) {
               extStatuses.get(key),
             ).filter(Boolean);
 
+            const usage = ctx.getContextUsage();
+            const usageText = formatCurrentUsage(usage);
+            const isOverLimit =
+              (usage?.tokens ?? 0) > CONTEXT_USAGE_WARNING_TOKENS;
+            const usageStyle = isOverLimit ? "warning" : "dim";
+            const modelText = modelSlug ? `${modelSlug}/${thinking}` : thinking;
+            const modelWithUsage = theme.fg(
+              "dim",
+              `${modelText} ${theme.fg(usageStyle, usageText)}`,
+            );
+
             const sections = [
               theme.fg("dim", directory),
-              theme.fg(
-                "dim",
-                modelSlug ? `${modelSlug}/${thinking}` : thinking,
-              ),
+              modelWithUsage,
               ...leftExtensions,
             ].filter(Boolean);
 
