@@ -2,6 +2,8 @@ import {
   appendFileSync,
   mkdirSync,
   readFileSync,
+  renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "fs";
@@ -73,16 +75,19 @@ function truncateFile(filePath: string): void {
   const tail = content.subarray(start);
   const startsAtLineBoundary = start === 0 || content[start - 1] === 0x0a;
 
+  let truncated: Buffer;
   if (startsAtLineBoundary) {
-    writeFileSync(filePath, tail);
-    return;
+    truncated = tail;
+  } else {
+    const firstNewline = tail.indexOf(0x0a);
+    truncated =
+      firstNewline === -1 ? Buffer.alloc(0) : tail.subarray(firstNewline + 1);
   }
 
-  const firstNewline = tail.indexOf(0x0a);
-  writeFileSync(
-    filePath,
-    firstNewline === -1 ? Buffer.alloc(0) : tail.subarray(firstNewline + 1),
-  );
+  const tmpPath = filePath + ".tmp";
+  rmSync(tmpPath, { force: true });
+  writeFileSync(tmpPath, truncated);
+  renameSync(tmpPath, filePath);
 }
 
 function writeEntry(
