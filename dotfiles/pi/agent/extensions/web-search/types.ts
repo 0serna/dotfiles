@@ -39,5 +39,22 @@ export type SearchResult = {
   title: string;
   url: string;
   snippet: string;
-  provider: "exa" | "tavily";
+  provider: "exa" | "tavily" | "firecrawl";
+};
+
+export type FirecrawlSearchResponse = {
+  data?: {
+    web?: Array<{
+      title?: string;
+      url?: string;
+      description?: string;
+      markdown?: string;
+    }>;
+  };
+};
+
+export type FirecrawlScrapeResponse = {
+  data?: {
+    markdown?: string;
+  };
 };

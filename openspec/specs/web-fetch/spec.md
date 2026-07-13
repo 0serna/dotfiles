@@ -8,7 +8,7 @@ TBD - created by archiving change pi-exa-tools. Update Purpose after archive.
 
 ### Requirement: Fetch content from a single URL
 
-The system SHALL accept a single URL and return its readable content, attempting retrieval through a four-tier fallback chain ordered by cost: GitHub URL optimization (free), direct HTTP text extraction (free), Cloudflare Browser Run headless rendering (free tier), and Exa-assisted retrieval (paid). The system SHALL include the retrieval source name in the tool result details for display purposes. The system SHALL cache successful fetch results in-process for 10 minutes to avoid redundant retrieval on repeated fetches of the same URL.
+The system SHALL accept a single URL and return its readable content, attempting retrieval through a five-tier fallback chain ordered as GitHub URL optimization, direct HTTP text extraction, Firecrawl Scrape, Cloudflare Browser Run headless rendering, and Exa-assisted retrieval. The system SHALL include the retrieval source name in the tool result details for display purposes. The system SHALL cache successful fetch results in-process for 10 minutes to avoid redundant retrieval on repeated fetches of the same URL.
 
 #### Scenario: Cache hit on repeated fetch
 
@@ -35,10 +35,15 @@ The system SHALL accept a single URL and return its readable content, attempting
 - **WHEN** the user calls `web_fetch` with a URL that serves `text/plain` content and GitHub optimization does not apply
 - **THEN** the system SHALL fetch the content directly via HTTP and return the raw text with source set to `http-fallback`
 
-#### Scenario: HTTP fallback skips HTML content
+#### Scenario: HTTP retrieval skips HTML content
 
 - **WHEN** the user calls `web_fetch` with a URL that serves `text/html` content and GitHub optimization does not apply
-- **THEN** the system SHALL skip the HTTP fallback and continue to the Cloudflare Browser Run fallback
+- **THEN** the system SHALL skip direct HTTP content and continue to Firecrawl Scrape
+
+#### Scenario: Successful content retrieval via Firecrawl
+
+- **WHEN** the user calls `web_fetch` with a URL that neither GitHub optimization nor HTTP text extraction can provide content for and Firecrawl returns Markdown
+- **THEN** the system SHALL return the extracted Markdown with source set to `firecrawl`
 
 #### Scenario: Successful content retrieval via Cloudflare Browser Run
 
@@ -47,12 +52,12 @@ The system SHALL accept a single URL and return its readable content, attempting
 
 #### Scenario: Successful content retrieval via Exa
 
-- **WHEN** the user calls `web_fetch` with a URL that GitHub, HTTP, and Cloudflare Browser Run cannot provide content for
-- **THEN** the system SHALL attempt Exa-assisted retrieval and return the extracted content as markdown with a title and source set to `exa`
+- **WHEN** GitHub, HTTP, Firecrawl, and Cloudflare Browser Run cannot provide content
+- **THEN** the system SHALL attempt Exa-assisted retrieval and return extracted content with source set to `exa`
 
 #### Scenario: All tiers exhausted
 
-- **WHEN** all four fallback tiers fail to provide content for a URL
+- **WHEN** all five fallback tiers fail to provide content for a URL
 - **THEN** the system SHALL return an error indicating the fetch failed
 
 #### Scenario: Invalid URL
@@ -68,6 +73,11 @@ The system SHALL display the retrieval source name alongside the content size in
 
 - **WHEN** the tool result has `source` set to `github-raw` or `github-api`
 - **THEN** the renderer SHALL display the label `github` alongside the content size (e.g., `17.2KB (github)`)
+
+#### Scenario: Display source for Firecrawl retrieval
+
+- **WHEN** the tool result has `source` set to `firecrawl`
+- **THEN** the renderer SHALL display the label `firecrawl` alongside the content size, for example `17.2KB (firecrawl)`
 
 #### Scenario: Display source for Exa retrieval
 
@@ -94,6 +104,30 @@ The system SHALL display the retrieval source name alongside the content size in
 - **WHEN** the tool result is an error
 - **THEN** the renderer SHALL display only the error message without a source label
 
+### Requirement: Firecrawl Scrape retrieval adapter
+
+The system SHALL call `POST https://api.firecrawl.dev/v2/scrape` with the requested URL, Markdown output, and main-content extraction after direct HTTP retrieval fails and before Cloudflare Browser Run. The request SHALL include `Authorization: Bearer <FIRECRAWL_API_KEY>` when `FIRECRAWL_API_KEY` is configured and SHALL omit authorization otherwise. A successful non-empty `data.markdown` result SHALL be returned with source `firecrawl`.
+
+#### Scenario: Authenticated Firecrawl scrape succeeds
+
+- **WHEN** direct HTTP retrieval does not provide content, `FIRECRAWL_API_KEY` is configured, and Firecrawl returns non-empty Markdown
+- **THEN** the system SHALL send the bearer API key and return the Markdown with source `firecrawl` without invoking Cloudflare or Exa
+
+#### Scenario: Keyless Firecrawl scrape succeeds
+
+- **WHEN** direct HTTP retrieval does not provide content, `FIRECRAWL_API_KEY` is not configured, and Firecrawl returns non-empty Markdown
+- **THEN** the system SHALL omit the Authorization header and return the Markdown with source `firecrawl`
+
+#### Scenario: Firecrawl scrape fails cleanly
+
+- **WHEN** Firecrawl returns a non-2xx response, HTTP 429, invalid response, empty Markdown, or times out
+- **THEN** the system SHALL return no Firecrawl content without retrying and continue to Cloudflare Browser Run
+
+#### Scenario: Firecrawl request timeout
+
+- **WHEN** the Firecrawl request does not complete within 30 seconds
+- **THEN** the system SHALL abort it and continue to Cloudflare Browser Run
+
 ### Requirement: In-process fetch content cache
 
 The system SHALL maintain an in-process cache of successful `web_fetch` results to avoid redundant HTTP requests when the LLM fetches the same URL multiple times within a session.
@@ -115,22 +149,22 @@ The system SHALL maintain an in-process cache of successful `web_fetch` results 
 
 ### Requirement: Cloudflare Browser Run fallback with credentials gating
 
-The system SHALL attempt Cloudflare Browser Run's `/markdown` Quick Action endpoint as a fallback between HTTP text extraction and Exa-assisted retrieval. The system SHALL skip this fallback silently when required environment variables are not set.
+The system SHALL attempt Cloudflare Browser Run's `/markdown` Quick Action endpoint after Firecrawl Scrape and before Exa-assisted retrieval. The system SHALL skip this fallback silently when required environment variables are not set.
 
 #### Scenario: Skip Browser Run when credentials are absent
 
 - **WHEN** `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` environment variables are not set
-- **THEN** the system SHALL skip the Browser Run fallback without making any HTTP request and proceed to the Exa fallback
+- **THEN** the system SHALL skip Browser Run without making any HTTP request and proceed to Exa
 
 #### Scenario: Successful Browser Run extraction
 
-- **WHEN** the Browser Run `/markdown` endpoint returns a successful response with Markdown content
-- **THEN** the system SHALL return the Markdown content as the fetch result with source marked as `cloudflare`
+- **WHEN** the Browser Run `/markdown` endpoint returns a successful response with Markdown content after Firecrawl did not provide content
+- **THEN** the system SHALL return the Markdown content with source marked as `cloudflare`
 
 #### Scenario: Browser Run returns empty or invalid response
 
 - **WHEN** the Browser Run `/markdown` endpoint returns a response with no usable content
-- **THEN** the system SHALL fall through to the Exa fallback
+- **THEN** the system SHALL continue to Exa
 
 ### Requirement: Browser Run rendering configuration
 
@@ -282,9 +316,9 @@ The system SHALL detect recognized public GitHub URLs passed to `web_fetch` and 
 #### Scenario: Preserve fallback for unrecognized GitHub URLs
 
 - **WHEN** the user calls `web_fetch` with a GitHub URL that does not match a supported file, repository, issue, pull request, or release pattern
-- **THEN** the system SHALL use the HTTP, Cloudflare, and Exa fallback retrieval behavior
+- **THEN** the system SHALL use the HTTP, Firecrawl, Cloudflare, and Exa retrieval cascade
 
 #### Scenario: Preserve fallback when GitHub optimized fetch fails
 
 - **WHEN** a recognized GitHub URL cannot be retrieved through its optimized raw or API endpoint
-- **THEN** the system SHALL use the HTTP, Cloudflare, and Exa fallback retrieval behavior instead of failing immediately
+- **THEN** the system SHALL use the HTTP, Firecrawl, Cloudflare, and Exa retrieval cascade instead of failing immediately

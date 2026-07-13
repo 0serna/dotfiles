@@ -101,6 +101,7 @@ export function renderWebFetchCall(args: { url: string }, theme: Theme): Text {
 const SOURCE_LABELS: Record<string, string> = {
   "github-raw": "github",
   "github-api": "github",
+  firecrawl: "firecrawl",
   exa: "exa",
   cloudflare: "cloudflare",
   "http-fallback": "http",

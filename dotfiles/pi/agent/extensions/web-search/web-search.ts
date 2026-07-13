@@ -1,29 +1,15 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { callExaSearch } from "./exa.ts";
+import { callFirecrawlSearch } from "./firecrawl.ts";
 import { callTavilySearch } from "./tavily.ts";
 import type {
   ExaSearchResponse,
+  FirecrawlSearchResponse,
   SearchResult,
   TavilySearchResponse,
   TextToolResult,
 } from "./types.ts";
-
-function formatSearchResponse(data: ExaSearchResponse): string {
-  const results = data.results ?? [];
-  if (results.length === 0) {
-    return "No results found.";
-  }
-  const sources = results
-    .map((r, i) => `${i + 1}. [${r.title ?? "Untitled"}](${r.url ?? ""})`)
-    .join("\n");
-  const bestText =
-    results
-      .map((r) => r.highlights?.[0] ?? "")
-      .filter(Boolean)
-      .join("\n\n") || "No summary text available.";
-  return `${bestText}\n\n**Sources:**\n${sources}`;
-}
 
 function toExaResults(data: ExaSearchResponse | null): SearchResult[] {
   return (data?.results ?? []).flatMap((result) => {
@@ -49,17 +35,31 @@ function toTavilyResults(data: TavilySearchResponse | null): SearchResult[] {
   });
 }
 
-function mergeResults(
-  exaResults: SearchResult[],
-  tavilyResults: SearchResult[],
+function toFirecrawlResults(
+  data: FirecrawlSearchResponse | null,
 ): SearchResult[] {
+  return (data?.data?.web ?? []).flatMap((entry) => {
+    if (!entry.url) return [];
+    return {
+      title: entry.title ?? "Untitled",
+      url: entry.url,
+      snippet:
+        entry.description ?? entry.markdown ?? "No summary text available.",
+      provider: "firecrawl" as const,
+    };
+  });
+}
+
+function mergeResults(providerResults: SearchResult[][]): SearchResult[] {
   const merged: SearchResult[] = [];
   const seen = new Set<string>();
-  const maxLength = Math.max(exaResults.length, tavilyResults.length);
+  const maxLength = Math.max(
+    ...providerResults.map((results) => results.length),
+  );
 
   for (let index = 0; index < maxLength; index += 1) {
-    const pair = [exaResults[index], tavilyResults[index]];
-    for (const result of pair) {
+    for (const results of providerResults) {
+      const result = results[index];
       if (!result) continue;
       const key = result.url.toLowerCase();
       if (seen.has(key)) continue;
@@ -91,22 +91,14 @@ function throwSearchFailed(): never {
 function searchSucceeded(
   text: string,
   sourceCount: number,
-  providers?: { exa: number; tavily: number },
+  providerCounts?: Record<string, number>,
 ): TextToolResult {
   return {
     content: [{ type: "text" as const, text }],
-    details: providers ? { sourceCount, providers } : { sourceCount },
+    details: providerCounts
+      ? { sourceCount, providers: providerCounts }
+      : { sourceCount },
   };
-}
-
-async function runExaOnly(
-  query: string,
-  toolCallId: string,
-): Promise<TextToolResult> {
-  const data = await callExaSearch(query, toolCallId).catch(() => null);
-  const sourceCount = data?.results?.length ?? 0;
-  if (data == null || sourceCount === 0) throwSearchFailed();
-  return searchSucceeded(formatSearchResponse(data), sourceCount);
 }
 
 export async function executeWebSearch(
@@ -122,43 +114,65 @@ export async function executeWebSearch(
   const hasExaApiKey = Boolean(process.env.EXA_API_KEY);
   const hasTavilyApiKey = Boolean(process.env.TAVILY_API_KEY);
 
-  if (!hasTavilyApiKey) {
-    return runExaOnly(trimmedQuery, _toolCallId);
+  // Firecrawl is always eligible (keyless or authenticated).
+  const eligible: Array<"exa" | "tavily" | "firecrawl"> = ["firecrawl"];
+  if (hasTavilyApiKey) eligible.unshift("tavily" as const);
+  if (hasExaApiKey) eligible.unshift("exa" as const);
+
+  const settled = await Promise.allSettled(
+    eligible.map((provider) => {
+      switch (provider) {
+        case "exa":
+          return callExaSearch(trimmedQuery, _toolCallId, 2);
+        case "tavily":
+          return callTavilySearch(trimmedQuery, _toolCallId);
+        case "firecrawl":
+          return callFirecrawlSearch(trimmedQuery, _toolCallId);
+      }
+    }),
+  );
+
+  // Map to SearchResult[] in provider order
+  const allGroups: SearchResult[][] = [];
+  const providerCounts: Record<string, number> = {};
+
+  for (let i = 0; i < eligible.length; i += 1) {
+    const provider = eligible[i]!;
+    const s = settled[i]!;
+    const data = s.status === "fulfilled" ? s.value : null;
+    let group: SearchResult[];
+    switch (provider) {
+      case "exa":
+        group = toExaResults(data as ExaSearchResponse | null);
+        break;
+      case "tavily":
+        group = toTavilyResults(data as TavilySearchResponse | null);
+        break;
+      case "firecrawl":
+        group = toFirecrawlResults(data as FirecrawlSearchResponse | null);
+        break;
+    }
+    allGroups.push(group);
+    providerCounts[provider] = group.length;
   }
 
-  if (!hasExaApiKey) {
-    const tavilyData = await callTavilySearch(trimmedQuery, _toolCallId);
-    const tavilyResults = toTavilyResults(tavilyData);
-    if (tavilyResults.length === 0) throwSearchFailed();
-    return searchSucceeded(
-      formatMergedResults(tavilyResults),
-      tavilyResults.length,
-    );
-  }
-
-  const [exaSettled, tavilySettled] = await Promise.allSettled([
-    callExaSearch(trimmedQuery, _toolCallId, 2),
-    callTavilySearch(trimmedQuery, _toolCallId),
-  ]);
-
-  const exaData = exaSettled.status === "fulfilled" ? exaSettled.value : null;
-  const tavilyData =
-    tavilySettled.status === "fulfilled" ? tavilySettled.value : null;
-  const exaResults = toExaResults(exaData);
-  const tavilyResults = toTavilyResults(tavilyData);
-  const mergedResults = mergeResults(exaResults, tavilyResults);
+  const mergedResults = mergeResults(allGroups);
 
   if (mergedResults.length === 0) throwSearchFailed();
 
-  const bothProvidersContributed =
-    exaResults.length > 0 && tavilyResults.length > 0;
+  // Only include provider breakdown when at least two contributed.
+  const contributing = Object.entries(providerCounts).filter(
+    ([, count]) => count > 0,
+  );
+  const multiProvider =
+    contributing.length > 1
+      ? (Object.fromEntries(contributing) as Record<string, number>)
+      : undefined;
 
   return searchSucceeded(
     formatMergedResults(mergedResults),
     mergedResults.length,
-    bothProvidersContributed
-      ? { exa: exaResults.length, tavily: tavilyResults.length }
-      : undefined,
+    multiProvider,
   );
 }
 
@@ -182,22 +196,21 @@ export function renderWebSearchResult(
   if (typeof count === "number" && count > 0) {
     const providers = result.details["providers"];
     const label = count === 1 ? "source" : "sources";
-    if (
-      providers &&
-      typeof providers === "object" &&
-      "exa" in providers &&
-      "tavily" in providers &&
-      typeof providers.exa === "number" &&
-      typeof providers.tavily === "number"
-    ) {
-      return new Text(
-        theme.fg(
-          "success",
-          `${count} ${label} (${providers.exa} exa, ${providers.tavily} tavily)`,
-        ),
-        0,
-        0,
-      );
+    if (providers && typeof providers === "object") {
+      const parts: string[] = [];
+      const p = providers as Record<string, number>;
+      for (const [name, c] of Object.entries(p)) {
+        if (typeof c === "number" && c > 0) {
+          parts.push(`${c} ${name}`);
+        }
+      }
+      if (parts.length > 1) {
+        return new Text(
+          theme.fg("success", `${count} ${label} (${parts.join(", ")})`),
+          0,
+          0,
+        );
+      }
     }
     return new Text(theme.fg("success", `${count} ${label}`), 0, 0);
   }

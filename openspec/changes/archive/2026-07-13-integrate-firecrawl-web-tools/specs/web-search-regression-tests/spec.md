@@ -1,10 +1,4 @@
-# web-search-regression-tests Specification
-
-## Purpose
-
-Regression tests for the web-search extension covering provider orchestration, fetch pipeline fallback, cache behavior, and GitHub URL classification.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Regression tests for web_search orchestration
 
@@ -128,17 +122,3 @@ The system SHALL include behavioral tests for `executeWebFetch` and the Firecraw
 
 - **WHEN** `executeWebFetch` is called with a non-HTTP URL or empty string
 - **THEN** the tests SHALL verify it throws an invalid URL error
-
-### Requirement: GitHub URL classification tests reflect current supported types
-
-The system SHALL include test assertions for `classifyGitHubUrl` that recognize `releases` and `release-tag` as supported URL types, replacing the obsolete assertion that expected `/releases` to be unsupported.
-
-#### Scenario: Releases URL is classified as supported
-
-- **WHEN** `classifyGitHubUrl` is called with `https://github.com/owner/repo/releases`
-- **THEN** the test SHALL verify the result type is `"releases"` with correct `owner` and `repo`
-
-#### Scenario: Release tag URL is classified as supported
-
-- **WHEN** `classifyGitHubUrl` is called with `https://github.com/owner/repo/releases/tag/v1.0`
-- **THEN** the test SHALL verify the result type is `"release-tag"` with correct `owner`, `repo`, and `tag`

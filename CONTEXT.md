@@ -103,3 +103,17 @@ _Avoid_: global account lockout, penalty period, refresh backoff
 **Blind fallback**:
 Activating the first configured OpenCode Go account without a usable quota observation, including when no shared snapshot exists at session start. It is reevaluated when the first usable snapshot arrives and still relies on runtime rotation if exhausted.
 _Avoid_: default account, emergency fallback, unverified activation
+
+### Web Search Extension
+
+**Retrieval adapter**:
+A strategy in the ordered fallback chain that attempts to fetch and extract readable content from a URL. Each adapter can succeed (returns content), fail cleanly (returns null so the cascade continues to the next adapter), or throw (caught and treated as null).
+_Avoid_: fetcher, provider, content extractor
+
+**Retrieval cascade**:
+The ordered list of retrieval adapters tried sequentially by `web_fetch`. Order: GitHub → HTTP → Firecrawl → Cloudflare Browser Run → Exa Contents. Each adapter is tried in order until one returns content.
+_Avoid_: fallback chain, fetch pipeline, adapter list
+
+**Search provider**:
+An external search API used by `web_search`. Multiple providers (Exa, Tavily, Firecrawl) run in parallel on every search and their results are merged and deduplicated by URL.
+_Avoid_: search backend, search engine, search source

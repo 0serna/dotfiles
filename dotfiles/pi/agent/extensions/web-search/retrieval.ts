@@ -1,5 +1,6 @@
 import { retrieveWithCloudflareAdapter } from "./cloudflare.ts";
 import { retrieveWithExaAdapter } from "./exa.ts";
+import { callFirecrawlScrape } from "./firecrawl.ts";
 import { classifyGitHubUrl, retrieveWithGitHubAdapter } from "./github.ts";
 import { retrieveWithHttpAdapter } from "./http.ts";
 import { logWebToolEvent } from "./logger.ts";
@@ -11,6 +12,7 @@ type RetrievalSource =
   | "github-raw"
   | "github-api"
   | "http-fallback"
+  | "firecrawl"
   | "cloudflare"
   | "exa";
 
@@ -91,6 +93,14 @@ async function retrieveFromHttpAdapter(
   return content ? { content, source: "http-fallback" } : null;
 }
 
+async function retrieveFromFirecrawlAdapter(
+  url: string,
+  toolCallId: string,
+): Promise<AdapterResult> {
+  const content = await callFirecrawlScrape(url, toolCallId);
+  return content ? { content, source: "firecrawl" } : null;
+}
+
 async function retrieveFromCloudflareAdapter(
   url: string,
   toolCallId: string,
@@ -118,9 +128,15 @@ const RETRIEVAL_ADAPTERS: RetrievalAdapter[] = [
   },
   {
     name: "http_fetch",
-    fallbackTo: "cloudflare_markdown",
+    fallbackTo: "firecrawl_scrape",
     failureReason: "http_fetch_failure",
     retrieve: retrieveFromHttpAdapter,
+  },
+  {
+    name: "firecrawl_scrape",
+    fallbackTo: "cloudflare_markdown",
+    failureReason: "firecrawl_scrape_failure",
+    retrieve: retrieveFromFirecrawlAdapter,
   },
   {
     name: "cloudflare_markdown",

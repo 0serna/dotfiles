@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { retrieve } from "../retrieval.ts";
 
 const mocks = vi.hoisted(() => ({
+  callFirecrawlScrape: vi.fn(),
   classifyGitHubUrl: vi.fn(),
   logWebToolEvent: vi.fn(),
   retrieveWithCloudflareAdapter: vi.fn(),
@@ -12,6 +13,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../exa.ts", () => ({
   retrieveWithExaAdapter: mocks.retrieveWithExaAdapter,
+}));
+
+vi.mock("../firecrawl.ts", () => ({
+  callFirecrawlScrape: mocks.callFirecrawlScrape,
 }));
 
 vi.mock("../github.ts", () => ({
@@ -34,6 +39,7 @@ vi.mock("../logger.ts", () => ({
 describe("retrieve", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.callFirecrawlScrape.mockResolvedValue(null);
     mocks.classifyGitHubUrl.mockReturnValue({ type: "unsupported" });
     mocks.retrieveWithGitHubAdapter.mockResolvedValue(null);
     mocks.retrieveWithHttpAdapter.mockResolvedValue(null);
@@ -58,6 +64,7 @@ describe("retrieve", () => {
 
     expect(mocks.retrieveWithGitHubAdapter).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithHttpAdapter).not.toHaveBeenCalled();
+    expect(mocks.callFirecrawlScrape).not.toHaveBeenCalled();
     expect(mocks.retrieveWithCloudflareAdapter).not.toHaveBeenCalled();
     expect(mocks.retrieveWithExaAdapter).not.toHaveBeenCalled();
   });
@@ -71,26 +78,44 @@ describe("retrieve", () => {
 
     expect(mocks.retrieveWithGitHubAdapter).not.toHaveBeenCalled();
     expect(mocks.retrieveWithHttpAdapter).toHaveBeenCalledOnce();
+    expect(mocks.callFirecrawlScrape).not.toHaveBeenCalled();
     expect(mocks.retrieveWithCloudflareAdapter).not.toHaveBeenCalled();
     expect(mocks.retrieveWithExaAdapter).not.toHaveBeenCalled();
   });
 
-  it("short-circuits after a successful Cloudflare fetch", async () => {
+  it("short-circuits after a successful Firecrawl fetch", async () => {
+    mocks.callFirecrawlScrape.mockResolvedValue("Firecrawl content");
+
+    await expect(
+      retrieve("https://example.com/firecrawl-success", "tool-1"),
+    ).resolves.toEqual({
+      content: "Firecrawl content",
+      source: "firecrawl",
+    });
+
+    expect(mocks.retrieveWithHttpAdapter).toHaveBeenCalledOnce();
+    expect(mocks.callFirecrawlScrape).toHaveBeenCalledOnce();
+    expect(mocks.retrieveWithCloudflareAdapter).not.toHaveBeenCalled();
+    expect(mocks.retrieveWithExaAdapter).not.toHaveBeenCalled();
+  });
+
+  it("falls through to Cloudflare when Firecrawl returns null", async () => {
     mocks.retrieveWithCloudflareAdapter.mockResolvedValue("Cloudflare content");
 
     await expect(
-      retrieve("https://example.com/cloudflare-success", "tool-1"),
+      retrieve("https://example.com/cf-after-fc", "tool-1"),
     ).resolves.toEqual({
       content: "Cloudflare content",
       source: "cloudflare",
     });
 
     expect(mocks.retrieveWithHttpAdapter).toHaveBeenCalledOnce();
+    expect(mocks.callFirecrawlScrape).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithCloudflareAdapter).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithExaAdapter).not.toHaveBeenCalled();
   });
 
-  it("tries Exa last", async () => {
+  it("tries Exa last after all preceding tiers fail", async () => {
     mocks.retrieveWithExaAdapter.mockResolvedValue("Exa content");
 
     await expect(
@@ -98,11 +123,12 @@ describe("retrieve", () => {
     ).resolves.toEqual({ content: "Exa content", source: "exa" });
 
     expect(mocks.retrieveWithHttpAdapter).toHaveBeenCalledOnce();
+    expect(mocks.callFirecrawlScrape).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithCloudflareAdapter).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithExaAdapter).toHaveBeenCalledOnce();
   });
 
-  it("logs fallback transitions", async () => {
+  it("logs fallback transitions through all five tiers", async () => {
     mocks.classifyGitHubUrl.mockReturnValue({
       type: "repository",
       owner: "owner",
@@ -123,6 +149,13 @@ describe("retrieve", () => {
       "web_fetch_fallback",
       expect.objectContaining({
         from: "http_fetch",
+        to: "firecrawl_scrape",
+      }),
+    );
+    expect(mocks.logWebToolEvent).toHaveBeenCalledWith(
+      "web_fetch_fallback",
+      expect.objectContaining({
+        from: "firecrawl_scrape",
         to: "cloudflare_markdown",
       }),
     );
@@ -135,12 +168,13 @@ describe("retrieve", () => {
     );
   });
 
-  it("throws when all tiers fail", async () => {
+  it("throws when all five tiers fail", async () => {
     await expect(
       retrieve("https://example.com/all-fail", "tool-1"),
     ).rejects.toThrow("All retrieval tiers failed to provide content");
 
     expect(mocks.retrieveWithHttpAdapter).toHaveBeenCalledOnce();
+    expect(mocks.callFirecrawlScrape).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithCloudflareAdapter).toHaveBeenCalledOnce();
     expect(mocks.retrieveWithExaAdapter).toHaveBeenCalledOnce();
   });
@@ -167,7 +201,31 @@ describe("retrieve", () => {
 
     expect(mocks.classifyGitHubUrl).not.toHaveBeenCalled();
     expect(mocks.retrieveWithHttpAdapter).not.toHaveBeenCalled();
+    expect(mocks.callFirecrawlScrape).not.toHaveBeenCalled();
     expect(mocks.retrieveWithCloudflareAdapter).not.toHaveBeenCalled();
     expect(mocks.retrieveWithExaAdapter).not.toHaveBeenCalled();
+  });
+
+  it("caches and reuses Firecrawl results", async () => {
+    mocks.callFirecrawlScrape.mockResolvedValue("Firecrawl cached");
+
+    await expect(
+      retrieve("https://example.com/fc-cache", "tool-1"),
+    ).resolves.toEqual({
+      content: "Firecrawl cached",
+      source: "firecrawl",
+    });
+
+    vi.clearAllMocks();
+
+    await expect(
+      retrieve("https://example.com/fc-cache", "tool-2"),
+    ).resolves.toEqual({
+      content: "Firecrawl cached",
+      source: "firecrawl",
+    });
+
+    expect(mocks.retrieveWithHttpAdapter).not.toHaveBeenCalled();
+    expect(mocks.callFirecrawlScrape).not.toHaveBeenCalled();
   });
 });

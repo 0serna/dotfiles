@@ -2,38 +2,43 @@
 
 ## Purpose
 
-Web search via multiple providers (Exa, Tavily) with parallel execution, result merging, and diagnostics logging.
+Web search via multiple providers (Exa, Tavily, Firecrawl) with parallel execution, result merging, and diagnostics logging.
 
 ## Requirements
 
 ### Requirement: Search with query string
 
-The system SHALL accept a single query string and execute parallel searches through Exa and Tavily APIs when both API keys are available. The system SHALL request 2 results from each provider, merge the results by interleaving them in ranking order, deduplicate by URL, and return a unified result list without provider labels to the LLM. When only one provider's API key is available, the system SHALL use that provider exclusively with its default result count.
+The system SHALL accept a single query string and execute eligible searches in parallel through Exa, Tavily, and Firecrawl. Firecrawl SHALL always be eligible through authenticated or keyless access; Exa and Tavily SHALL be eligible when their respective API keys are configured. The system SHALL request 2 results from each eligible provider, merge the results by interleaving them in ranking order, deduplicate by URL, and return a unified result list without provider labels to the LLM.
 
-#### Scenario: Parallel search returns merged results
+#### Scenario: Three-provider parallel search returns merged results
 
-- **WHEN** the user calls `web_search` with query "TypeScript best practices" and both `EXA_API_KEY` and `TAVILY_API_KEY` are set
-- **THEN** the system SHALL execute Exa and Tavily searches in parallel, each requesting 2 results, and return a deduplicated merged list of up to 4 results with title, URL, and snippet
+- **WHEN** the user calls `web_search` with query "TypeScript best practices" and `EXA_API_KEY`, `TAVILY_API_KEY`, and `FIRECRAWL_API_KEY` are set
+- **THEN** the system SHALL execute Exa, Tavily, and Firecrawl searches in parallel, each requesting 2 results, and return a deduplicated merged list of up to 6 results with title, URL, and snippet
 
-#### Scenario: Tavily absent falls back to Exa only
+#### Scenario: Firecrawl supplements Exa when Tavily is absent
 
-- **WHEN** the user calls `web_search` with a valid query and `TAVILY_API_KEY` is not set
-- **THEN** the system SHALL skip Tavily silently and return results from Exa only using the default result count
+- **WHEN** the user calls `web_search` with a valid query, `EXA_API_KEY` is set, and `TAVILY_API_KEY` is not set
+- **THEN** the system SHALL execute Exa and Firecrawl searches in parallel and skip Tavily silently
 
-#### Scenario: Exa absent falls back to Tavily only
+#### Scenario: Firecrawl supplements Tavily when Exa is absent
 
-- **WHEN** the user calls `web_search` with a valid query and `EXA_API_KEY` is not set but `TAVILY_API_KEY` is set
-- **THEN** the system SHALL skip Exa and return results from Tavily only
+- **WHEN** the user calls `web_search` with a valid query, `TAVILY_API_KEY` is set, and `EXA_API_KEY` is not set
+- **THEN** the system SHALL execute Tavily and Firecrawl searches in parallel and skip Exa silently
 
-#### Scenario: Both providers fail
+#### Scenario: Firecrawl keyless is the only eligible provider
 
-- **WHEN** both Exa and Tavily searches fail or return no results
+- **WHEN** neither `EXA_API_KEY` nor `TAVILY_API_KEY` nor `FIRECRAWL_API_KEY` is set
+- **THEN** the system SHALL execute Firecrawl Search without authorization and return its usable results
+
+#### Scenario: All eligible providers fail
+
+- **WHEN** all eligible provider searches fail or return no usable results
 - **THEN** the system SHALL return an error indicating the search failed
 
 #### Scenario: One provider fails with partial success
 
-- **WHEN** one provider returns results and the other fails
-- **THEN** the system SHALL return the successful provider's results without error
+- **WHEN** at least one eligible provider returns results and another eligible provider fails
+- **THEN** the system SHALL return the successful provider results without error
 
 #### Scenario: Search with empty query
 
@@ -42,7 +47,7 @@ The system SHALL accept a single query string and execute parallel searches thro
 
 #### Scenario: Deduplicated results
 
-- **WHEN** Exa and Tavily return results with overlapping URLs
+- **WHEN** multiple providers return results with overlapping URLs
 - **THEN** the system SHALL include each URL only once in the merged result list, preserving the first occurrence in interleave order
 
 #### Scenario: Result format is provider-transparent
@@ -69,43 +74,72 @@ The system SHALL integrate the Tavily Search API as a parallel search provider, 
 - **WHEN** the Tavily Search API returns a non-2xx status or the request times out
 - **THEN** the system SHALL log the failure with error details and return null, allowing partial success from Exa
 
+### Requirement: Firecrawl search provider
+
+The system SHALL integrate Firecrawl Cloud Search as a parallel search provider by calling `POST https://api.firecrawl.dev/v2/search` with the query and a limit of 2 results. The request SHALL include `Authorization: Bearer <FIRECRAWL_API_KEY>` when `FIRECRAWL_API_KEY` is configured and SHALL omit authorization otherwise. The system SHALL map usable entries from `data.web` to provider-transparent title, URL, and snippet results.
+
+#### Scenario: Authenticated Firecrawl search
+
+- **WHEN** `FIRECRAWL_API_KEY` is configured and the user submits a valid query
+- **THEN** the system SHALL call Firecrawl Search with the bearer API key and request 2 results
+
+#### Scenario: Keyless Firecrawl search
+
+- **WHEN** `FIRECRAWL_API_KEY` is not configured and the user submits a valid query
+- **THEN** the system SHALL call Firecrawl Search without an Authorization header and request 2 results
+
+#### Scenario: Firecrawl search failure is partial
+
+- **WHEN** Firecrawl Search returns a non-2xx response, invalid response, no usable results, or times out while another provider returns results
+- **THEN** the system SHALL omit Firecrawl results and return the successful provider results without error
+
 ### Requirement: Result merging and interleaving
 
-The system SHALL merge results from multiple search providers by interleaving them in ranking order (Exa[0], Tavily[0], Exa[1], Tavily[1]) and deduplicating by URL (case-insensitive). The first occurrence in interleave order SHALL be kept.
+The system SHALL merge results from eligible search providers by interleaving them in ranking order using the stable provider order Exa, Tavily, Firecrawl and deduplicating by URL case-insensitively. The first occurrence in interleave order SHALL be kept.
 
-#### Scenario: Interleave two providers with 2 results each
+#### Scenario: Interleave three providers with 2 results each
 
-- **WHEN** Exa returns results [A, B] and Tavily returns results [C, D]
-- **THEN** the merged order SHALL be [A, C, B, D]
+- **WHEN** Exa returns [A, B], Tavily returns [C, D], and Firecrawl returns [E, F]
+- **THEN** the merged order SHALL be [A, C, E, B, D, F]
 
 #### Scenario: Interleave with partial provider results
 
-- **WHEN** Exa returns results [A, B] and Tavily returns results [C]
-- **THEN** the merged order SHALL be [A, C, B]
+- **WHEN** Exa returns [A, B], Tavily returns [C], and Firecrawl returns [D, E]
+- **THEN** the merged order SHALL be [A, C, D, B, E]
+
+#### Scenario: Interleave only eligible providers
+
+- **WHEN** Exa is absent, Tavily returns [A, B], and Firecrawl returns [C, D]
+- **THEN** the merged order SHALL be [A, C, B, D]
 
 #### Scenario: Deduplicate overlapping URLs
 
-- **WHEN** Exa returns [url1, url2] and Tavily returns [url1, url3]
-- **THEN** the merged list SHALL contain [url1, url3, url2] with url1 appearing only once at its first interleave position
+- **WHEN** Exa returns [url1, url2], Tavily returns [url1, url3], and Firecrawl returns [url2, url4]
+- **THEN** the merged list SHALL contain [url1, url2, url3, url4] with each URL appearing only once at its first interleave position
 
 ### Requirement: Display search provider counts in renderer
 
-The system SHALL display the total unique source count and per-provider received counts in the `web_search` tool result renderer when multiple providers contribute results.
+The system SHALL display the total unique source count and per-provider received counts in the `web_search` tool result renderer when at least two providers contribute results. The provider breakdown SHALL include each contributing provider among Exa, Tavily, and Firecrawl.
 
-#### Scenario: Both providers return results
+#### Scenario: Three providers return results
 
-- **WHEN** the tool result has results from both Exa and Tavily
-- **THEN** the renderer SHALL display the unique count with per-provider breakdown (e.g., `3 sources (2 exa, 2 tavily)`)
+- **WHEN** the tool result has results from Exa, Tavily, and Firecrawl
+- **THEN** the renderer SHALL display the unique count with all provider counts, for example `5 sources (2 exa, 2 tavily, 2 firecrawl)`
+
+#### Scenario: Two providers return results
+
+- **WHEN** exactly two providers contribute results
+- **THEN** the renderer SHALL display the unique count with only those two provider counts
 
 #### Scenario: Single provider active
 
-- **WHEN** only one provider returned results (other absent or failed)
-- **THEN** the renderer SHALL display only the total count without per-provider breakdown (e.g., `2 sources`)
+- **WHEN** only one provider returned results
+- **THEN** the renderer SHALL display only the total count without a provider breakdown, for example `2 sources`
 
 #### Scenario: Search error
 
-- **WHEN** the tool result is an error (both providers failed)
-- **THEN** the renderer SHALL display "search error"
+- **WHEN** the tool result is an error because all eligible providers failed
+- **THEN** the renderer SHALL display `search error`
 
 ### Requirement: Optional result count
 
