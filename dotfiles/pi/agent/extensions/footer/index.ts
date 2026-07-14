@@ -8,8 +8,7 @@ import {
   parseGitMetadata,
 } from "./format.ts";
 
-const LEFT_EXTENSION_ORDER = ["quota"];
-const RIGHT_EXTENSION_ORDER: string[] = [];
+const EXTENSION_ORDER = ["quota"];
 
 export default function (pi: ExtensionAPI) {
   let requestRender: (() => void) | null = null;
@@ -59,19 +58,13 @@ export default function (pi: ExtensionAPI) {
             const modelSlug = ctx.model?.id;
             const separator = theme.fg("dim", " · ");
             const extStatuses = footerData.getExtensionStatuses();
-            const orderedExtensionKeys = new Set([
-              ...LEFT_EXTENSION_ORDER,
-              ...RIGHT_EXTENSION_ORDER,
-            ]);
-            const leftExtensions = [
-              ...LEFT_EXTENSION_ORDER.map((key) => extStatuses.get(key)),
+            const orderedKeys = new Set(EXTENSION_ORDER);
+            const extensions = [
+              ...EXTENSION_ORDER.map((key) => extStatuses.get(key)),
               ...Array.from(extStatuses.entries())
-                .filter(([key]) => !orderedExtensionKeys.has(key))
+                .filter(([key]) => !orderedKeys.has(key))
                 .map(([, status]) => status),
             ].filter(Boolean);
-            const rightExtensions = RIGHT_EXTENSION_ORDER.map((key) =>
-              extStatuses.get(key),
-            ).filter(Boolean);
 
             const usage = ctx.getContextUsage();
             const usageText = formatCurrentUsage(usage);
@@ -84,19 +77,34 @@ export default function (pi: ExtensionAPI) {
               `${modelText} ${theme.fg(usageStyle, usageText)}`,
             );
 
-            const sections = [
-              theme.fg("dim", directory),
-              modelWithUsage,
-              ...leftExtensions,
-            ].filter(Boolean);
+            const dirLine = theme.fg("dim", directory);
+            const extLine = extensions.join(separator);
 
-            const left = sections.join(separator);
-            const right =
-              rightExtensions.join(separator) || theme.fg("dim", " ");
-            const pad = " ".repeat(
-              Math.max(1, width - visibleWidth(left) - visibleWidth(right)),
-            );
-            return [truncateToWidth(left + pad + right, width)];
+            // Try 1 line
+            const all = [dirLine, modelWithUsage, extLine]
+              .filter(Boolean)
+              .join(separator);
+            if (visibleWidth(all) <= width) {
+              return [truncateToWidth(all, width)];
+            }
+
+            // Try 2 lines: dir | model+ext
+            const modelAndExt = [modelWithUsage, extLine]
+              .filter(Boolean)
+              .join(separator);
+            if (visibleWidth(modelAndExt) <= width) {
+              return [
+                truncateToWidth(dirLine, width),
+                truncateToWidth(modelAndExt, width),
+              ];
+            }
+
+            // 3 lines: dir | model | ext
+            return [
+              truncateToWidth(dirLine, width),
+              truncateToWidth(modelWithUsage, width),
+              ...(extLine ? [truncateToWidth(extLine, width)] : []),
+            ];
           },
         };
       });

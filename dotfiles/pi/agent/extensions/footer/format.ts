@@ -13,11 +13,7 @@ export function formatK(value: number): string {
 }
 
 export function formatCurrentUsage(usage: ContextUsage | undefined): string {
-  if (usage == null || usage.tokens == null) {
-    return formatK(0);
-  }
-
-  return formatK(usage.tokens);
+  return formatK(usage?.tokens ?? 0);
 }
 
 export interface GitMetadata {
