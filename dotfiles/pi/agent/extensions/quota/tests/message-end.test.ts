@@ -331,19 +331,22 @@ describe("handleMessageEnd — rotation gating", () => {
     );
   });
 
-  it("retries once on timeout errors", async () => {
+  it("does not continue after Pi recovers from a timeout", async () => {
     await handlers["message_end"]!(timeoutError(), ctx);
+    await handlers["message_end"]!(
+      { message: { role: "assistant", stopReason: "stop" } },
+      ctx,
+    );
+    await handlers["agent_settled"]!({}, ctx);
 
-    expect(sendUserMessage).toHaveBeenCalledWith("continue", {
-      deliverAs: "followUp",
-    });
-    expect(
-      logEvents.some((entry) => entry.event === "streaming_failure_retry"),
-    ).toBe(true);
+    expect(sendUserMessage).not.toHaveBeenCalled();
   });
 
-  it("retries once on stream interruption errors", async () => {
+  it("continues after an unrecovered stream interruption settles", async () => {
     await handlers["message_end"]!(streamError(), ctx);
+    expect(sendUserMessage).not.toHaveBeenCalled();
+
+    await handlers["agent_settled"]!({}, ctx);
 
     expect(sendUserMessage).toHaveBeenCalledWith("continue", {
       deliverAs: "followUp",
@@ -362,8 +365,11 @@ describe("handleMessageEnd — rotation gating", () => {
 });
 
 describe("handleMessageEnd — transient stream retry", () => {
-  it("retries once on Streaming response failed", async () => {
+  it("retries once after Streaming response failed settles", async () => {
     await handlers["message_end"]!(streamingFailureError(), ctx);
+    expect(sendUserMessage).not.toHaveBeenCalled();
+
+    await handlers["agent_settled"]!({}, ctx);
 
     expect(sendUserMessage).toHaveBeenCalledWith("continue", {
       deliverAs: "followUp",
@@ -381,11 +387,17 @@ describe("handleMessageEnd — transient stream retry", () => {
     expect(notify).not.toHaveBeenCalled();
   });
 
-  it("does not retry on second streaming failure in same turn", async () => {
+  it("does not loop when the fallback continuation also fails", async () => {
     await handlers["message_end"]!(streamingFailureError(), ctx);
+    await handlers["agent_settled"]!({}, ctx);
     sendUserMessage.mockClear();
 
+    await handlers["message_end"]!(
+      { message: { role: "assistant", stopReason: "toolUse" } },
+      ctx,
+    );
     await handlers["message_end"]!(streamingFailureError(), ctx);
+    await handlers["agent_settled"]!({}, ctx);
 
     expect(sendUserMessage).not.toHaveBeenCalled();
     expect(
@@ -393,18 +405,32 @@ describe("handleMessageEnd — transient stream retry", () => {
     ).toBe(true);
   });
 
-  it("resets streaming failure count on turn_start", async () => {
+  it("queues only one fallback across retry turns", async () => {
     await handlers["message_end"]!(streamingFailureError(), ctx);
-    expect(sendUserMessage).toHaveBeenCalledTimes(1);
-
     handlers["turn_start"]!({}, ctx);
-    sendUserMessage.mockClear();
-
     await handlers["message_end"]!(streamingFailureError(), ctx);
 
-    expect(sendUserMessage).toHaveBeenCalledWith("continue", {
-      deliverAs: "followUp",
-    });
+    await handlers["agent_settled"]!({}, ctx);
+
+    expect(sendUserMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not continue when the terminal error is not transient", async () => {
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+    await handlers["message_end"]!(
+      {
+        message: {
+          role: "assistant",
+          stopReason: "error",
+          errorMessage: "Invalid request",
+        },
+      },
+      ctx,
+    );
+
+    await handlers["agent_settled"]!({}, ctx);
+
+    expect(sendUserMessage).not.toHaveBeenCalled();
   });
 
   it("does not retry if continuation already sent this turn", async () => {

@@ -6,7 +6,7 @@ import {
   createExtensionLogger,
   type ExtensionLogger,
 } from "../shared/logger.js";
-import { formatCompactDuration, formatDuration } from "./format.ts";
+import { formatDuration } from "./format.ts";
 import { ThroughputTracker, isOutputDeltaEvent } from "./throughput.ts";
 
 export default function (pi: ExtensionAPI) {
@@ -41,7 +41,7 @@ export default function (pi: ExtensionAPI) {
     const metrics = tokPerSec
       ? tokPerSec
       : firstDeltaMs !== null
-        ? `waiting ${formatCompactDuration(Date.now() - streamEndTime!)}`
+        ? `waiting ${formatDuration(Date.now() - streamEndTime!)}`
         : `waiting ${timeStr}`;
     return ` working ${timeStr} · ${modelLabel} · ${metrics}`;
   }

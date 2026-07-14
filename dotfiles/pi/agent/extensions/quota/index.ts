@@ -57,7 +57,8 @@ let rotationConfig: RotationConfig | undefined;
 let accountStates: AccountState[] = [];
 let currentAccountIndex = -1;
 let continuationSentThisTurn = false;
-let streamingFailureCount = 0;
+let pendingTransientFailure = false;
+let transientContinuationOutstanding = false;
 let triedAccountsThisCycle: Set<string> = new Set();
 let logger: ExtensionLogger | undefined;
 let lifecycle: QuotaLifecycle | undefined;
@@ -328,7 +329,8 @@ async function handleSessionStart(
   accountStates = initAccountStates(rotationConfig.accounts);
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
-  streamingFailureCount = 0;
+  pendingTransientFailure = false;
+  transientContinuationOutstanding = false;
   triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
@@ -391,28 +393,20 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
     if (accountStates.length === 0) return;
 
     const msg = event.message;
-    if (msg?.role !== "assistant" || msg?.stopReason !== "error") return;
-
-    // Transient stream retry: retry once with same account, no rotation
-    if (isTransientError(msg.errorMessage)) {
-      if (streamingFailureCount === 0 && !continuationSentThisTurn) {
-        streamingFailureCount++;
-        getLogger(ctx).log("streaming_failure_retry", {
-          provider: OPENCODE_PROVIDER,
-          currentAccount: currentAccount()?.name,
-        });
-        await pi.sendUserMessage("continue", { deliverAs: "followUp" });
-      } else {
-        getLogger(ctx).log("streaming_failure_skipped", {
-          provider: OPENCODE_PROVIDER,
-          currentAccount: currentAccount()?.name,
-          streamingFailureCount,
-          continuationSentThisTurn,
-        });
-      }
+    if (msg?.role !== "assistant") return;
+    if (msg.stopReason !== "error") {
+      pendingTransientFailure = false;
       return;
     }
 
+    // Pi handles retryable provider failures before agent_settled. Remember the
+    // failure and only add our fallback if Pi ultimately cannot recover.
+    if (isTransientError(msg.errorMessage)) {
+      pendingTransientFailure = true;
+      return;
+    }
+
+    pendingTransientFailure = false;
     if (!isQuotaExhaustionError(msg.errorMessage)) return;
 
     const current = currentAccount();
@@ -467,24 +461,52 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
 function handleTurnStart(): void {
   continuationSentThisTurn = false;
-  streamingFailureCount = 0;
 }
 
-function handleAgentSettled(_event: unknown, ctx: ExtensionContext): void {
-  if (!ctx.isIdle()) return;
-  triedAccountsThisCycle = new Set();
-  if (!pendingPreventiveReselection || !latestSnapshot) return;
-  const decision = decidePreventiveReselection(latestSnapshot, {
-    activeSource: activeSourceIdentity(),
-    piSettled: true,
-    blindFallback: blindFallbackActive,
-    now: Date.now(),
-  });
-  if (decision.reselect) {
-    applyPreventiveReselection(latestSnapshot, ctx);
-  } else {
-    pendingPreventiveReselection = false;
-  }
+function makeAgentSettledHandler(pi: ExtensionAPI) {
+  return function handleAgentSettled(
+    _event: unknown,
+    ctx: ExtensionContext,
+  ): void {
+    if (!ctx.isIdle()) return;
+    triedAccountsThisCycle = new Set();
+
+    if (pendingPreventiveReselection && latestSnapshot) {
+      const decision = decidePreventiveReselection(latestSnapshot, {
+        activeSource: activeSourceIdentity(),
+        piSettled: true,
+        blindFallback: blindFallbackActive,
+        now: Date.now(),
+      });
+      if (decision.reselect) {
+        applyPreventiveReselection(latestSnapshot, ctx);
+      } else {
+        pendingPreventiveReselection = false;
+      }
+    }
+
+    if (!pendingTransientFailure) {
+      transientContinuationOutstanding = false;
+      return;
+    }
+    pendingTransientFailure = false;
+
+    if (transientContinuationOutstanding) {
+      transientContinuationOutstanding = false;
+      getLogger(ctx).log("streaming_failure_skipped", {
+        provider: OPENCODE_PROVIDER,
+        currentAccount: currentAccount()?.name,
+      });
+      return;
+    }
+
+    transientContinuationOutstanding = true;
+    getLogger(ctx).log("streaming_failure_retry", {
+      provider: OPENCODE_PROVIDER,
+      currentAccount: currentAccount()?.name,
+    });
+    pi.sendUserMessage("continue", { deliverAs: "followUp" });
+  };
 }
 
 async function handleSessionShutdown(
@@ -500,7 +522,8 @@ async function handleSessionShutdown(
   accountStates = [];
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
-  streamingFailureCount = 0;
+  pendingTransientFailure = false;
+  transientContinuationOutstanding = false;
   triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
@@ -541,7 +564,7 @@ async function handleQuotaCommand(
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", handleSessionStart);
   pi.on("turn_start", handleTurnStart);
-  pi.on("agent_settled", handleAgentSettled);
+  pi.on("agent_settled", makeAgentSettledHandler(pi));
   pi.on("message_end", makeMessageEndHandler(pi));
   pi.on("session_shutdown", handleSessionShutdown);
 

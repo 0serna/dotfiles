@@ -293,7 +293,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:02 · gpt-5 · waiting 1s</muted>",
+      "<muted> working 0:02 · gpt-5 · waiting 0:01</muted>",
     );
   });
 
@@ -309,12 +309,12 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:02 · gpt-5 · waiting 1s</muted>",
+      "<muted> working 0:02 · gpt-5 · waiting 0:01</muted>",
     );
 
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:07 · gpt-5 · waiting 6s</muted>",
+      "<muted> working 0:07 · gpt-5 · waiting 0:06</muted>",
     );
   });
 
