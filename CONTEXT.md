@@ -125,7 +125,7 @@ A retained provider observation whose last successful refresh is more than 30 mi
 _Avoid_: degraded source, zero quota, exhausted window
 
 **Provider-confirmed quota exhaustion**:
-Shared evidence from an explicit runtime quota error that a quota source is not currently usable, even when its previous dashboard observation reported remaining allowance. It affects global source eligibility without sharing cooldowns or rotation decisions, and the next positive dashboard observation clears it.
+Shared evidence from an explicit runtime quota error that a quota source is not currently usable, even when its previous dashboard observation reported remaining allowance. The next positive dashboard observation restores global eligibility without making an already-attempted account eligible again within the current processing cycle.
 _Avoid_: account cooldown, inferred zero percent, dashboard failure
 
 **Account cooldown**:

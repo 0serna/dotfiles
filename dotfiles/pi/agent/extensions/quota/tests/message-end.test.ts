@@ -346,39 +346,37 @@ describe("handleMessageEnd — rotation gating", () => {
   });
 });
 
-describe("handleMessageEnd — per-turn cycle exhaustion", () => {
-  it("stops and notifies when every account has been attempted this turn", async () => {
-    // First rotation: A → B
+describe("handleMessageEnd — processing cycle exhaustion", () => {
+  it("stops after every account has been attempted across turns", async () => {
     await handlers["message_end"]!(quotaError(), ctx);
     expect(sendUserMessage).toHaveBeenCalledTimes(1);
 
-    // Second quota error on B: only A and B are configured, both have been
-    // attempted, so the handler must stop and notify the user.
+    handlers["turn_start"]!({}, ctx);
     await handlers["message_end"]!(quotaError(), ctx);
 
     expect(sendUserMessage).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith(
-      expect.stringContaining("All OpenCode Go accounts have been attempted"),
+      expect.stringContaining(
+        "All OpenCode Go accounts have been attempted during this processing cycle",
+      ),
       "warning",
     );
   });
 });
 
-describe("handleTurnStart — per-turn reset", () => {
-  it("clears triedAccountsThisTurn on turn_start", async () => {
-    // First turn: A → B (both added to attempted set)
+describe("handleAgentSettled — processing cycle reset", () => {
+  it("allows an account again in a later cycle after its cooldown expires", async () => {
+    const now = Date.now();
+    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
+
+    await handlers["message_end"]!(quotaError(), ctx);
+    handlers["turn_start"]!({}, ctx);
     await handlers["message_end"]!(quotaError(), ctx);
     expect(sendUserMessage).toHaveBeenCalledTimes(1);
 
-    // Second quota error should hit the cycle-exhausted branch
-    await handlers["message_end"]!(quotaError(), ctx);
-    expect(notify).toHaveBeenCalledWith(
-      expect.stringContaining("All OpenCode Go accounts have been attempted"),
-      "warning",
-    );
-
-    // Begin a new turn — the set is reset, so the next quota error rotates again
+    handlers["agent_settled"]!({}, ctx);
     handlers["turn_start"]!({}, ctx);
+    nowSpy.mockReturnValue(now + 61_000);
     await handlers["message_end"]!(quotaError(), ctx);
 
     expect(sendUserMessage).toHaveBeenCalledTimes(2);

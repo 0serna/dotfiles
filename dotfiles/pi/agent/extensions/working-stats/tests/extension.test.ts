@@ -376,6 +376,32 @@ describe("working-stats extension throughput integration", () => {
     );
   });
 
+  it("attributes an empty response to its model and thinking level", () => {
+    const { pi, handlers, setThinkingLevel } = createMockPi("high");
+    extensionFactory(pi);
+    const ctx = mockCtx();
+    ctx.model.id = "mimo-v2.5-pro";
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["turn_start"]!({}, ctx);
+    handlers["message_update"]!(
+      textDelta("x".repeat(400), "mimo-v2.5-pro"),
+      ctx,
+    );
+    vi.advanceTimersByTime(1000);
+    handlers["message_end"]!(messageEnd(100, "mimo-v2.5-pro"), ctx);
+
+    setThinkingLevel("medium");
+    handlers["turn_start"]!({}, ctx);
+    handlers["message_end"]!(messageEnd(undefined, "gpt-5.6-sol"), ctx);
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "<accent>✓</accent> <muted> gpt-5.6-sol/medium · 0:01 · 100 tok/s</muted>",
+      "info",
+    );
+  });
+
   it("preserves the latest valid final throughput across later attempts without usage", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);

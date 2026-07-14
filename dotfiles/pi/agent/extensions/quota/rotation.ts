@@ -124,9 +124,8 @@ export function markBad(
  * Priority:
  * 1. The account at `currentIndex` if it is still available.
  * 2. The next available account in rotation order.
- * 3. If all accounts are on cooldown, the one whose cooldown expires soonest.
  *
- * Returns the selected index, or -1 if there are no accounts.
+ * Returns the selected index, or -1 when no account is available.
  */
 export function pickNextAccount(
   states: AccountState[],
@@ -148,14 +147,5 @@ export function pickNextAccount(
     }
   }
 
-  let bestIdx = 0;
-  let bestState = states[0]!;
-  for (let i = 1; i < states.length; i++) {
-    const state = states[i]!;
-    if (state.cooldownUntil < bestState.cooldownUntil) {
-      bestState = state;
-      bestIdx = i;
-    }
-  }
-  return bestIdx;
+  return -1;
 }

@@ -196,13 +196,13 @@ describe("pickNextAccount", () => {
     expect(pickNextAccount([], 0, Date.now())).toBe(-1);
   });
 
-  it("returns the account with the soonest-expiring cooldown when all are bad", () => {
+  it("returns -1 when every account is still in cooldown", () => {
     const now = Date.now();
     const states = [makeState("1"), makeState("2"), makeState("3")];
     markBad(states[0]!, "rate-limited", 1000, now);
     markBad(states[1]!, "rate-limited", 500, now);
     markBad(states[2]!, "rate-limited", 2000, now);
-    expect(pickNextAccount(states, 0, now + 1)).toBe(1);
+    expect(pickNextAccount(states, 0, now + 1)).toBe(-1);
   });
 });
 

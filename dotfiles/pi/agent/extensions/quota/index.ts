@@ -56,7 +56,7 @@ let rotationConfig: RotationConfig | undefined;
 let accountStates: AccountState[] = [];
 let currentAccountIndex = -1;
 let continuationSentThisTurn = false;
-let triedAccountsThisTurn: Set<string> = new Set();
+let triedAccountsThisCycle: Set<string> = new Set();
 let logger: ExtensionLogger | undefined;
 let lifecycle: QuotaLifecycle | undefined;
 let latestSnapshot: QuotaSnapshot | undefined;
@@ -326,7 +326,7 @@ async function handleSessionStart(
   accountStates = initAccountStates(rotationConfig.accounts);
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
-  triedAccountsThisTurn = new Set();
+  triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
   pendingPreventiveReselection = false;
@@ -405,20 +405,20 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
     }
 
     if (current) {
-      triedAccountsThisTurn.add(current.name);
+      triedAccountsThisCycle.add(current.name);
     }
 
     const allAccountsAttempted = accountStates.every((state) =>
-      triedAccountsThisTurn.has(state.name),
+      triedAccountsThisCycle.has(state.name),
     );
     if (allAccountsAttempted) {
       getLogger(ctx).log("rotate_cycle_exhausted", {
         provider: OPENCODE_PROVIDER,
-        triedAccounts: Array.from(triedAccountsThisTurn),
+        triedAccounts: Array.from(triedAccountsThisCycle),
         accountCount: accountStates.length,
       });
       ctx.ui.notify(
-        "All OpenCode Go accounts have been attempted this turn. Quota may be exhausted on every account.",
+        "All OpenCode Go accounts have been attempted during this processing cycle. Quota may be exhausted on every account.",
         "warning",
       );
       return;
@@ -444,11 +444,12 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
 function handleTurnStart(): void {
   continuationSentThisTurn = false;
-  triedAccountsThisTurn = new Set();
 }
 
 function handleAgentSettled(_event: unknown, ctx: ExtensionContext): void {
-  if (!pendingPreventiveReselection || !latestSnapshot || !ctx.isIdle()) return;
+  if (!ctx.isIdle()) return;
+  triedAccountsThisCycle = new Set();
+  if (!pendingPreventiveReselection || !latestSnapshot) return;
   const decision = decidePreventiveReselection(latestSnapshot, {
     activeSource: activeSourceIdentity(),
     piSettled: true,
@@ -475,7 +476,7 @@ async function handleSessionShutdown(
   accountStates = [];
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
-  triedAccountsThisTurn = new Set();
+  triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
   pendingPreventiveReselection = false;

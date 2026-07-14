@@ -11,7 +11,9 @@ export default function (pi: ExtensionAPI) {
   let modelSlug = "";
   let initialModelSlug = "unknown";
   let lastRespondingModelSlug: string | null = null;
+  let responseModelSlug: string | null = null;
   let thinkingLevel: string = "off";
+  let responseThinkingLevel: string | null = null;
   const throughput = new ThroughputTracker();
 
   function clearLiveInterval(): void {
@@ -60,13 +62,18 @@ export default function (pi: ExtensionAPI) {
     intervalId ??= setInterval(() => updateWorkingMessage(ctx), 1000);
   });
 
+  pi.on("turn_start", () => {
+    responseModelSlug = null;
+    responseThinkingLevel = pi.getThinkingLevel();
+  });
+
   pi.on("message_update", (event, ctx) => {
     if (event.message.role !== "assistant") return;
     if (!isOutputDeltaEvent(event.assistantMessageEvent)) return;
     const delta = event.assistantMessageEvent.delta;
     if (!delta) return;
     if (throughput.phase !== "streaming") {
-      thinkingLevel = pi.getThinkingLevel();
+      thinkingLevel = responseThinkingLevel ?? pi.getThinkingLevel();
       throughput.startStream();
     }
     const partial = event.assistantMessageEvent.partial as {
@@ -74,21 +81,25 @@ export default function (pi: ExtensionAPI) {
       responseModel?: string;
     };
     const newModel = partial.responseModel ?? partial.model;
-    if (newModel && newModel !== modelSlug) {
-      modelSlug = newModel;
-      updateWorkingMessage(ctx);
+    if (newModel) {
+      responseModelSlug = newModel;
+      if (newModel !== modelSlug) {
+        modelSlug = newModel;
+        updateWorkingMessage(ctx);
+      }
     }
     throughput.addDelta(delta);
   });
 
   pi.on("message_end", (event) => {
     if (event.message.role !== "assistant") return;
-    const msg = event.message as {
-      responseModel?: string;
-      usage?: { output?: number };
-    };
-    lastRespondingModelSlug = msg.responseModel ?? modelSlug;
-    throughput.endStream(msg.usage?.output);
+    const msg = event.message;
+    lastRespondingModelSlug =
+      msg.responseModel ?? responseModelSlug ?? msg.model;
+    thinkingLevel = responseThinkingLevel ?? thinkingLevel;
+    responseModelSlug = null;
+    responseThinkingLevel = null;
+    throughput.endStream(msg.usage.output);
   });
 
   pi.on("agent_settled", (_event, ctx) => {
@@ -117,7 +128,9 @@ export default function (pi: ExtensionAPI) {
     startTime = null;
     initialModelSlug = "unknown";
     lastRespondingModelSlug = null;
+    responseModelSlug = null;
     thinkingLevel = "off";
+    responseThinkingLevel = null;
     throughput.reset();
     ctx.ui.setWorkingMessage();
   });
