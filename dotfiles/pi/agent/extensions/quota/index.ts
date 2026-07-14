@@ -23,7 +23,7 @@ import {
   DEFAULT_COOLDOWN_MS,
   initAccountStates,
   isQuotaExhaustionError,
-  isStreamingFailure,
+  isTransientError,
   markBad,
   pickNextAccount,
   type RotationReason,
@@ -394,7 +394,7 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
     if (msg?.role !== "assistant" || msg?.stopReason !== "error") return;
 
     // Transient stream retry: retry once with same account, no rotation
-    if (isStreamingFailure(msg.errorMessage)) {
+    if (isTransientError(msg.errorMessage)) {
       if (streamingFailureCount === 0 && !continuationSentThisTurn) {
         streamingFailureCount++;
         getLogger(ctx).log("streaming_failure_retry", {

@@ -331,22 +331,26 @@ describe("handleMessageEnd — rotation gating", () => {
     );
   });
 
-  it("does not rotate on timeout errors", async () => {
+  it("retries once on timeout errors", async () => {
     await handlers["message_end"]!(timeoutError(), ctx);
 
-    expect(sendUserMessage).not.toHaveBeenCalled();
-    expect(logEvents.some((entry) => entry.event === "message_end_error")).toBe(
-      false,
-    );
+    expect(sendUserMessage).toHaveBeenCalledWith("continue", {
+      deliverAs: "followUp",
+    });
+    expect(
+      logEvents.some((entry) => entry.event === "streaming_failure_retry"),
+    ).toBe(true);
   });
 
-  it("does not rotate on stream interruption errors", async () => {
+  it("retries once on stream interruption errors", async () => {
     await handlers["message_end"]!(streamError(), ctx);
 
-    expect(sendUserMessage).not.toHaveBeenCalled();
-    expect(logEvents.some((entry) => entry.event === "message_end_error")).toBe(
-      false,
-    );
+    expect(sendUserMessage).toHaveBeenCalledWith("continue", {
+      deliverAs: "followUp",
+    });
+    expect(
+      logEvents.some((entry) => entry.event === "streaming_failure_retry"),
+    ).toBe(true);
   });
 
   it("ignores errors on non-opencode-go providers", async () => {

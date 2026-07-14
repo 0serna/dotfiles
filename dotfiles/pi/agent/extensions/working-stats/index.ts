@@ -2,7 +2,11 @@ import type {
   ExtensionAPI,
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
-import { formatDuration } from "./format.ts";
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "../shared/logger.js";
+import { formatCompactDuration, formatDuration } from "./format.ts";
 import { ThroughputTracker, isOutputDeltaEvent } from "./throughput.ts";
 
 export default function (pi: ExtensionAPI) {
@@ -14,6 +18,10 @@ export default function (pi: ExtensionAPI) {
   let responseModelSlug: string | null = null;
   let thinkingLevel: string = "off";
   let responseThinkingLevel: string | null = null;
+  let firstDeltaMs: number | null = null;
+  let streamEndTime: number | null = null;
+  let streamsCount = 0;
+  let logger: ExtensionLogger | undefined;
   const throughput = new ThroughputTracker();
 
   function clearLiveInterval(): void {
@@ -30,13 +38,17 @@ export default function (pi: ExtensionAPI) {
   ): string {
     const modelLabel =
       thinkingLevel !== "off" ? `${model}/${thinkingLevel}` : model;
-    return ` ${modelLabel} · ${timeStr} · ${tokPerSec ?? "0 tok/s"}`;
+    const metrics = tokPerSec
+      ? tokPerSec
+      : firstDeltaMs !== null
+        ? `waiting ${formatCompactDuration(Date.now() - streamEndTime!)}`
+        : `waiting ${timeStr}`;
+    return ` working ${timeStr} · ${modelLabel} · ${metrics}`;
   }
 
   function updateWorkingMessage(ctx: ExtensionContext): void {
     if (startTime === null) return;
-    const elapsed = Date.now() - startTime;
-    const timeStr = formatDuration(elapsed);
+    const timeStr = formatDuration(Date.now() - startTime);
     ctx.ui.setWorkingMessage(
       ctx.ui.theme.fg(
         "muted",
@@ -52,12 +64,16 @@ export default function (pi: ExtensionAPI) {
       initialModelSlug = modelSlug;
       lastRespondingModelSlug = null;
       thinkingLevel = pi.getThinkingLevel();
+      firstDeltaMs = null;
+      streamEndTime = null;
+      streamsCount = 0;
       throughput.reset();
     }
     ctx.ui.setWorkingIndicator({
       frames: ["◐", "◓", "◑", "◒"].map((f) => ctx.ui.theme.fg("accent", f)),
       intervalMs: 120,
     });
+    logger ??= createExtensionLogger(ctx, "working-stats");
     updateWorkingMessage(ctx);
     intervalId ??= setInterval(() => updateWorkingMessage(ctx), 1000);
   });
@@ -75,6 +91,9 @@ export default function (pi: ExtensionAPI) {
     if (throughput.phase !== "streaming") {
       thinkingLevel = responseThinkingLevel ?? pi.getThinkingLevel();
       throughput.startStream();
+      if (firstDeltaMs === null) {
+        firstDeltaMs = Date.now();
+      }
     }
     const partial = event.assistantMessageEvent.partial as {
       model?: string;
@@ -100,15 +119,32 @@ export default function (pi: ExtensionAPI) {
     responseModelSlug = null;
     responseThinkingLevel = null;
     throughput.endStream(msg.usage.output);
+    streamEndTime = Date.now();
+    streamsCount++;
+    logger?.log("stream", {
+      model: lastRespondingModelSlug ?? modelSlug,
+      thinking: thinkingLevel,
+      ttft_ms: firstDeltaMs !== null ? firstDeltaMs - startTime! : null,
+      tps: throughput.getFinalThroughput(),
+      duration_ms: streamEndTime - startTime!,
+      tokens: typeof msg.usage.output === "number" ? msg.usage.output : null,
+    });
   });
 
   pi.on("agent_settled", (_event, ctx) => {
     if (!ctx.isIdle()) return;
     clearLiveInterval();
     if (startTime !== null) {
-      const elapsed = Date.now() - startTime;
-      const timeStr = formatDuration(elapsed);
+      const timeStr = formatDuration(Date.now() - startTime);
       const check = ctx.ui.theme.fg("accent", "✓");
+      logger?.log("session", {
+        model: lastRespondingModelSlug ?? initialModelSlug,
+        thinking: thinkingLevel,
+        ttft_ms: firstDeltaMs !== null ? firstDeltaMs - startTime! : null,
+        tps: throughput.getFinalThroughput(),
+        streams_count: streamsCount,
+        total_duration_ms: Date.now() - startTime,
+      });
       const data = ctx.ui.theme.fg(
         "muted",
         buildLabel(
@@ -131,6 +167,9 @@ export default function (pi: ExtensionAPI) {
     responseModelSlug = null;
     thinkingLevel = "off";
     responseThinkingLevel = null;
+    firstDeltaMs = null;
+    streamEndTime = null;
+    streamsCount = 0;
     throughput.reset();
     ctx.ui.setWorkingMessage();
   });

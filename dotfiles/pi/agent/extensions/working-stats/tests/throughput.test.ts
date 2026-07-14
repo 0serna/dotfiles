@@ -47,8 +47,8 @@ describe("ThroughputTracker streaming", () => {
 
     vi.advanceTimersByTime(1000);
 
-    // 100 tokens / 1s = 100 tok/s
-    expect(tracker.getDisplay()).toBe("100 tok/s");
+    // 100 tokens / 1s = 100 tps
+    expect(tracker.getDisplay()).toBe("100 tps");
   });
 
   it("updates live throughput as time advances", () => {
@@ -57,11 +57,11 @@ describe("ThroughputTracker streaming", () => {
     tracker.addDelta("x".repeat(400));
 
     vi.advanceTimersByTime(1000);
-    expect(tracker.getDisplay()).toBe("100 tok/s");
+    expect(tracker.getDisplay()).toBe("100 tps");
 
     vi.advanceTimersByTime(1000);
-    // Same 100 tokens over 2 seconds = 50 tok/s
-    expect(tracker.getDisplay()).toBe("50 tok/s");
+    // Same 100 tokens over 2 seconds = 50 tps
+    expect(tracker.getDisplay()).toBe("50 tps");
   });
 
   it("accumulates tokens from multiple deltas", () => {
@@ -72,8 +72,8 @@ describe("ThroughputTracker streaming", () => {
 
     vi.advanceTimersByTime(1000);
 
-    // 100 tokens / 1s = 100 tok/s
-    expect(tracker.getDisplay()).toBe("100 tok/s");
+    // 100 tokens / 1s = 100 tps
+    expect(tracker.getDisplay()).toBe("100 tps");
   });
 
   it("ignores deltas with zero length", () => {
@@ -97,7 +97,7 @@ describe("ThroughputTracker final phase", () => {
     tracker.endStream(200); // provider reports 200 output tokens
 
     expect(tracker.getDisplay()).toBeNull(); // placeholder during tool exec
-    expect(tracker.getFinalThroughput()).toBe("200 tok/s");
+    expect(tracker.getFinalThroughput()).toBe("200 tps");
   });
 
   it("preserves last final when endStream is called without usage", () => {
@@ -108,14 +108,14 @@ describe("ThroughputTracker final phase", () => {
     tracker.addDelta("x".repeat(400));
     vi.advanceTimersByTime(1000);
     tracker.endStream(100);
-    expect(tracker.getFinalThroughput()).toBe("100 tok/s");
+    expect(tracker.getFinalThroughput()).toBe("100 tps");
 
     // Second stream ends without usage → preserves previous
     tracker.startStream();
     tracker.addDelta("y".repeat(400));
     vi.advanceTimersByTime(1000);
     tracker.endStream();
-    expect(tracker.getFinalThroughput()).toBe("100 tok/s");
+    expect(tracker.getFinalThroughput()).toBe("100 tps");
   });
 
   it("preserves last final when endStream is called with zero usage", () => {
@@ -124,12 +124,12 @@ describe("ThroughputTracker final phase", () => {
     tracker.addDelta("x".repeat(400));
     vi.advanceTimersByTime(1000);
     tracker.endStream(150);
-    expect(tracker.getFinalThroughput()).toBe("150 tok/s");
+    expect(tracker.getFinalThroughput()).toBe("150 tps");
 
     tracker.startStream();
     vi.advanceTimersByTime(2000);
     tracker.endStream(0);
-    expect(tracker.getFinalThroughput()).toBe("150 tok/s");
+    expect(tracker.getFinalThroughput()).toBe("150 tps");
   });
 
   it("returns null from getDisplay during tool execution", () => {
@@ -163,8 +163,8 @@ describe("ThroughputTracker stream transitions", () => {
 
     tracker.addDelta("y".repeat(800));
     vi.advanceTimersByTime(1000);
-    // 200 tokens / 1s = 200 tok/s — independent of previous stream
-    expect(tracker.getDisplay()).toBe("200 tok/s");
+    // 200 tokens / 1s = 200 tps — independent of previous stream
+    expect(tracker.getDisplay()).toBe("200 tps");
   });
 
   it("does not include prior stream tokens in the new stream", () => {
@@ -178,7 +178,7 @@ describe("ThroughputTracker stream transitions", () => {
     tracker.startStream();
     tracker.addDelta("hi"); // ceil(2/4) = 1 token
     vi.advanceTimersByTime(1000);
-    expect(tracker.getDisplay()).toBe("1 tok/s");
+    expect(tracker.getDisplay()).toBe("1 tps");
   });
 
   it("excludes agent latency from throughput", () => {
@@ -188,7 +188,7 @@ describe("ThroughputTracker stream transitions", () => {
     tracker.addDelta("x".repeat(400));
 
     vi.advanceTimersByTime(1000);
-    expect(tracker.getDisplay()).toBe("100 tok/s");
+    expect(tracker.getDisplay()).toBe("100 tps");
   });
 });
 
@@ -216,7 +216,7 @@ describe("ThroughputTracker reset", () => {
     tracker.startStream();
     tracker.addDelta("y".repeat(800));
     vi.advanceTimersByTime(1000);
-    expect(tracker.getDisplay()).toBe("200 tok/s");
+    expect(tracker.getDisplay()).toBe("200 tps");
     expect(tracker.getFinalThroughput()).toBeNull();
   });
 });

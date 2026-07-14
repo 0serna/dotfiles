@@ -5,7 +5,7 @@ function estimateTokensFromDelta(delta: string): number {
 }
 
 function formatThroughput(tokensPerSecond: number): string {
-  return `${Math.round(tokensPerSecond)} tok/s`;
+  return `${Math.round(tokensPerSecond)} tps`;
 }
 
 function computeThroughput(

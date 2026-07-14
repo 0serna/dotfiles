@@ -4,7 +4,15 @@
 
 - Use neutral Spanish for user-facing messages.
 - Use English for code and files, except when language is part of the behavior, such as translations, fixtures, or localized data.
-- Route all user-owned decisions through the `question` tool or the platform's interactive equivalent.
+- Route **all** user-owned decisions through the `question` tool — never phrase questions in prose when the tool applies. This includes grilling, clarifications, confirmations, and option selection.
+
+### Tool Equivalences
+
+Some externally-managed skills reference tools by names from other platforms. Use this mapping:
+
+- `AskUserQuestion` → `question` (prompt the user for input or a decision)
+- `TodoWrite`, `TodoRead` → not available; track progress in-message
+- `Task` / `Agent` (subagent) → not available; execute inline
 
 ### Workflow
 

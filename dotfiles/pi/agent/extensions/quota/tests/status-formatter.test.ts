@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("formatCompactStatus", () => {
-  it("renders 'Codex 80r · OpenCode 75r' for healthy providers", () => {
+  it("renders 'Codex 80r OpenCode 75r' for healthy providers", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -75,7 +75,7 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toBe("Codex 80r · OpenCode 75r");
+    expect(result).toBe("Codex 80r OpenCode 75r");
   });
 
   it("shows only provider prefix, not account name", () => {
@@ -428,7 +428,7 @@ describe("formatCompactStatus", () => {
       formatCompactStatus(snapshot, {
         activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
         colorize: (intent, text) => {
-          if (text !== " · ") intents.push(intent);
+          if (text !== " ") intents.push(intent);
           return text;
         },
       });
@@ -461,7 +461,7 @@ describe("formatCompactStatus", () => {
       expect(calls).toEqual([
         { intent: "warning", text: "Codex 5r" },
         { intent: "dim", text: "OpenCode 80r" },
-        { intent: "dim", text: " · " },
+        { intent: "dim", text: " " },
       ]);
     });
   });

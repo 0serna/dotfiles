@@ -7,6 +7,7 @@ type Handler = (...args: unknown[]) => void;
 function mockCtx() {
   return {
     model: { id: "gpt-5" },
+    sessionManager: { getSessionId: () => "test-session" },
     isIdle: vi.fn(() => true),
     ui: {
       notify: vi.fn(),
@@ -89,7 +90,7 @@ describe("working-stats extension lifecycle", () => {
       intervalMs: 120,
     });
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
     );
   });
 
@@ -101,7 +102,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_start"]!({}, ctx);
 
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted> gpt-5/high · 0:00 · 0 tok/s</muted>",
+      "<muted> working 0:00 · gpt-5/high · waiting 0:00</muted>",
     );
   });
 
@@ -136,7 +137,7 @@ describe("working-stats extension lifecycle", () => {
 
     expect(ctx.ui.notify).toHaveBeenCalledOnce();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5 · 0:05 · 0 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:05 · gpt-5 · waiting 0:05</muted>",
       "info",
     );
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
@@ -156,7 +157,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5 · 0:02 · 200 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:02 · gpt-5 · 200 tps</muted>",
       "info",
     );
   });
@@ -175,7 +176,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5/high · 0:02 · 200 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:02 · gpt-5/high · 200 tps</muted>",
       "info",
     );
   });
@@ -212,7 +213,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:02 · gpt-5 · waiting 0:02</muted>",
       "info",
     );
   });
@@ -246,12 +247,12 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
     );
 
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:01 · 100 tok/s</muted>",
+      "<muted> working 0:01 · gpt-5 · 100 tps</muted>",
     );
   });
 
@@ -276,7 +277,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(2000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> working 0:02 · gpt-5 · waiting 0:02</muted>",
     );
   });
 
@@ -292,7 +293,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> working 0:02 · gpt-5 · waiting 1s</muted>",
     );
   });
 
@@ -308,12 +309,12 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> working 0:02 · gpt-5 · waiting 1s</muted>",
     );
 
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:07 · 0 tok/s</muted>",
+      "<muted> working 0:07 · gpt-5 · waiting 6s</muted>",
     );
   });
 
@@ -332,7 +333,7 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_update"]!(textDelta("hi"), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:03 · 1 tok/s</muted>",
+      "<muted> working 0:03 · gpt-5 · 1 tps</muted>",
     );
   });
 
@@ -355,7 +356,7 @@ describe("working-stats extension throughput integration", () => {
     vi.advanceTimersByTime(1000);
 
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5.6-sol/medium · 0:02 · 100 tok/s</muted>",
+      "<muted> working 0:02 · gpt-5.6-sol/medium · 100 tps</muted>",
     );
   });
 
@@ -397,7 +398,7 @@ describe("working-stats extension throughput integration", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5.6-sol/medium · 0:01 · 100 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:01 · gpt-5.6-sol/medium · 100 tps</muted>",
       "info",
     );
   });
@@ -417,7 +418,7 @@ describe("working-stats extension throughput integration", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5 · 0:01 · 100 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:01 · gpt-5 · 100 tps</muted>",
       "info",
     );
   });
@@ -435,7 +436,7 @@ describe("working-stats extension throughput integration", () => {
 
     handlers["agent_start"]!({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
     );
   });
 });
@@ -456,7 +457,7 @@ describe("working-stats extension model changes", () => {
     vi.advanceTimersByTime(1000);
 
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> claude-opus-4-5 · 0:03 · 25 tok/s</muted>",
+      "<muted> working 0:03 · claude-opus-4-5 · 25 tps</muted>",
     );
   });
 
@@ -469,7 +470,7 @@ describe("working-stats extension model changes", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
       "info",
     );
   });
@@ -490,7 +491,7 @@ describe("working-stats extension model changes", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> routed-model · 0:01 · 200 tok/s</muted>",
+      "<accent>✓</accent> <muted> working 0:01 · routed-model · 200 tps</muted>",
       "info",
     );
   });
