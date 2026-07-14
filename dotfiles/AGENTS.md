@@ -9,9 +9,8 @@
 - Run every quality gate affected by the change before declaring work complete. When impact is unclear, run the reasonably broadest applicable set. If a failure is pre-existing and unrelated, ask the user how to proceed.
 - Fix the root cause of every quality-tool finding. If no valid fix is viable, consult the user rather than adding a suppression.
 
-## Tools & Workflow
+## Tools &amp; Workflow
 
-- Prefer `rg` for repository text and file-name searches; use an available alternative when `rg` is unavailable.
 - Use the `/tdd` skill when an automated test can meaningfully fail on the changed behavior and prevent a real regression.
 - Prefer GitHub CLI for GitHub investigations; use an available alternative when it is unavailable. Clone into `/tmp` when inspecting code that is not available locally.
 - Obtain explicit user permission before creating documentation files.
