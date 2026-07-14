@@ -19,29 +19,41 @@ function mockCtx() {
   };
 }
 
-function createMockPi(): {
+function createMockPi(initialThinkingLevel: string = "off"): {
   pi: ExtensionAPI;
   handlers: Record<string, Handler>;
+  setThinkingLevel: (level: string) => void;
 } {
   const handlers: Record<string, Handler> = {};
+  let thinkingLevel = initialThinkingLevel;
 
   const pi = {
     on(event: string, handler: Handler) {
       handlers[event] = handler;
     },
+    getThinkingLevel: () => thinkingLevel,
   } as unknown as ExtensionAPI;
 
-  return { pi, handlers };
+  return {
+    pi,
+    handlers,
+    setThinkingLevel: (level) => {
+      thinkingLevel = level;
+    },
+  };
 }
 
-function textDelta(delta: string) {
+function textDelta(delta: string, model = "gpt-5", responseModel?: string) {
   return {
     message: { role: "assistant", usage: {} },
     assistantMessageEvent: {
       type: "text_delta",
       contentIndex: 0,
       delta,
-      partial: {},
+      partial: {
+        model,
+        ...(responseModel !== undefined ? { responseModel } : {}),
+      },
     },
   };
 }
@@ -54,10 +66,6 @@ function messageEnd(outputTokens?: number, model = "gpt-5") {
       usage: outputTokens !== undefined ? { output: outputTokens } : {},
     },
   };
-}
-
-function modelSelect(newId: string) {
-  return { model: { id: newId } };
 }
 
 beforeEach(() => {
@@ -82,6 +90,18 @@ describe("working-stats extension lifecycle", () => {
     });
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
       "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+    );
+  });
+
+  it("includes thinking level in label when not off", () => {
+    const { pi, handlers } = createMockPi("high");
+    extensionFactory(pi);
+
+    const ctx = mockCtx();
+    handlers["agent_start"]!({}, ctx);
+
+    expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
+      "<muted> gpt-5/high · 0:00 · 0 tok/s</muted>",
     );
   });
 
@@ -129,19 +149,33 @@ describe("working-stats extension lifecycle", () => {
     const ctx = mockCtx();
     handlers["agent_start"]!({}, ctx);
 
-    // Simulate a full stream
     handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
     vi.advanceTimersByTime(1000);
     handlers["message_end"]!(messageEnd(200), ctx);
-
-    // Let the interval tick to render the final display
     vi.advanceTimersByTime(1000);
-
-    // Settle the processing cycle
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
       "<accent>✓</accent> <muted> gpt-5 · 0:02 · 200 tok/s</muted>",
+      "info",
+    );
+  });
+
+  it("includes thinking level in completion notification when not off", () => {
+    const { pi, handlers } = createMockPi("high");
+    extensionFactory(pi);
+
+    const ctx = mockCtx();
+    handlers["agent_start"]!({}, ctx);
+
+    handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
+    vi.advanceTimersByTime(1000);
+    handlers["message_end"]!(messageEnd(200), ctx);
+    vi.advanceTimersByTime(1000);
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "<accent>✓</accent> <muted> gpt-5/high · 0:02 · 200 tok/s</muted>",
       "info",
     );
   });
@@ -210,13 +244,11 @@ describe("working-stats extension throughput integration", () => {
     handlers["agent_start"]!({}, ctx);
     handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
 
-    // Before the interval ticks again the placeholder remains
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
       "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
     );
 
-    // On the next tick the live throughput appears
     vi.advanceTimersByTime(500);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
       "<muted> gpt-5 · 0:01 · 100 tok/s</muted>",
@@ -271,7 +303,6 @@ describe("working-stats extension throughput integration", () => {
 
     handlers["agent_start"]!({}, ctx);
 
-    // Stream 1 with usage
     handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
     vi.advanceTimersByTime(1000);
     handlers["message_end"]!(messageEnd(100), ctx);
@@ -280,7 +311,6 @@ describe("working-stats extension throughput integration", () => {
       "<muted> gpt-5 · 0:02 · 0 tok/s</muted>",
     );
 
-    // Simulate tool execution: long idle interval
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
       "<muted> gpt-5 · 0:07 · 0 tok/s</muted>",
@@ -294,17 +324,55 @@ describe("working-stats extension throughput integration", () => {
 
     handlers["agent_start"]!({}, ctx);
 
-    // Stream 1: large throughput
     handlers["message_update"]!(textDelta("x".repeat(4000)), ctx);
     vi.advanceTimersByTime(1000);
     handlers["message_end"]!(messageEnd(1000), ctx);
     vi.advanceTimersByTime(1000);
 
-    // Stream 2: small throughput
     handlers["message_update"]!(textDelta("hi"), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
       "<muted> gpt-5 · 0:03 · 1 tok/s</muted>",
+    );
+  });
+
+  it("shows the thinking level active when each stream begins", () => {
+    const { pi, handlers, setThinkingLevel } = createMockPi("high");
+    extensionFactory(pi);
+    const ctx = mockCtx();
+    ctx.model.id = "mimo-v2.5-pro";
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["message_update"]!(
+      textDelta("x".repeat(400), "mimo-v2.5-pro"),
+      ctx,
+    );
+    vi.advanceTimersByTime(1000);
+    handlers["message_end"]!(messageEnd(100, "mimo-v2.5-pro"), ctx);
+
+    setThinkingLevel("medium");
+    handlers["message_update"]!(textDelta("x".repeat(400), "gpt-5.6-sol"), ctx);
+    vi.advanceTimersByTime(1000);
+
+    expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
+      "<muted> gpt-5.6-sol/medium · 0:02 · 100 tok/s</muted>",
+    );
+  });
+
+  it("updates model from streaming partial", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["message_update"]!(
+      textDelta("x".repeat(100), "requested-model", "actual-model"),
+      ctx,
+    );
+    vi.advanceTimersByTime(1000);
+
+    expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
+      expect.stringContaining("actual-model"),
     );
   });
 
@@ -339,7 +407,6 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     handlers["session_shutdown"]!({}, ctx);
 
-    // After shutdown a new agent run should start with the placeholder
     handlers["agent_start"]!({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
       "<muted> gpt-5 · 0:00 · 0 tok/s</muted>",
@@ -348,7 +415,7 @@ describe("working-stats extension throughput integration", () => {
 });
 
 describe("working-stats extension model changes", () => {
-  it("updates the working message when the model changes mid-run", () => {
+  it("updates model from streaming partial during run", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
     const ctx = mockCtx();
@@ -356,10 +423,14 @@ describe("working-stats extension model changes", () => {
     handlers["agent_start"]!({}, ctx);
     vi.advanceTimersByTime(2000);
 
-    handlers["model_select"]!(modelSelect("claude-opus-4-5"), ctx);
+    handlers["message_update"]!(
+      textDelta("x".repeat(100), "claude-opus-4-5"),
+      ctx,
+    );
+    vi.advanceTimersByTime(1000);
 
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> claude-opus-4-5 · 0:02 · 0 tok/s</muted>",
+      "<muted> claude-opus-4-5 · 0:03 · 25 tok/s</muted>",
     );
   });
 
@@ -369,7 +440,6 @@ describe("working-stats extension model changes", () => {
     const ctx = mockCtx();
 
     handlers["agent_start"]!({}, ctx);
-    handlers["model_select"]!(modelSelect("restored-model"), ctx);
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
@@ -378,21 +448,44 @@ describe("working-stats extension model changes", () => {
     );
   });
 
-  it("attributes completion to the last responding model instead of idle restoration", () => {
+  it("attributes completion to the last responding model from streaming", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
     const ctx = mockCtx();
 
     handlers["agent_start"]!({}, ctx);
-    handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
+    handlers["message_update"]!(
+      textDelta("x".repeat(400), "routed-model"),
+      ctx,
+    );
     vi.advanceTimersByTime(1000);
     handlers["message_end"]!(messageEnd(200, "routed-model"), ctx);
 
-    handlers["model_select"]!(modelSelect("restored-model"), ctx);
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
       "<accent>✓</accent> <muted> routed-model · 0:01 · 200 tok/s</muted>",
+      "info",
+    );
+  });
+
+  it("prefers responseModel over model in completion notification", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["message_update"]!(
+      textDelta("x".repeat(400), "requested-model", "actual-model"),
+      ctx,
+    );
+    vi.advanceTimersByTime(1000);
+    handlers["message_end"]!(messageEnd(200, "requested-model"), ctx);
+
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      expect.stringContaining("actual-model"),
       "info",
     );
   });

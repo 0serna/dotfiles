@@ -402,15 +402,16 @@ describe("DotfilesInstaller", () => {
     const sharedInstructionEntries = manifest.filter(
       (entry) =>
         entry.source === "dotfiles/AGENTS.md" &&
-        ["~/.config/opencode/AGENTS.md", "~/.pi/agent/AGENTS.md"].includes(
-          entry.target,
-        ),
+        [
+          "~/.config/opencode/AGENTS.md",
+          "~/.pi/agent/APPEND_SYSTEM.md",
+        ].includes(entry.target),
     );
     const piEntries = manifest.filter((entry) =>
       entry.target.startsWith("~/.pi/"),
     );
     const nonSharedPiEntries = piEntries.filter(
-      (entry) => entry.target !== "~/.pi/agent/AGENTS.md",
+      (entry) => entry.target !== "~/.pi/agent/APPEND_SYSTEM.md",
     );
 
     expect(sharedInstructionEntries).toHaveLength(2);

@@ -11,6 +11,7 @@ export default function (pi: ExtensionAPI) {
   let modelSlug = "";
   let initialModelSlug = "unknown";
   let lastRespondingModelSlug: string | null = null;
+  let thinkingLevel: string = "off";
   const throughput = new ThroughputTracker();
 
   function clearLiveInterval(): void {
@@ -25,7 +26,9 @@ export default function (pi: ExtensionAPI) {
     timeStr: string,
     tokPerSec: string | null,
   ): string {
-    return ` ${model} · ${timeStr} · ${tokPerSec ?? "0 tok/s"}`;
+    const modelLabel =
+      thinkingLevel !== "off" ? `${model}/${thinkingLevel}` : model;
+    return ` ${modelLabel} · ${timeStr} · ${tokPerSec ?? "0 tok/s"}`;
   }
 
   function updateWorkingMessage(ctx: ExtensionContext): void {
@@ -46,6 +49,7 @@ export default function (pi: ExtensionAPI) {
       modelSlug = ctx.model?.id ?? "unknown";
       initialModelSlug = modelSlug;
       lastRespondingModelSlug = null;
+      thinkingLevel = pi.getThinkingLevel();
       throughput.reset();
     }
     ctx.ui.setWorkingIndicator({
@@ -56,26 +60,35 @@ export default function (pi: ExtensionAPI) {
     intervalId ??= setInterval(() => updateWorkingMessage(ctx), 1000);
   });
 
-  pi.on("model_select", (event, ctx) => {
-    modelSlug = event.model.id;
-    updateWorkingMessage(ctx);
-  });
-
-  pi.on("message_update", (event) => {
+  pi.on("message_update", (event, ctx) => {
     if (event.message.role !== "assistant") return;
     if (!isOutputDeltaEvent(event.assistantMessageEvent)) return;
     const delta = event.assistantMessageEvent.delta;
     if (!delta) return;
     if (throughput.phase !== "streaming") {
+      thinkingLevel = pi.getThinkingLevel();
       throughput.startStream();
+    }
+    const partial = event.assistantMessageEvent.partial as {
+      model?: string;
+      responseModel?: string;
+    };
+    const newModel = partial.responseModel ?? partial.model;
+    if (newModel && newModel !== modelSlug) {
+      modelSlug = newModel;
+      updateWorkingMessage(ctx);
     }
     throughput.addDelta(delta);
   });
 
   pi.on("message_end", (event) => {
     if (event.message.role !== "assistant") return;
-    lastRespondingModelSlug = event.message.model || modelSlug;
-    throughput.endStream(event.message.usage?.output);
+    const msg = event.message as {
+      responseModel?: string;
+      usage?: { output?: number };
+    };
+    lastRespondingModelSlug = msg.responseModel ?? modelSlug;
+    throughput.endStream(msg.usage?.output);
   });
 
   pi.on("agent_settled", (_event, ctx) => {
@@ -104,6 +117,7 @@ export default function (pi: ExtensionAPI) {
     startTime = null;
     initialModelSlug = "unknown";
     lastRespondingModelSlug = null;
+    thinkingLevel = "off";
     throughput.reset();
     ctx.ui.setWorkingMessage();
   });

@@ -32,6 +32,10 @@ _Avoid_: routed prompt, temporary model, routed processing cycle
 The return from a routed selection to the latest persisted manual selection after routed work finishes. It remains pending while Pi is busy; once idle, an unavailable selection closes the route while retaining the active model and warning the user.
 _Avoid_: route deactivation, default model reset, model fallback
 
+**Assistant response configuration**:
+The selected model and thinking level committed to one assistant response. It becomes fixed when that response begins; later selections apply only to a subsequent response—including retries and post-tool continuations—while the last responding model records actual attribution.
+_Avoid_: hot-swapped model, live model switch
+
 **Completion marker**:
 The `✓` shown when a processing cycle finishes, regardless of whether its final outcome succeeded, failed, or was aborted. It communicates settlement, not success.
 _Avoid_: success indicator, pass result, outcome status

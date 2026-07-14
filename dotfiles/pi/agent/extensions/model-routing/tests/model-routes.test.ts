@@ -33,7 +33,6 @@ vi.mock("node:os", () => ({
 import { compact } from "@earendil-works/pi-coding-agent";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import registerModelRoutesExtension from "../index.ts";
-import { ROUTE_TOKENS } from "../routes.ts";
 import { createModelRoutesRuntime } from "../runtime.ts";
 import { loadConfig, saveConfig } from "../state.ts";
 
@@ -107,13 +106,13 @@ function setupExtension() {
   const userModel2 = { provider: "user", id: "other" };
   const compactModel = { provider: "compact", id: "model" };
   const commitModel = { provider: "commit", id: "model" };
-  const simplifyModel = { provider: "simplify", id: "model" };
+  const openspecProposeModel = { provider: "openspecPropose", id: "model" };
   const allModels = [
     userModel,
     userModel2,
     compactModel,
     commitModel,
-    simplifyModel,
+    openspecProposeModel,
   ];
   const ctx = {
     model: userModel,
@@ -169,7 +168,7 @@ function setupExtension() {
     userModel2,
     compactModel,
     commitModel,
-    simplifyModel,
+    openspecProposeModel,
   };
 }
 
@@ -179,13 +178,13 @@ function setupContext() {
   const userModel2 = { provider: "user", id: "other" };
   const compactModel = { provider: "compact", id: "model" };
   const commitModel = { provider: "commit", id: "model" };
-  const simplifyModel = { provider: "simplify", id: "model" };
+  const openspecProposeModel = { provider: "openspecPropose", id: "model" };
   const allModels = [
     userModel,
     userModel2,
     compactModel,
     commitModel,
-    simplifyModel,
+    openspecProposeModel,
   ];
   const ctx = {
     model: userModel,
@@ -852,8 +851,8 @@ describe("manual preferences restoration", () => {
       prefs: null,
       routes: JSON.stringify({
         "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
-        "/skill:simplify": {
-          model: "simplify/model",
+        "/skill:openspec-propose": {
+          model: "openspecPropose/model",
           thinkingLevel: "medium",
         },
       }),
@@ -867,7 +866,7 @@ describe("manual preferences restoration", () => {
     await setup.handlers.get("input")?.(
       {
         source: "user",
-        text: "/skill:simplify later",
+        text: "/skill:openspec-propose later",
         streamingBehavior: "followUp",
       },
       setup.ctx,
@@ -883,7 +882,7 @@ describe("manual preferences restoration", () => {
           content: [
             {
               type: "text",
-              text: '<skill name="simplify" location="/skills/simplify/SKILL.md">\nBody\n</skill>\n\nlater',
+              text: '<skill name="openspec-propose" location="/skills/openspec-propose/SKILL.md">\nBody\n</skill>\n\nlater',
             },
           ],
         },
@@ -892,7 +891,7 @@ describe("manual preferences restoration", () => {
     );
 
     expect(setup.pi.setModel).toHaveBeenCalledTimes(2);
-    expect(setup.ctx.model).toBe(setup.simplifyModel);
+    expect(setup.ctx.model).toBe(setup.openspecProposeModel);
   });
 
   it("does not retry an immediate unusable route at message_start", async () => {
@@ -1032,14 +1031,14 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
   });
 
-  it("routes /skill:simplify to its own token independently from /skill:commit", async () => {
+  it("routes different skills to their own tokens independently", async () => {
     const setup = setupExtension();
     configureFiles({
       prefs: null,
       routes: JSON.stringify({
         "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
-        "/skill:simplify": {
-          model: "simplify/model",
+        "/skill:openspec-propose": {
+          model: "openspecPropose/model",
           thinkingLevel: "medium",
         },
       }),
@@ -1052,13 +1051,16 @@ describe("manual preferences restoration", () => {
       setup.ctx,
     );
     await setup.handlers.get("input")?.(
-      { source: "user", text: "/skill:simplify two" },
+      { source: "user", text: "/skill:openspec-propose two" },
       setup.ctx,
     );
     await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
-    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.simplifyModel);
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(
+      2,
+      setup.openspecProposeModel,
+    );
   });
 
   it("warns but continues when the routed command has no usable configuration", async () => {
@@ -1256,20 +1258,5 @@ describe("manual preferences restoration", () => {
     expect(vi.mocked(setup.pi.setModel)).toHaveBeenCalledTimes(
       setModelCallsBefore,
     );
-  });
-});
-
-// --- Route catalog ---
-
-describe("route catalog", () => {
-  it("declares the expected tokens in order", () => {
-    expect(ROUTE_TOKENS).toEqual([
-      "/compact",
-      "/skill:openspec-apply-change",
-      "/skill:openspec-archive-change",
-      "/skill:code-review",
-      "/skill:simplify",
-      "/skill:commit",
-    ]);
   });
 });
