@@ -23,6 +23,7 @@ import {
   DEFAULT_COOLDOWN_MS,
   initAccountStates,
   isQuotaExhaustionError,
+  isStreamingFailure,
   markBad,
   pickNextAccount,
   type RotationReason,
@@ -56,6 +57,7 @@ let rotationConfig: RotationConfig | undefined;
 let accountStates: AccountState[] = [];
 let currentAccountIndex = -1;
 let continuationSentThisTurn = false;
+let streamingFailureCount = 0;
 let triedAccountsThisCycle: Set<string> = new Set();
 let logger: ExtensionLogger | undefined;
 let lifecycle: QuotaLifecycle | undefined;
@@ -326,6 +328,7 @@ async function handleSessionStart(
   accountStates = initAccountStates(rotationConfig.accounts);
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
+  streamingFailureCount = 0;
   triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
@@ -390,6 +393,26 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
     const msg = event.message;
     if (msg?.role !== "assistant" || msg?.stopReason !== "error") return;
 
+    // Transient stream retry: retry once with same account, no rotation
+    if (isStreamingFailure(msg.errorMessage)) {
+      if (streamingFailureCount === 0 && !continuationSentThisTurn) {
+        streamingFailureCount++;
+        getLogger(ctx).log("streaming_failure_retry", {
+          provider: OPENCODE_PROVIDER,
+          currentAccount: currentAccount()?.name,
+        });
+        await pi.sendUserMessage("continue", { deliverAs: "followUp" });
+      } else {
+        getLogger(ctx).log("streaming_failure_skipped", {
+          provider: OPENCODE_PROVIDER,
+          currentAccount: currentAccount()?.name,
+          streamingFailureCount,
+          continuationSentThisTurn,
+        });
+      }
+      return;
+    }
+
     if (!isQuotaExhaustionError(msg.errorMessage)) return;
 
     const current = currentAccount();
@@ -444,6 +467,7 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
 function handleTurnStart(): void {
   continuationSentThisTurn = false;
+  streamingFailureCount = 0;
 }
 
 function handleAgentSettled(_event: unknown, ctx: ExtensionContext): void {
@@ -476,6 +500,7 @@ async function handleSessionShutdown(
   accountStates = [];
   currentAccountIndex = -1;
   continuationSentThisTurn = false;
+  streamingFailureCount = 0;
   triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Prevent false-positive API key rotations by restricting rotation triggers to genuine quota exhaustion errors (`GoUsageLimitError`) and tracking per-turn account attempts to stop rotating when all accounts have been exhausted.
+Prevent false-positive API key rotations by restricting rotation triggers to genuine quota exhaustion errors (`GoUsageLimitError`) and tracking per-turn account attempts to stop rotating when all accounts have been exhausted. Additionally, handle transient streaming failures with a single retry before giving up.
 
 ## Requirements
 
@@ -34,6 +34,39 @@ The system SHALL trigger OpenCode Go API key rotation only when the `message_end
 - **WHEN** `message_end` fires with `stopReason: "error"` on a provider other than `opencode-go`
 - **THEN** the system SHALL NOT rotate any API key
 
+### Requirement: Transient stream retry on streaming failures
+
+The system SHALL retry once with the same account when a streaming failure occurs (`errorMessage` contains `"Streaming response failed"`), without rotating the API key or affecting the shared quota snapshot. If the retry also fails, the system SHALL NOT intervene and SHALL let Pi handle the error naturally.
+
+#### Scenario: First streaming failure triggers retry
+
+- **WHEN** `message_end` fires with `stopReason: "error"` and `errorMessage` containing `"Streaming response failed"` for the `opencode-go` provider
+- **AND** no streaming failure has occurred in the current turn
+- **AND** no continuation has been sent this turn
+- **THEN** the system SHALL increment the per-turn streaming failure counter
+- **AND** the system SHALL queue a `continue` follow-up message
+- **AND** the system SHALL NOT rotate the API key
+- **AND** the system SHALL NOT affect the shared quota snapshot
+
+#### Scenario: Second streaming failure does not retry
+
+- **WHEN** `message_end` fires with `stopReason: "error"` and `errorMessage` containing `"Streaming response failed"` for the `opencode-go` provider
+- **AND** a streaming failure has already occurred in the current turn
+- **THEN** the system SHALL NOT queue a `continue` message
+- **AND** the system SHALL NOT rotate the API key
+- **AND** the system SHALL log a `streaming_failure_skipped` event
+
+#### Scenario: Streaming failure counter resets on turn start
+
+- **WHEN** a `turn_start` event fires
+- **THEN** the system SHALL reset the per-turn streaming failure counter to 0
+
+#### Scenario: Streaming failure does not retry if continuation already sent
+
+- **WHEN** `message_end` fires with `stopReason: "error"` and `errorMessage` containing `"Streaming response failed"` for the `opencode-go` provider
+- **AND** a continuation has already been sent this turn (e.g., from a quota exhaustion rotation)
+- **THEN** the system SHALL NOT queue another `continue` message
+
 ### Requirement: Per-turn rotation cycle tracking
 
 The system SHALL track which accounts have been attempted for rotation in the current turn using a set of account names, reset on each `turn_start` event.
@@ -48,6 +81,7 @@ The system SHALL track which accounts have been attempted for rotation in the cu
 - **WHEN** a `turn_start` event fires
 - **THEN** the system SHALL clear the per-turn attempted set
 - **AND** the system SHALL reset `continuationSentThisTurn` to false
+- **AND** the system SHALL reset the per-turn streaming failure counter to 0
 
 ### Requirement: Stop rotation on full cycle exhaustion
 

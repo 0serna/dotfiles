@@ -136,6 +136,10 @@ _Avoid_: global account lockout, penalty period, refresh backoff
 Activating the first configured OpenCode Go account without a usable quota observation, including when no shared snapshot exists at session start. It is reevaluated when the first usable snapshot arrives and still relies on runtime rotation if exhausted.
 _Avoid_: default account, emergency fallback, unverified activation
 
+**Transient stream retry**:
+An automatic retry of a stream that failed with a transient error (e.g., `Streaming response failed`). It retries once with the same account without affecting the shared quota snapshot or applying cooldown. If the retry also fails, the extension does not intervene and lets Pi handle the error naturally.
+_Avoid_: stream recovery, streaming failure rotation, automatic continuation
+
 ### Web Search Extension
 
 **Retrieval adapter**:

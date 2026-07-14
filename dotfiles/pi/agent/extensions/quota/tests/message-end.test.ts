@@ -170,6 +170,17 @@ function streamError(provider = "opencode-go") {
   };
 }
 
+function streamingFailureError(provider = "opencode-go") {
+  return {
+    message: {
+      role: "assistant",
+      stopReason: "error",
+      errorMessage: "Streaming response failed",
+      provider,
+    },
+  };
+}
+
 function quotaSnapshot(account1: number, account2: number) {
   const source = (name: string, remainingPercent: number) => ({
     identity: {
@@ -341,6 +352,72 @@ describe("handleMessageEnd — rotation gating", () => {
   it("ignores errors on non-opencode-go providers", async () => {
     const otherCtx = { ...ctx, model: { provider: "anthropic" } };
     await handlers["message_end"]!(quotaError("anthropic"), otherCtx);
+
+    expect(sendUserMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleMessageEnd — transient stream retry", () => {
+  it("retries once on Streaming response failed", async () => {
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+
+    expect(sendUserMessage).toHaveBeenCalledWith("continue", {
+      deliverAs: "followUp",
+    });
+    expect(
+      logEvents.some((entry) => entry.event === "streaming_failure_retry"),
+    ).toBe(true);
+  });
+
+  it("does not rotate on streaming failure", async () => {
+    const callsBefore = setRuntimeApiKey.mock.calls.length;
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+
+    expect(setRuntimeApiKey).toHaveBeenCalledTimes(callsBefore);
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("does not retry on second streaming failure in same turn", async () => {
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+    sendUserMessage.mockClear();
+
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+
+    expect(sendUserMessage).not.toHaveBeenCalled();
+    expect(
+      logEvents.some((entry) => entry.event === "streaming_failure_skipped"),
+    ).toBe(true);
+  });
+
+  it("resets streaming failure count on turn_start", async () => {
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+    expect(sendUserMessage).toHaveBeenCalledTimes(1);
+
+    handlers["turn_start"]!({}, ctx);
+    sendUserMessage.mockClear();
+
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+
+    expect(sendUserMessage).toHaveBeenCalledWith("continue", {
+      deliverAs: "followUp",
+    });
+  });
+
+  it("does not retry if continuation already sent this turn", async () => {
+    await handlers["message_end"]!(quotaError(), ctx);
+    sendUserMessage.mockClear();
+
+    await handlers["message_end"]!(streamingFailureError(), ctx);
+
+    expect(sendUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("ignores streaming failures on non-opencode-go providers", async () => {
+    const otherCtx = { ...ctx, model: { provider: "anthropic" } };
+    await handlers["message_end"]!(
+      streamingFailureError("anthropic"),
+      otherCtx,
+    );
 
     expect(sendUserMessage).not.toHaveBeenCalled();
   });

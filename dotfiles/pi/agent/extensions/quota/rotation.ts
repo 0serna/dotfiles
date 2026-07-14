@@ -47,6 +47,12 @@ export function isQuotaExhaustionError(errorMessage?: string): boolean {
   return errorMessage.includes("GoUsageLimitError");
 }
 
+/** Return true when the errorMessage indicates a transient stream failure. */
+export function isStreamingFailure(errorMessage?: string): boolean {
+  if (!errorMessage) return false;
+  return errorMessage.includes("Streaming response failed");
+}
+
 /** Return true only when all provider quota windows have remaining usage. */
 export function hasUsableQuota(data: OpenCodeGoData | null): boolean {
   return (
