@@ -59,7 +59,7 @@ afterEach(() => {
 });
 
 describe("formatCompactStatus", () => {
-  it("renders 'Codex 80%r · OpenCode 75%r' for healthy providers", () => {
+  it("renders 'Codex 80r · OpenCode 75r' for healthy providers", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -75,7 +75,7 @@ describe("formatCompactStatus", () => {
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
-    expect(result).toBe("Codex 80%r · OpenCode 75%r");
+    expect(result).toBe("Codex 80r · OpenCode 75r");
   });
 
   it("shows only provider prefix, not account name", () => {
@@ -86,10 +86,10 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(snapshot)).toBe("OpenCode 75%r");
+    expect(formatCompactStatus(snapshot)).toBe("OpenCode 75r");
   });
 
-  it("uses %r suffix for rolling, %w for weekly, %m for monthly", () => {
+  it("uses r suffix for rolling, w for weekly, m for monthly", () => {
     const rollingOnly = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -97,7 +97,7 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(rollingOnly)).toBe("Codex 60%r");
+    expect(formatCompactStatus(rollingOnly)).toBe("Codex 60r");
 
     const weeklyOnly = makeSnapshot([
       makeRecord(CODEX, {
@@ -106,7 +106,7 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(weeklyOnly)).toBe("Codex 70%w");
+    expect(formatCompactStatus(weeklyOnly)).toBe("Codex 70w");
 
     const monthlyOnly = makeSnapshot([
       makeRecord(CODEX, {
@@ -115,7 +115,7 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(monthlyOnly)).toBe("Codex 90%m");
+    expect(formatCompactStatus(monthlyOnly)).toBe("Codex 90m");
   });
 
   it("prefers rolling over weekly over monthly", () => {
@@ -128,20 +128,108 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(snapshot)).toBe("Codex 80%r");
+    expect(formatCompactStatus(snapshot)).toBe("Codex 80r");
   });
 
-  it("renders 0% when any window is exhausted", () => {
-    const snapshot = makeSnapshot([
-      makeRecord(CODEX, {
-        windows: {
-          rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
-          weekly: { remainingPercent: 0, resetAt: NOW_SECONDS + 7200 },
-        },
-      }),
-    ]);
-    const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toBe("Codex 0%");
+  describe("exhausted window suffixes", () => {
+    it("uses r suffix when only rolling is exhausted", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0r");
+    });
+
+    it("uses w suffix when only weekly is exhausted", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            weekly: { remainingPercent: 0, resetAt: NOW_SECONDS + 7200 },
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0w");
+    });
+
+    it("uses m suffix when only monthly is exhausted", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            monthly: { remainingPercent: 0, resetAt: NOW_SECONDS + 86400 },
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0m");
+    });
+
+    it("uses w suffix when rolling and weekly are both exhausted (higher granularity wins)", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
+            weekly: { remainingPercent: 0, resetAt: NOW_SECONDS + 7200 },
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0w");
+    });
+
+    it("uses m suffix when rolling and monthly are both exhausted (higher granularity wins)", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
+            monthly: { remainingPercent: 0, resetAt: NOW_SECONDS + 86400 },
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0m");
+    });
+
+    it("uses m suffix when all three windows are exhausted", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          windows: {
+            rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
+            weekly: { remainingPercent: 0, resetAt: NOW_SECONDS + 7200 },
+            monthly: { remainingPercent: 0, resetAt: NOW_SECONDS + 86400 },
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0m");
+    });
+
+    it("shows 0 without suffix when state is exhausted but no windows are present", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          state: "exhausted",
+          providerExhaustion: {
+            confirmedAt: Date.now(),
+            reportedBy: "test",
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0");
+    });
+
+    it("shows 0 with suffix when state is exhausted and a window is present at 0%", () => {
+      const snapshot = makeSnapshot([
+        makeRecord(CODEX, {
+          state: "exhausted",
+          windows: {
+            rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
+          },
+          providerExhaustion: {
+            confirmedAt: Date.now(),
+            reportedBy: "test",
+          },
+        }),
+      ]);
+      expect(formatCompactStatus(snapshot)).toBe("Codex 0r");
+    });
   });
 
   it("renders 80% without reset when banked resets are confirmed empty", () => {
@@ -154,7 +242,7 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Codex 80%r");
+    expect(result).toContain("Codex 80r");
     expect(result).not.toContain("R");
   });
 
@@ -168,7 +256,7 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toContain("Codex 80%r");
+    expect(result).toContain("Codex 80r");
     expect(result).not.toContain("R?");
   });
 
@@ -184,7 +272,7 @@ describe("formatCompactStatus", () => {
       }),
     ]);
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
-    expect(result).toMatch(/⚠ Codex 80%r/);
+    expect(result).toMatch(/⚠ Codex 80r/);
   });
 
   it("uses real provider prefix instead of generic 'Provider' placeholder", () => {
@@ -205,7 +293,7 @@ describe("formatCompactStatus", () => {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
     expect(result).toContain("Codex …");
-    expect(result).toContain("OpenCode 50%r");
+    expect(result).toContain("OpenCode 50r");
   });
 
   it("renders 'Quota …' when no usable observation exists", () => {
@@ -371,8 +459,8 @@ describe("formatCompactStatus", () => {
       });
       // Codex <10% → warning, OpenCode → dim, separator → dim
       expect(calls).toEqual([
-        { intent: "warning", text: "Codex 5%r" },
-        { intent: "dim", text: "OpenCode 80%r" },
+        { intent: "warning", text: "Codex 5r" },
+        { intent: "dim", text: "OpenCode 80r" },
         { intent: "dim", text: " · " },
       ]);
     });

@@ -59,16 +59,26 @@ function isUsable(record: SourceRecord, now: number): boolean {
   return true;
 }
 
+/** Returns the highest-granularity exhausted window suffix (monthly > weekly > rolling). */
+function exhaustedSuffix(record: SourceRecord): string | undefined {
+  const windows = record.windows;
+  if (!windows) return undefined;
+  if (windows.monthly?.remainingPercent === 0) return "m";
+  if (windows.weekly?.remainingPercent === 0) return "w";
+  if (windows.rolling?.remainingPercent === 0) return "r";
+  return undefined;
+}
+
 /** Returns the most-constrained window percentage with its suffix. */
 function selectPercent(record: SourceRecord): string | undefined {
   const windows = record.windows;
   if (!windows) return undefined;
   if (windows.rolling)
-    return `${clampPercent(windows.rolling.remainingPercent)}%r`;
+    return `${clampPercent(windows.rolling.remainingPercent)}r`;
   if (windows.weekly)
-    return `${clampPercent(windows.weekly.remainingPercent)}%w`;
+    return `${clampPercent(windows.weekly.remainingPercent)}w`;
   if (windows.monthly)
-    return `${clampPercent(windows.monthly.remainingPercent)}%m`;
+    return `${clampPercent(windows.monthly.remainingPercent)}m`;
   return undefined;
 }
 
@@ -97,8 +107,9 @@ function formatSourceCompact(
   }
 
   if (isExhausted(record)) {
+    const suffix = exhaustedSuffix(record) ?? "";
     return {
-      text: `${label} 0%`,
+      text: `${label} 0${suffix}`,
       intent: "warning",
     };
   }
@@ -109,7 +120,7 @@ function formatSourceCompact(
   }
 
   const percent = selectPercent(record);
-  const percentLabel = percent ?? "0%";
+  const percentLabel = percent ?? "0";
   const degraded = record.state === "degraded";
 
   const degradedPrefix = degraded ? "⚠ " : "";
