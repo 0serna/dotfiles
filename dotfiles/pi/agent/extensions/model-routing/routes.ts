@@ -4,6 +4,7 @@ export const ROUTE_TOKENS = [
   "/skill:openspec-apply-change",
   "/skill:openspec-archive-change",
   "/skill:code-review",
+  "/skill:simplify",
   "/skill:commit",
 ] as const;
 
