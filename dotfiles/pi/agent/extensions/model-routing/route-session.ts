@@ -11,7 +11,7 @@ import {
   type ManualPreferences,
   type ManualSelection,
 } from "./manual-preferences.ts";
-import { formatModelId } from "./model-ids.ts";
+import { formatModelId, parseModelId } from "./model-ids.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import type { ModelRoutesRuntime } from "./runtime.ts";
 import {
@@ -149,15 +149,13 @@ export function createModelRouteSession(
     ctx: ExtensionContext,
     persisted: ManualSelection,
   ): Promise<boolean> {
+    const restoreError = `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`;
     const model = ctx.modelRegistry.find(
       persisted.modelProvider,
       persisted.modelId,
     );
     if (!model) {
-      ctx.ui.notify(
-        `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`,
-        "warning",
-      );
+      ctx.ui.notify(restoreError, "error");
       return false;
     }
     return suppressManualPersistenceWhile(async () => {
@@ -165,10 +163,7 @@ export function createModelRouteSession(
       if (ok) {
         pi.setThinkingLevel(persisted.thinkingLevel);
       } else {
-        ctx.ui.notify(
-          `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`,
-          "warning",
-        );
+        ctx.ui.notify(restoreError, "error");
       }
       return ok;
     });
@@ -222,7 +217,7 @@ export function createModelRouteSession(
     if (!runtime.isRouteUsable(routeName)) {
       ctx.ui.notify(
         `Route '${routeName}' is not configured or unavailable; continuing with current model.`,
-        "warning",
+        "error",
       );
       return;
     }
@@ -236,13 +231,16 @@ export function createModelRouteSession(
     if (!activated) {
       ctx.ui.notify(
         `Could not activate routed model '${route.model}' for '${routeName}'; continuing with current model.`,
-        "warning",
+        "error",
       );
       return;
     }
 
     routeActive = true;
     activeRouteName = routeName;
+
+    const modelId = parseModelId(route.model)[1];
+    ctx.ui.notify(`🤖 route to ${modelId}/${route.thinkingLevel}`, "warning");
   }
 
   async function routeInput(
@@ -289,7 +287,16 @@ export function createModelRouteSession(
     const latest = await loadManualPreferences();
     preferences = latest;
     if (latest.selection) {
-      await restorePersistedUserSelection(ctx, latest.selection);
+      const restored = await restorePersistedUserSelection(
+        ctx,
+        latest.selection,
+      );
+      if (restored && ctx.model) {
+        ctx.ui.notify(
+          `🤖 back to ${ctx.model.id}/${pi.getThinkingLevel()}`,
+          "warning",
+        );
+      }
     }
     cancelActiveRoute();
     transition = {

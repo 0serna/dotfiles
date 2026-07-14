@@ -524,7 +524,7 @@ describe("compact route compaction", () => {
     expect(compactMock).not.toHaveBeenCalled();
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
       "Compact route failed: model 'compact/model' not found. Falling back to default compaction.",
-      "warning",
+      "error",
     );
   });
 
@@ -550,7 +550,7 @@ describe("compact route compaction", () => {
     expect(compactMock).not.toHaveBeenCalled();
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
       "Compact route failed: authentication unavailable for 'compact/model'. Falling back to default compaction.",
-      "warning",
+      "error",
     );
   });
 
@@ -573,7 +573,7 @@ describe("compact route compaction", () => {
     expect(response).toBeUndefined();
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
       "Compact route failed: provider down. Falling back to default compaction.",
-      "warning",
+      "error",
     );
   });
 });
@@ -1077,7 +1077,7 @@ describe("manual preferences restoration", () => {
     );
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
       "Route '/skill:commit' is not configured or unavailable; continuing with current model.",
-      "warning",
+      "error",
     );
   });
 
@@ -1225,7 +1225,7 @@ describe("manual preferences restoration", () => {
     expect(setup.ctx.model).toBe(setup.commitModel);
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
       "Could not restore user model 'user/base'.",
-      "warning",
+      "error",
     );
 
     vi.mocked(setup.pi.setModel).mockClear();

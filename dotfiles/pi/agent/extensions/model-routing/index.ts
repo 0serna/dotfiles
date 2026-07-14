@@ -24,7 +24,7 @@ export default function (pi: ExtensionAPI) {
       if (activation["/compact"].kind !== "unset") {
         ctx.ui.notify(
           "Compact route unavailable; falling back to default compaction.",
-          "warning",
+          "error",
         );
       }
       return;
@@ -36,7 +36,7 @@ export default function (pi: ExtensionAPI) {
     function warnFallback(message: string): void {
       ctx.ui.notify(
         `Compact route failed: ${message}. Falling back to default compaction.`,
-        "warning",
+        "error",
       );
     }
 
@@ -63,6 +63,8 @@ export default function (pi: ExtensionAPI) {
         event.signal,
         route.thinkingLevel,
       );
+
+      ctx.ui.notify(`🤖 route to ${modelId}/${route.thinkingLevel}`, "warning");
       return { compaction: result };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

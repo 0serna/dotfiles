@@ -124,7 +124,7 @@ export function createModelRoutesRuntime() {
     if (configStatus === "missing") {
       ctx.ui.notify(
         "Model route configuration missing. Routing disabled; use /model-routes to set it up.",
-        "warning",
+        "error",
       );
       return;
     }
@@ -136,7 +136,7 @@ export function createModelRoutesRuntime() {
           : "Unknown validation error";
       ctx.ui.notify(
         `Model route configuration unreadable: ${msg}. Routing disabled; original file preserved, use /model-routes after fixing it.`,
-        "warning",
+        "error",
       );
       return;
     }
