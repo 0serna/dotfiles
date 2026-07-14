@@ -1,10 +1,4 @@
-# pi-working-stats Specification
-
-## Purpose
-
-Unified extension that composes agent elapsed time and assistant token throughput into a single working message. Replaces the separate duration and tps extensions.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Working message shows elapsed agent time
 
@@ -103,20 +97,6 @@ The working-stats extension SHALL retain the latest valid final throughput acros
 - **WHEN** a failed or aborted processing cycle becomes settled and idle
 - **THEN** the extension still uses `✓` as the completion marker
 - **AND** the marker communicates settlement rather than success
-
-### Requirement: Throughput measurement is scoped to one assistant stream
-
-The working-stats extension SHALL measure each assistant stream independently.
-
-#### Scenario: New assistant stream resets measurement
-
-- **WHEN** a new assistant stream begins after a previous stream ended
-- **THEN** the live measurement for the new stream starts from that stream's first output delta
-
-#### Scenario: Agent latency is excluded from throughput
-
-- **WHEN** there is a delay between the user prompt and the first assistant output delta
-- **THEN** that delay is excluded from throughput calculations
 
 ### Requirement: Extension cleans up runtime resources
 

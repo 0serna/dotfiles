@@ -73,8 +73,12 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("input", (event, ctx) => routeSession.routeInput(event, ctx));
 
-  pi.on("agent_end", async (_event, ctx) => {
-    await routeSession.finishAgent(ctx);
+  pi.on("message_start", (event, ctx) =>
+    routeSession.routeMessageStart(event, ctx),
+  );
+
+  pi.on("agent_settled", async (_event, ctx) => {
+    await routeSession.finishProcessingCycle(ctx);
   });
 
   pi.on("model_select", (event, ctx) => {

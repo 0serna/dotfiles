@@ -7,6 +7,7 @@ type Handler = (...args: unknown[]) => void;
 function mockCtx() {
   return {
     model: { id: "gpt-5" },
+    isIdle: vi.fn(() => true),
     ui: {
       notify: vi.fn(),
       setWorkingIndicator: vi.fn(),
@@ -45,10 +46,11 @@ function textDelta(delta: string) {
   };
 }
 
-function messageEnd(outputTokens?: number) {
+function messageEnd(outputTokens?: number, model = "gpt-5") {
   return {
     message: {
       role: "assistant",
+      model,
       usage: outputTokens !== undefined ? { output: outputTokens } : {},
     },
   };
@@ -97,7 +99,7 @@ describe("working-stats extension lifecycle", () => {
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledTimes(3);
   });
 
-  it("notifies the final elapsed time when the agent ends", () => {
+  it("measures repeated agent attempts as one processing cycle until settled idle", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
 
@@ -105,10 +107,16 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_start"]!({}, ctx);
     vi.advanceTimersByTime(3000);
 
-    handlers["agent_end"]!({}, ctx);
+    expect(handlers["agent_end"]).toBeUndefined();
+    expect(ctx.ui.notify).not.toHaveBeenCalled();
 
+    handlers["agent_start"]!({}, ctx);
+    vi.advanceTimersByTime(2000);
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledOnce();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> gpt-5 · 0:03 · 0 tok/s</muted>",
+      "<accent>✓</accent> <muted> gpt-5 · 0:05 · 0 tok/s</muted>",
       "info",
     );
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
@@ -129,8 +137,8 @@ describe("working-stats extension lifecycle", () => {
     // Let the interval tick to render the final display
     vi.advanceTimersByTime(1000);
 
-    // End the agent run
-    handlers["agent_end"]!({}, ctx);
+    // Settle the processing cycle
+    handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
       "<accent>✓</accent> <muted> gpt-5 · 0:02 · 200 tok/s</muted>",
@@ -138,14 +146,14 @@ describe("working-stats extension lifecycle", () => {
     );
   });
 
-  it("stops updating after agent_end", () => {
+  it("stops updating after settled idle", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
 
     const ctx = mockCtx();
     handlers["agent_start"]!({}, ctx);
     vi.advanceTimersByTime(1000);
-    handlers["agent_end"]!({}, ctx);
+    handlers["agent_settled"]!({}, ctx);
 
     const callsAfterEnd = ctx.ui.setWorkingMessage.mock.calls.length;
     vi.advanceTimersByTime(5000);
@@ -153,7 +161,29 @@ describe("working-stats extension lifecycle", () => {
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledTimes(callsAfterEnd);
   });
 
-  it("clears the timer and restores the default message on shutdown", () => {
+  it("defers completion when settled handlers have already started more work", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+
+    const ctx = mockCtx();
+    handlers["agent_start"]!({}, ctx);
+    vi.advanceTimersByTime(1000);
+
+    ctx.isIdle.mockReturnValue(false);
+    handlers["agent_settled"]!({}, ctx);
+    expect(ctx.ui.notify).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+    ctx.isIdle.mockReturnValue(true);
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "<accent>✓</accent> <muted> gpt-5 · 0:02 · 0 tok/s</muted>",
+      "info",
+    );
+  });
+
+  it("clears the timer without notifying on shutdown", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
 
@@ -167,6 +197,7 @@ describe("working-stats extension lifecycle", () => {
 
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledTimes(callsAfterShutdown);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
+    expect(ctx.ui.notify).not.toHaveBeenCalled();
   });
 });
 
@@ -277,6 +308,26 @@ describe("working-stats extension throughput integration", () => {
     );
   });
 
+  it("preserves the latest valid final throughput across later attempts without usage", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
+    vi.advanceTimersByTime(1000);
+    handlers["message_end"]!(messageEnd(100), ctx);
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["message_end"]!(messageEnd(undefined), ctx);
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "<accent>✓</accent> <muted> gpt-5 · 0:01 · 100 tok/s</muted>",
+      "info",
+    );
+  });
+
   it("clears the throughput state on session_shutdown", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
@@ -312,19 +363,36 @@ describe("working-stats extension model changes", () => {
     );
   });
 
-  it("uses the new model in the completion notification after a model change", () => {
+  it("falls back to the initial model when no assistant response exists", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
     const ctx = mockCtx();
 
     handlers["agent_start"]!({}, ctx);
-    vi.advanceTimersByTime(1500);
-    handlers["model_select"]!(modelSelect("claude-opus-4-5"), ctx);
-    vi.advanceTimersByTime(1500);
-    handlers["agent_end"]!({}, ctx);
+    handlers["model_select"]!(modelSelect("restored-model"), ctx);
+    handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> claude-opus-4-5 · 0:03 · 0 tok/s</muted>",
+      "<accent>✓</accent> <muted> gpt-5 · 0:00 · 0 tok/s</muted>",
+      "info",
+    );
+  });
+
+  it("attributes completion to the last responding model instead of idle restoration", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
+    vi.advanceTimersByTime(1000);
+    handlers["message_end"]!(messageEnd(200, "routed-model"), ctx);
+
+    handlers["model_select"]!(modelSelect("restored-model"), ctx);
+    handlers["agent_settled"]!({}, ctx);
+
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "<accent>✓</accent> <muted> routed-model · 0:01 · 200 tok/s</muted>",
       "info",
     );
   });

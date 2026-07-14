@@ -20,6 +20,10 @@ vi.mock("@earendil-works/pi-ai", () => ({
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
   compact: vi.fn(),
+  parseSkillBlock: vi.fn((text: string) => {
+    const name = text.match(/^<skill name="([^"]+)"/)?.[1];
+    return name ? { name } : null;
+  }),
 }));
 
 vi.mock("node:os", () => ({
@@ -113,6 +117,7 @@ function setupExtension() {
   ];
   const ctx = {
     model: userModel,
+    isIdle: vi.fn(() => true),
     modelRegistry: {
       find: vi.fn((provider: string, id: string) =>
         allModels.find((m) => m.provider === provider && m.id === id),
@@ -841,11 +846,85 @@ describe("manual preferences restoration", () => {
     expect(writeFileMock).not.toHaveBeenCalled();
   });
 
-  it("routes /skill:commit to its own token and restores the user selection after", async () => {
+  it("activates a queued route only when its expanded user message starts", async () => {
     const setup = setupExtension();
-    // session_start sees no persisted selection so the first setModel
-    // is the route activation. The persisted selection is only visible
-    // when agent_end re-reads the file at restoration time.
+    configureFiles({
+      prefs: null,
+      routes: JSON.stringify({
+        "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
+        "/skill:simplify": {
+          model: "simplify/model",
+          thinkingLevel: "medium",
+        },
+      }),
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
+    await setup.handlers.get("input")?.(
+      {
+        source: "user",
+        text: "/skill:simplify later",
+        streamingBehavior: "followUp",
+      },
+      setup.ctx,
+    );
+
+    expect(setup.pi.setModel).toHaveBeenCalledTimes(1);
+    expect(setup.ctx.model).toBe(setup.commitModel);
+
+    await setup.handlers.get("message_start")?.(
+      {
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: '<skill name="simplify" location="/skills/simplify/SKILL.md">\nBody\n</skill>\n\nlater',
+            },
+          ],
+        },
+      },
+      setup.ctx,
+    );
+
+    expect(setup.pi.setModel).toHaveBeenCalledTimes(2);
+    expect(setup.ctx.model).toBe(setup.simplifyModel);
+  });
+
+  it("does not retry an immediate unusable route at message_start", async () => {
+    const setup = setupExtension();
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+    setup.ctx.ui.notify.mockClear();
+
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
+    await setup.handlers.get("message_start")?.(
+      {
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: '<skill name="commit" location="/skills/commit/SKILL.md">\nBody\n</skill>\n\nnow',
+            },
+          ],
+        },
+      },
+      setup.ctx,
+    );
+
+    expect(setup.ctx.ui.notify).toHaveBeenCalledTimes(1);
+    expect(setup.pi.setModel).not.toHaveBeenCalled();
+  });
+
+  it("cancels the active route when the user manually selects a model", async () => {
+    const setup = setupExtension();
     configureFiles({
       prefs: null,
       routes: JSON.stringify({
@@ -854,7 +933,76 @@ describe("manual preferences restoration", () => {
     });
 
     await setup.handlers.get("session_start")?.({}, setup.ctx);
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
 
+    setup.ctx.model = setup.userModel2;
+    await setup.handlers.get("model_select")?.(
+      { source: "cycle", model: setup.userModel2 },
+      setup.ctx,
+    );
+    configureFiles({
+      prefs: manualPrefsJson({
+        modelProvider: setup.userModel2.provider,
+        modelId: setup.userModel2.id,
+        thinkingLevel: "low",
+      }),
+      routes: "missing",
+    });
+    vi.mocked(setup.pi.setModel).mockClear();
+
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+
+    expect(setup.pi.setModel).not.toHaveBeenCalled();
+    expect(setup.ctx.model).toBe(setup.userModel2);
+  });
+
+  it("cancels the active route when the user manually selects a thinking level", async () => {
+    const setup = setupExtension();
+    configureFiles({
+      prefs: null,
+      routes: JSON.stringify({
+        "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
+      }),
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
+    await setup.handlers.get("thinking_level_select")?.(
+      { level: "medium" },
+      setup.ctx,
+    );
+    configureFiles({
+      prefs: manualPrefsJson({
+        modelProvider: setup.commitModel.provider,
+        modelId: setup.commitModel.id,
+        thinkingLevel: "medium",
+      }),
+      routes: "missing",
+    });
+    vi.mocked(setup.pi.setModel).mockClear();
+
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+
+    expect(setup.pi.setModel).not.toHaveBeenCalled();
+    expect(setup.ctx.model).toBe(setup.commitModel);
+  });
+
+  it("restores a routed selection only after settlement is idle", async () => {
+    const setup = setupExtension();
+    configureFiles({
+      prefs: null,
+      routes: JSON.stringify({
+        "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
+      }),
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
     configureFiles({
       prefs: manualPrefsJson({
         modelProvider: setup.userModel.provider,
@@ -865,12 +1013,18 @@ describe("manual preferences restoration", () => {
         "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
       }),
     });
-
     await setup.handlers.get("input")?.(
       { source: "user", text: "/skill:commit now" },
       setup.ctx,
     );
-    await setup.handlers.get("agent_end")?.({}, setup.ctx);
+
+    expect(setup.handlers.get("agent_end")).toBeUndefined();
+    setup.ctx.isIdle.mockReturnValue(false);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+    expect(setup.pi.setModel).toHaveBeenCalledTimes(1);
+
+    setup.ctx.isIdle.mockReturnValue(true);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel);
@@ -901,7 +1055,7 @@ describe("manual preferences restoration", () => {
       { source: "user", text: "/skill:simplify two" },
       setup.ctx,
     );
-    await setup.handlers.get("agent_end")?.({}, setup.ctx);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.simplifyModel);
@@ -957,11 +1111,10 @@ describe("manual preferences restoration", () => {
       { source: "user", text: "/skill:commit two" },
       setup.ctx,
     );
-    await setup.handlers.get("agent_end")?.({}, setup.ctx);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
-    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.commitModel);
-    expect(setup.pi.setModel).toHaveBeenNthCalledWith(3, setup.userModel);
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel);
   });
 
   it("restores the latest user-selected model and thinking from file", async () => {
@@ -1001,7 +1154,7 @@ describe("manual preferences restoration", () => {
       { source: "user", text: "/skill:commit now" },
       setup.ctx,
     );
-    await setup.handlers.get("agent_end")?.({}, setup.ctx);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenLastCalledWith(setup.userModel2);
     expect(setup.pi.setThinkingLevel).toHaveBeenLastCalledWith("xhigh");
@@ -1035,7 +1188,7 @@ describe("manual preferences restoration", () => {
       routes: "missing",
     });
 
-    await setup.handlers.get("agent_end")?.({}, setup.ctx);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel2);
@@ -1043,7 +1196,44 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "xhigh");
   });
 
-  it("leaves the current model unchanged at agent_end when no persisted selection exists", async () => {
+  it("closes the route and warns when the manual selection cannot be restored", async () => {
+    const setup = setupExtension();
+    configureFiles({
+      prefs: null,
+      routes: JSON.stringify({
+        "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
+      }),
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
+    configureFiles({
+      prefs: manualPrefsJson({
+        modelProvider: setup.userModel.provider,
+        modelId: setup.userModel.id,
+        thinkingLevel: "high",
+      }),
+      routes: "missing",
+    });
+    vi.mocked(setup.pi.setModel).mockResolvedValueOnce(false);
+
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+
+    expect(setup.ctx.model).toBe(setup.commitModel);
+    expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
+      "Could not restore user model 'user/base'.",
+      "warning",
+    );
+
+    vi.mocked(setup.pi.setModel).mockClear();
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+    expect(setup.pi.setModel).not.toHaveBeenCalled();
+  });
+
+  it("leaves the current model unchanged at settlement when no persisted selection exists", async () => {
     const setup = setupExtension();
     configureFiles({
       prefs: null,
@@ -1061,7 +1251,7 @@ describe("manual preferences restoration", () => {
 
     const setModelCallsBefore = vi.mocked(setup.pi.setModel).mock.calls.length;
 
-    await setup.handlers.get("agent_end")?.({}, setup.ctx);
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(vi.mocked(setup.pi.setModel)).toHaveBeenCalledTimes(
       setModelCallsBefore,

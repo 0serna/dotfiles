@@ -24,21 +24,21 @@ _Avoid_: agent run, attempt, model request
 The wall-clock time from the beginning of a processing cycle until it fully finishes. It includes model generation, tool execution, retry backoff, compaction recovery, and waits between attempts.
 _Avoid_: active compute time, attempt duration, request latency
 
-**Routed processing cycle**:
-A processing cycle whose model and thinking level come from a declared command route. Every attempt and queued continuation inherits that route until the cycle finishes.
-_Avoid_: routed prompt, temporary model, routed attempt
+**Route segment**:
+A contiguous portion of a processing cycle governed by one declared model and thinking-level route. It starts when its routed message begins processing and ends when another route begins, a manual model or thinking-level selection cancels it, or the cycle finishes; unrouted continuations inherit the active segment.
+_Avoid_: routed prompt, temporary model, routed processing cycle
 
 **Route restoration**:
-The return from a routed selection to the latest persisted manual selection after routed work finishes. It occurs only while Pi is idle and remains pending if another processing cycle has already started.
+The return from a routed selection to the latest persisted manual selection after routed work finishes. It remains pending while Pi is busy; once idle, an unavailable selection closes the route while retaining the active model and warning the user.
 _Avoid_: route deactivation, default model reset, model fallback
 
 **Completion marker**:
 The `✓` shown when a processing cycle finishes, regardless of whether its final outcome succeeded, failed, or was aborted. It communicates settlement, not success.
 _Avoid_: success indicator, pass result, outcome status
 
-**Last producing model**:
-The model that generated the most recent assistant stream in a processing cycle. Idle model restoration after the cycle does not change this attribution.
-_Avoid_: selected model, restored model, initial model
+**Last responding model**:
+The model associated with the most recent assistant response in a processing cycle, even when that response produced no output deltas. If no assistant response exists, attribution falls back to the model active when the cycle began; idle restoration does not change it.
+_Avoid_: selected model, restored model, last producing model
 
 **Output total throughput**:
 The model output generation rate measured as output tokens per second for one assistant stream. It counts the provider-reported total output, including visible text, reasoning/thinking output, and tool-call output when those are part of output usage.

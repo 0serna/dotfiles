@@ -1,6 +1,7 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
+import {
+  parseSkillBlock,
+  type ExtensionAPI,
+  type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import {
   emptyManualPreferences,
@@ -26,6 +27,14 @@ import type { ThinkingLevel } from "./types.ts";
 type InputEvent = {
   source: string;
   text: string;
+  streamingBehavior?: "steer" | "followUp";
+};
+
+type MessageStartEvent = {
+  message: {
+    role: string;
+    content?: string | Array<{ type: string; text?: string }>;
+  };
 };
 
 type ModelSelectEvent = {
@@ -46,6 +55,8 @@ export function createModelRouteSession(
   runtime: ModelRoutesRuntime,
 ) {
   let routeActive = false;
+  let activeRouteName: string | undefined;
+  const queuedRouteBoundaries = new Map<string, number>();
   let transition: TransitionState = createTransitionState();
   let preferences: ManualPreferences = emptyManualPreferences();
   let pendingPersist: Promise<void> = Promise.resolve();
@@ -108,8 +119,30 @@ export function createModelRouteSession(
       }
       if (effect.kind === "persist_selection") {
         schedulePersist(effect.provider, effect.modelId, effect.thinkingLevel);
+        cancelActiveRoute();
       }
     }
+  }
+
+  function cancelActiveRoute(): void {
+    routeActive = false;
+    activeRouteName = undefined;
+  }
+
+  function queueRouteBoundary(routeName: string): void {
+    const count = queuedRouteBoundaries.get(routeName) ?? 0;
+    queuedRouteBoundaries.set(routeName, count + 1);
+  }
+
+  function consumeRouteBoundary(routeName: string): boolean {
+    const count = queuedRouteBoundaries.get(routeName) ?? 0;
+    if (count === 0) return false;
+    if (count === 1) {
+      queuedRouteBoundaries.delete(routeName);
+    } else {
+      queuedRouteBoundaries.set(routeName, count - 1);
+    }
+    return true;
   }
 
   async function restorePersistedUserSelection(
@@ -129,12 +162,21 @@ export function createModelRouteSession(
     }
     return suppressManualPersistenceWhile(async () => {
       const ok = await pi.setModel(model);
-      if (ok) pi.setThinkingLevel(persisted.thinkingLevel);
+      if (ok) {
+        pi.setThinkingLevel(persisted.thinkingLevel);
+      } else {
+        ctx.ui.notify(
+          `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`,
+          "warning",
+        );
+      }
       return ok;
     });
   }
 
   async function start(ctx: ExtensionContext): Promise<void> {
+    cancelActiveRoute();
+    queuedRouteBoundaries.clear();
     preferences = await loadManualPreferences();
     transition = createTransitionState();
     pendingPersist = Promise.resolve();
@@ -171,25 +213,22 @@ export function createModelRouteSession(
     }
   }
 
-  async function routeInput(
-    event: InputEvent,
+  async function activateRouteName(
+    routeName: ReturnType<typeof getRouteName>,
     ctx: ExtensionContext,
-  ): Promise<{ action: "continue" }> {
-    if (event.source === "extension") return { action: "continue" };
-
-    const routeName = getRouteName(event.text);
-    if (!routeName) return { action: "continue" };
+  ): Promise<void> {
+    if (!routeName || activeRouteName === routeName) return;
 
     if (!runtime.isRouteUsable(routeName)) {
       ctx.ui.notify(
         `Route '${routeName}' is not configured or unavailable; continuing with current model.`,
         "warning",
       );
-      return { action: "continue" };
+      return;
     }
 
     const route = runtime.getRouteConfig(routeName);
-    if (!route) return { action: "continue" };
+    if (!route) return;
 
     const activated = await suppressManualPersistenceWhile(() =>
       activateRoute(pi, route, ctx),
@@ -199,21 +238,60 @@ export function createModelRouteSession(
         `Could not activate routed model '${route.model}' for '${routeName}'; continuing with current model.`,
         "warning",
       );
-      return { action: "continue" };
+      return;
     }
 
     routeActive = true;
+    activeRouteName = routeName;
+  }
+
+  async function routeInput(
+    event: InputEvent,
+    ctx: ExtensionContext,
+  ): Promise<{ action: "continue" }> {
+    if (event.source === "extension") return { action: "continue" };
+
+    const routeName = getRouteName(event.text);
+    if (!routeName) return { action: "continue" };
+    if (event.streamingBehavior !== undefined) {
+      queueRouteBoundary(routeName);
+      return { action: "continue" };
+    }
+
+    await activateRouteName(routeName, ctx);
     return { action: "continue" };
   }
 
-  async function finishAgent(ctx: ExtensionContext): Promise<void> {
+  async function routeMessageStart(
+    event: MessageStartEvent,
+    ctx: ExtensionContext,
+  ): Promise<void> {
+    if (event.message.role !== "user") return;
+    const content = event.message.content;
+    const text =
+      typeof content === "string"
+        ? content
+        : content?.find((block) => block.type === "text")?.text;
+    if (!text) return;
+
+    const skill = parseSkillBlock(text);
+    if (!skill) return;
+    const routeName = getRouteName(`/skill:${skill.name}`);
+    if (!routeName || !consumeRouteBoundary(routeName)) return;
+    await activateRouteName(routeName, ctx);
+  }
+
+  async function finishProcessingCycle(ctx: ExtensionContext): Promise<void> {
+    if (!ctx.isIdle()) return;
+    queuedRouteBoundaries.clear();
     if (!routeActive) return;
-    routeActive = false;
+
     const latest = await loadManualPreferences();
     preferences = latest;
     if (latest.selection) {
       await restorePersistedUserSelection(ctx, latest.selection);
     }
+    cancelActiveRoute();
     transition = {
       ...transition,
       activeModelId: ctx.model ? formatModelId(ctx.model) : undefined,
@@ -261,6 +339,8 @@ export function createModelRouteSession(
   }
 
   function shutdown(): void {
+    cancelActiveRoute();
+    queuedRouteBoundaries.clear();
     // Writes go through the FIFO queue in manual-preferences and resolve in
     // submission order. By the time Pi calls session_shutdown the in-flight
     // promise chain has either settled or will be ignored on exit; there is
@@ -270,7 +350,8 @@ export function createModelRouteSession(
   return {
     start,
     routeInput,
-    finishAgent,
+    routeMessageStart,
+    finishProcessingCycle,
     rememberModelSelection,
     rememberThinkingLevel,
     shutdown,
