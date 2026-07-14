@@ -136,9 +136,21 @@ _Avoid_: global account lockout, penalty period, refresh backoff
 Activating the first configured OpenCode Go account without a usable quota observation, including when no shared snapshot exists at session start. It is reevaluated when the first usable snapshot arrives and still relies on runtime rotation if exhausted.
 _Avoid_: default account, emergency fallback, unverified activation
 
-**Transient stream retry**:
-An automatic retry of a stream that failed with a transient error (e.g., `Streaming response failed`). It retries once with the same account without affecting the shared quota snapshot or applying cooldown. If the retry also fails, the extension does not intervene and lets Pi handle the error naturally.
-_Avoid_: stream recovery, streaming failure rotation, automatic continuation
+**Transient failure**:
+A terminal assistant outcome explicitly classified as temporary after Pi has exhausted its own automatic recovery. It is independent of provider identity and does not imply quota exhaustion.
+_Avoid_: quota exhaustion, permanent failure, any provider error
+
+**Transient failure recovery**:
+The best-effort policy that may issue one Recovery Continuation within a Recovery Episode after a Transient Failure. It does not rotate quota sources, apply cooldown, or alter the aggregated quota snapshot.
+_Avoid_: transient stream retry, quota rotation, provider retry
+
+**Recovery episode**:
+The bounded recovery interval that starts with an eligible Transient Failure and includes at most one Recovery Continuation plus its terminal outcome, even when a brief idle boundary exists between them. A transient failure from that continuation closes the episode without another continuation.
+_Avoid_: processing cycle, retry loop, quota rotation cycle
+
+**Recovery continuation**:
+An automatic `continue` message issued after Pi settles and a one-second quiet period. It uses the response configuration then in effect and is cancelled when new activity appears, so it does not guarantee replaying the same request, account, provider, or model.
+_Avoid_: request retry, model retry, delayed user prompt
 
 ### Web Search Extension
 

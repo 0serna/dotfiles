@@ -2,6 +2,10 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
+  AUTO_CONTINUE_REQUEST_EVENT,
+  type AutoContinueRequest,
+} from "../auto-continue/contract.js";
+import {
   createExtensionLogger,
   type ExtensionLogger,
 } from "../shared/logger.js";
@@ -23,7 +27,6 @@ import {
   DEFAULT_COOLDOWN_MS,
   initAccountStates,
   isQuotaExhaustionError,
-  isTransientError,
   markBad,
   pickNextAccount,
   type RotationReason,
@@ -56,9 +59,7 @@ registerAdapter(opencodeGoAdapter);
 let rotationConfig: RotationConfig | undefined;
 let accountStates: AccountState[] = [];
 let currentAccountIndex = -1;
-let continuationSentThisTurn = false;
-let pendingTransientFailure = false;
-let transientContinuationOutstanding = false;
+let continuationRequestedThisTurn = false;
 let triedAccountsThisCycle: Set<string> = new Set();
 let logger: ExtensionLogger | undefined;
 let lifecycle: QuotaLifecycle | undefined;
@@ -328,9 +329,7 @@ async function handleSessionStart(
   rotationConfig = await loadRotationConfig();
   accountStates = initAccountStates(rotationConfig.accounts);
   currentAccountIndex = -1;
-  continuationSentThisTurn = false;
-  pendingTransientFailure = false;
-  transientContinuationOutstanding = false;
+  continuationRequestedThisTurn = false;
   triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
@@ -394,19 +393,7 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
 
     const msg = event.message;
     if (msg?.role !== "assistant") return;
-    if (msg.stopReason !== "error") {
-      pendingTransientFailure = false;
-      return;
-    }
-
-    // Pi handles retryable provider failures before agent_settled. Remember the
-    // failure and only add our fallback if Pi ultimately cannot recover.
-    if (isTransientError(msg.errorMessage)) {
-      pendingTransientFailure = true;
-      return;
-    }
-
-    pendingTransientFailure = false;
+    if (msg.stopReason !== "error") return;
     if (!isQuotaExhaustionError(msg.errorMessage)) return;
 
     const current = currentAccount();
@@ -441,7 +428,7 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
       return;
     }
 
-    if (continuationSentThisTurn) return;
+    if (continuationRequestedThisTurn) return;
 
     getLogger(ctx).log("message_end_error", {
       provider: OPENCODE_PROVIDER,
@@ -449,64 +436,42 @@ function makeMessageEndHandler(pi: ExtensionAPI) {
     });
     const rotated = rotateToNext("rate-limited", ctx);
     if (rotated) {
-      continuationSentThisTurn = true;
-      getLogger(ctx).log("fallback_continuation_queued", {
+      continuationRequestedThisTurn = true;
+      const request: AutoContinueRequest = {
+        reason: "quota-rotation",
+        origin: { provider: OPENCODE_PROVIDER },
+      };
+      getLogger(ctx).log("continuation_requested", {
         provider: OPENCODE_PROVIDER,
         currentAccount: currentAccount()?.name,
+        reason: request.reason,
       });
-      await pi.sendUserMessage("continue", { deliverAs: "followUp" });
+      pi.events.emit(AUTO_CONTINUE_REQUEST_EVENT, request);
     }
   };
 }
 
 function handleTurnStart(): void {
-  continuationSentThisTurn = false;
+  continuationRequestedThisTurn = false;
 }
 
-function makeAgentSettledHandler(pi: ExtensionAPI) {
-  return function handleAgentSettled(
-    _event: unknown,
-    ctx: ExtensionContext,
-  ): void {
-    if (!ctx.isIdle()) return;
-    triedAccountsThisCycle = new Set();
+function handleAgentSettled(_event: unknown, ctx: ExtensionContext): void {
+  if (!ctx.isIdle()) return;
+  triedAccountsThisCycle = new Set();
 
-    if (pendingPreventiveReselection && latestSnapshot) {
-      const decision = decidePreventiveReselection(latestSnapshot, {
-        activeSource: activeSourceIdentity(),
-        piSettled: true,
-        blindFallback: blindFallbackActive,
-        now: Date.now(),
-      });
-      if (decision.reselect) {
-        applyPreventiveReselection(latestSnapshot, ctx);
-      } else {
-        pendingPreventiveReselection = false;
-      }
-    }
-
-    if (!pendingTransientFailure) {
-      transientContinuationOutstanding = false;
-      return;
-    }
-    pendingTransientFailure = false;
-
-    if (transientContinuationOutstanding) {
-      transientContinuationOutstanding = false;
-      getLogger(ctx).log("streaming_failure_skipped", {
-        provider: OPENCODE_PROVIDER,
-        currentAccount: currentAccount()?.name,
-      });
-      return;
-    }
-
-    transientContinuationOutstanding = true;
-    getLogger(ctx).log("streaming_failure_retry", {
-      provider: OPENCODE_PROVIDER,
-      currentAccount: currentAccount()?.name,
+  if (pendingPreventiveReselection && latestSnapshot) {
+    const decision = decidePreventiveReselection(latestSnapshot, {
+      activeSource: activeSourceIdentity(),
+      piSettled: true,
+      blindFallback: blindFallbackActive,
+      now: Date.now(),
     });
-    pi.sendUserMessage("continue", { deliverAs: "followUp" });
-  };
+    if (decision.reselect) {
+      applyPreventiveReselection(latestSnapshot, ctx);
+    } else {
+      pendingPreventiveReselection = false;
+    }
+  }
 }
 
 async function handleSessionShutdown(
@@ -521,9 +486,7 @@ async function handleSessionShutdown(
   rotationConfig = undefined;
   accountStates = [];
   currentAccountIndex = -1;
-  continuationSentThisTurn = false;
-  pendingTransientFailure = false;
-  transientContinuationOutstanding = false;
+  continuationRequestedThisTurn = false;
   triedAccountsThisCycle = new Set();
   latestSnapshot = undefined;
   blindFallbackActive = false;
@@ -564,7 +527,7 @@ async function handleQuotaCommand(
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", handleSessionStart);
   pi.on("turn_start", handleTurnStart);
-  pi.on("agent_settled", makeAgentSettledHandler(pi));
+  pi.on("agent_settled", handleAgentSettled);
   pi.on("message_end", makeMessageEndHandler(pi));
   pi.on("session_shutdown", handleSessionShutdown);
 

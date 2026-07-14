@@ -1,10 +1,4 @@
-# quota-rotation-guard Specification
-
-## Purpose
-
-Prevent false-positive API key rotations by restricting rotation triggers to genuine quota exhaustion errors (`GoUsageLimitError`) and tracking per-turn account attempts to stop rotating when all accounts have been exhausted. Additionally, handle transient streaming failures with a single retry before giving up.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Rotation only on GoUsageLimitError
 
@@ -68,16 +62,10 @@ The system SHALL stop rotating and notify the user when all configured accounts 
 - **AND** the system SHALL add it to the attempted set
 - **AND** the quota extension SHALL request automatic continuation with reason `quota-rotation`
 
-### Requirement: Rotation logging reflects actual reason
+## REMOVED Requirements
 
-The system SHALL log rotation events with the reason that reflects the actual trigger (always `"rate-limited"` since only `GoUsageLimitError` triggers rotation).
+### Requirement: Transient stream retry on streaming failures
 
-#### Scenario: Rotation logged with rate-limited reason
+**Reason**: Transient failure recovery is provider-agnostic and no longer belongs to quota rotation. Keeping it here would duplicate continuation ownership and prevent equivalent recovery for other providers.
 
-- **WHEN** a legitimate rotation occurs due to `GoUsageLimitError`
-- **THEN** the system SHALL log `rotate_attempt` and `rotate_success` with `reason: "rate-limited"`
-
-#### Scenario: Skipped rotation is not logged as rotation
-
-- **WHEN** the handler decides not to rotate because the error is not `GoUsageLimitError`
-- **THEN** the system SHALL NOT log `rotate_attempt` or `message_end_error`
+**Migration**: Use the new `pi-auto-continue` capability, which classifies explicit transient signals for every provider and bounds recovery with a Recovery Episode.

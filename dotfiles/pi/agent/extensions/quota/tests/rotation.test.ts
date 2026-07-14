@@ -4,7 +4,6 @@ import {
   initAccountStates,
   isAvailable,
   isQuotaExhaustionError,
-  isTransientError,
   markBad,
   pickBestQuotaAccount,
   pickNextAccount,
@@ -251,36 +250,6 @@ describe("isQuotaExhaustionError", () => {
 
   it("returns false when errorMessage is undefined", () => {
     expect(isQuotaExhaustionError(undefined)).toBe(false);
-  });
-});
-
-describe("isTransientError", () => {
-  it("returns true for messages containing Streaming response failed", () => {
-    expect(isTransientError("Streaming response failed")).toBe(true);
-  });
-
-  it("returns true when Streaming response failed appears anywhere in the message", () => {
-    expect(isTransientError("Error: Streaming response failed")).toBe(true);
-  });
-
-  it("returns false for GoUsageLimitError", () => {
-    expect(isTransientError("GoUsageLimitError")).toBe(false);
-  });
-
-  it("returns true for connection errors", () => {
-    expect(isTransientError("Connection error.")).toBe(true);
-  });
-
-  it("returns true for timeout errors", () => {
-    expect(isTransientError("Request timed out.")).toBe(true);
-  });
-
-  it("returns true for stream interruption errors", () => {
-    expect(isTransientError("Stream ended without finish_reason")).toBe(true);
-  });
-
-  it("returns false when errorMessage is undefined", () => {
-    expect(isTransientError(undefined)).toBe(false);
   });
 });
 
