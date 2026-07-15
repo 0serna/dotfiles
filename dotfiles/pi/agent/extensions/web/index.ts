@@ -1,51 +1,56 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
-import { configureWebToolsLogger } from "./logger.ts";
-import {
-  executeWebFetch,
-  renderWebFetchCall,
-  renderWebFetchResult,
-} from "./web-fetch.ts";
-import {
-  executeWebSearch,
-  renderWebSearchCall,
-  renderWebSearchResult,
-} from "./web-search.ts";
+import { homedir } from "node:os";
 
-export default function (pi: ExtensionAPI) {
+import {
+  createExtensionLogger,
+  type ExtensionLogger,
+} from "../shared/logger.js";
+import { createKetchRunner } from "./ketch.js";
+import { createToolDefinitions } from "./tools.js";
+
+export default async function web(pi: ExtensionAPI) {
+  let logger: ExtensionLogger | undefined;
+
   pi.on("session_start", (_event, ctx) => {
-    configureWebToolsLogger(ctx);
+    logger = createExtensionLogger(ctx, "web");
   });
 
-  pi.registerTool({
-    name: "web_search",
-    label: "Web Search",
-    description: "Search the web. Returns a synthesized answer with sources.",
-    promptSnippet: "Search the web and return synthesized answers with sources",
-    promptGuidelines: [
-      "Use web_search when you need to search the web for current information.",
-    ],
-    parameters: Type.Object({
-      query: Type.String({ description: "Search query" }),
-    }),
-    execute: executeWebSearch,
-    renderCall: renderWebSearchCall,
-    renderResult: renderWebSearchResult,
+  let available: boolean;
+  try {
+    const probe = await pi.exec("ketch", ["version"], { cwd: homedir() });
+    available = probe.code === 0;
+  } catch {
+    available = false;
+  }
+
+  if (!available) {
+    pi.on("session_start", (_event, ctx) => {
+      if (ctx.hasUI) {
+        ctx.ui.notify(
+          "Ketch is unavailable; install it and reload Pi to enable web tools.",
+          "warning",
+        );
+      }
+    });
+    return;
+  }
+
+  const runner = createKetchRunner({
+    async exec(command, args, options) {
+      const result = await pi.exec(command, args, options);
+      return {
+        stdout: result.stdout,
+        stderr: result.stderr,
+        code: result.code ?? 1,
+        killed: result.killed,
+      };
+    },
+    getLogger: () => logger,
   });
 
-  pi.registerTool({
-    name: "web_fetch",
-    label: "Web Fetch",
-    description: "Fetch and extract readable content from a single URL.",
-    promptSnippet: "Fetch a URL and extract its readable content",
-    promptGuidelines: [
-      "Use web_fetch when you need to read or extract the content of a specific URL.",
-    ],
-    parameters: Type.Object({
-      url: Type.String({ description: "URL to fetch" }),
-    }),
-    execute: executeWebFetch,
-    renderCall: renderWebFetchCall,
-    renderResult: renderWebFetchResult,
-  });
+  const [search, fetch, code, docs] = createToolDefinitions(runner);
+  pi.registerTool(search);
+  pi.registerTool(fetch);
+  pi.registerTool(code);
+  pi.registerTool(docs);
 }
