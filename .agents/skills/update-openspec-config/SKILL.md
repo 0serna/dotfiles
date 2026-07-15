@@ -27,6 +27,7 @@ Refresh generated OpenSpec skill files from the latest CLI without manually rewr
    - Count copied target `openspec-*` directories.
    - Run `npm run check`.
      Complete when every copied directory has a clean diff, the target count equals the expected source count, stale generated target directories are absent, and the check passes.
+6. Run the project's configured file formatter before returning.
 
 ## Failure handling
 
