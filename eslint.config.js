@@ -11,6 +11,8 @@ export default [
       "node_modules",
       ".git",
       "dotfiles/pi/agent/settings.json",
+      ".agents/skills/**",
+      "dotfiles/agents/skills/**",
     ],
   },
   js.configs.recommended,

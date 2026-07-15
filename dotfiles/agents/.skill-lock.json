@@ -85,6 +85,24 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-07-03T17:11:50.105Z",
       "updatedAt": "2026-07-03T17:11:50.105Z"
+    },
+    "orca-cli": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/stablyai/orca.git",
+      "skillPath": "skills/orca-cli/SKILL.md",
+      "skillFolderHash": "ded93000a5f654e2b4f324501282459bd56afe19",
+      "installedAt": "2026-07-15T12:51:47.724Z",
+      "updatedAt": "2026-07-15T12:51:47.724Z"
+    },
+    "orchestration": {
+      "source": "stablyai/orca",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/stablyai/orca.git",
+      "skillPath": "skills/orchestration/SKILL.md",
+      "skillFolderHash": "086c41e0b353b4908d2963694b4a7c791d4b3982",
+      "installedAt": "2026-07-15T12:51:47.727Z",
+      "updatedAt": "2026-07-15T12:56:16.354Z"
     }
   },
   "dismissed": {
