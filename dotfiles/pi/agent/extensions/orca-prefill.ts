@@ -8,8 +8,6 @@ export default function (pi) {
     delete process.env.ORCA_PI_PREFILL;
     try {
       ctx.ui.setEditorText(prefill);
-    } catch {
-      // Why: best-effort prefill; Orca may not support setEditorText.
-    }
+    } catch {}
   });
 }

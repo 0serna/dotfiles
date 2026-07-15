@@ -1,7 +1,4 @@
 // @orca-managed-pi-extension
-import { spawn } from "node:child_process";
-import fs from "node:fs";
-
 // Why: no package-specific type import here. Pi and OMP expose the same
 // extension API, but publish their types under different package names.
 // Why: warn-once so a recurring parse error on a malformed endpoint
@@ -27,6 +24,7 @@ function readEndpointFile(): Record<string, string> | null {
   const path = process.env.ORCA_AGENT_HOOK_ENDPOINT;
   if (!path) return null;
   try {
+    const fs = require("fs");
     try {
       const stat = fs.statSync(path);
       const cacheKey = stat.mtimeMs + ":" + stat.size + ":" + stat.ino;
@@ -191,6 +189,7 @@ function isWslRuntime(): boolean {
 function detectWslRuntime(): boolean {
   if (process.env.WSL_DISTRO_NAME) return true;
   try {
+    const fs = require("fs");
     for (const path of ["/proc/sys/kernel/osrelease", "/proc/version"]) {
       try {
         const contents = String(fs.readFileSync(path, "utf8"));
@@ -208,6 +207,7 @@ function detectWslRuntime(): boolean {
 function resolveWindowsCurlPath(): string | null {
   if (cachedWindowsCurlPath !== undefined) return cachedWindowsCurlPath;
   try {
+    const fs = require("fs");
     const curlPath = "/mnt/c/Windows/System32/curl.exe";
     cachedWindowsCurlPath = fs.existsSync(curlPath) ? curlPath : null;
   } catch {
@@ -228,6 +228,7 @@ function postViaWindowsCurl(
   const curlPath = resolveWindowsCurlPath();
   if (!curlPath) return;
   try {
+    const { spawn } = require("child_process");
     const child = spawn(
       curlPath,
       [
