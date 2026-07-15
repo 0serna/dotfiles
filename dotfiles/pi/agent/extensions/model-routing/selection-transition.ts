@@ -26,9 +26,9 @@ export function createTransitionState(): TransitionState {
 }
 
 /**
- * The view of the persisted thinking memory the reducer needs to evaluate
- * facts. The coordinator supplies it so the reducer stays pure and free
- * of filesystem dependencies.
+ * The view of the session's manual thinking memory that the reducer needs to
+ * evaluate facts. The coordinator supplies it so the reducer stays pure and
+ * free of filesystem dependencies.
  */
 export interface TransitionView {
   getRememberedLevel(modelId: string): ThinkingLevel | undefined;
@@ -41,8 +41,8 @@ export interface TransitionView {
  * `currentLevel` carries the active thinking level at the time of the
  * fact. The reducer needs it to emit a `persist_selection` effect for
  * manual model selections: Pi may have already adjusted the level in
- * response to the model change, and the persisted snapshot must reflect
- * what the user effectively settled on.
+ * response to the model change, and both the session snapshot and published
+ * persisted snapshot must reflect what the user effectively settled on.
  */
 type TransitionFact =
   | {

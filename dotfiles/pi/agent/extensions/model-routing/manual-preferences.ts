@@ -4,10 +4,9 @@ import { dirname, join } from "node:path";
 import { isValidThinkingLevel, type ThinkingLevel } from "./types.ts";
 
 /**
- * The user's current manual selection: which model they last picked by hand
- * and which thinking level it ended up with. This is the source of truth for
- * session-start restoration and for restoring the user's selection after a
- * route finishes.
+ * A model and thinking-level pair selected manually. The latest persisted
+ * manual selection initializes new sessions; each session then owns its
+ * in-memory copy for route restoration.
  */
 export interface ManualSelection {
   modelProvider: string;
@@ -22,8 +21,9 @@ export interface ManualSelection {
 type ThinkingMemory = Record<string, ThinkingLevel>;
 
 /**
- * The unified manual-preference state. Both fields are owned by the
- * model-routing extension and are written together as one record.
+ * The unified manual-preference snapshot. A session owns its in-memory
+ * snapshot while the same shape is published globally as the latest persisted
+ * manual preferences for future sessions.
  *
  * `model-routes.json` is intentionally kept separate because it stores
  * automatic route configuration, which has a different lifecycle.
@@ -89,7 +89,7 @@ export function emptyManualPreferences(): ManualPreferences {
 let writeQueue: Promise<void> = Promise.resolve();
 
 /**
- * Load and structurally validate the unified manual-preferences file.
+ * Load and structurally validate the latest persisted manual preferences.
  * Returns an empty record if the file is missing or malformed; persistence
  * is best-effort and must never break the session flow.
  */

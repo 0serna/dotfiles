@@ -28,8 +28,16 @@ _Avoid_: active compute time, attempt duration, request latency
 A contiguous portion of a processing cycle governed by one declared model and thinking-level route. It starts when its routed message begins processing and ends when another route begins, a manual model or thinking-level selection cancels it, or the cycle finishes; unrouted continuations inherit the active segment.
 _Avoid_: routed prompt, temporary model, routed processing cycle
 
+**Session manual selection**:
+The model and thinking-level pair owned by one Pi session runtime. It initializes from the latest persisted manual selection at session start, changes with that session's manual selections, and remains isolated from later selections published by other active sessions.
+_Avoid_: global selection, default model, persisted selection
+
+**Latest persisted manual selection**:
+The model and thinking-level pair most recently published to shared manual preferences. It supplies the startup default for future session runtimes but does not replace the session manual selection of an active runtime.
+_Avoid_: session selection, active model, global default
+
 **Route restoration**:
-The return from a routed selection to the latest persisted manual selection after routed work finishes. It remains pending while Pi is busy; once idle, an unavailable selection closes the route while retaining the active model and warning the user.
+The return from a routed selection to the session manual selection after routed work finishes. It remains pending while Pi is busy; once idle, an unavailable selection closes the route while retaining the active model and warning the user.
 _Avoid_: route deactivation, default model reset, model fallback
 
 **Assistant response configuration**:

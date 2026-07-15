@@ -58,7 +58,7 @@ export function createModelRouteSession(
   let activeRouteName: string | undefined;
   const queuedRouteBoundaries = new Map<string, number>();
   let transition: TransitionState = createTransitionState();
-  let preferences: ManualPreferences = emptyManualPreferences();
+  let sessionManualPreferences: ManualPreferences = emptyManualPreferences();
   let pendingPersist: Promise<void> = Promise.resolve();
 
   /**
@@ -93,7 +93,8 @@ export function createModelRouteSession(
 
   function memoryView(): TransitionView {
     return {
-      getRememberedLevel: (modelId) => preferences.thinkingMemory[modelId],
+      getRememberedLevel: (modelId) =>
+        sessionManualPreferences.thinkingMemory[modelId],
     };
   }
 
@@ -107,8 +108,11 @@ export function createModelRouteSession(
       modelId,
       thinkingLevel,
     };
-    preferences = withSelection(preferences, selection);
-    pendingPersist = saveManualPreferences(preferences);
+    sessionManualPreferences = withSelection(
+      sessionManualPreferences,
+      selection,
+    );
+    pendingPersist = saveManualPreferences(sessionManualPreferences);
   }
 
   function dispatchEffects(effects: TransitionEffect[]): void {
@@ -145,14 +149,14 @@ export function createModelRouteSession(
     return true;
   }
 
-  async function restorePersistedUserSelection(
+  async function restoreManualSelection(
     ctx: ExtensionContext,
-    persisted: ManualSelection,
+    selection: ManualSelection,
   ): Promise<boolean> {
-    const restoreError = `Could not restore user model '${persisted.modelProvider}/${persisted.modelId}'.`;
+    const restoreError = `Could not restore user model '${selection.modelProvider}/${selection.modelId}'.`;
     const model = ctx.modelRegistry.find(
-      persisted.modelProvider,
-      persisted.modelId,
+      selection.modelProvider,
+      selection.modelId,
     );
     if (!model) {
       ctx.ui.notify(restoreError, "error");
@@ -161,7 +165,7 @@ export function createModelRouteSession(
     return suppressManualPersistenceWhile(async () => {
       const ok = await pi.setModel(model);
       if (ok) {
-        pi.setThinkingLevel(persisted.thinkingLevel);
+        pi.setThinkingLevel(selection.thinkingLevel);
       } else {
         ctx.ui.notify(restoreError, "error");
       }
@@ -172,30 +176,31 @@ export function createModelRouteSession(
   async function start(ctx: ExtensionContext): Promise<void> {
     cancelActiveRoute();
     queuedRouteBoundaries.clear();
-    preferences = await loadManualPreferences();
+    const latestPersistedManualPreferences = await loadManualPreferences();
+    sessionManualPreferences = latestPersistedManualPreferences;
     transition = createTransitionState();
     pendingPersist = Promise.resolve();
 
-    if (preferences.selection) {
-      const restored = await restorePersistedUserSelection(
+    if (sessionManualPreferences.selection) {
+      const restored = await restoreManualSelection(
         ctx,
-        preferences.selection,
+        sessionManualPreferences.selection,
       );
       if (restored && ctx.model) {
-        preferences = withSelection(preferences, {
+        sessionManualPreferences = withSelection(sessionManualPreferences, {
           modelProvider: ctx.model.provider,
           modelId: ctx.model.id,
           thinkingLevel: pi.getThinkingLevel(),
         });
-        pendingPersist = saveManualPreferences(preferences);
+        pendingPersist = saveManualPreferences(sessionManualPreferences);
       }
     } else if (ctx.model) {
-      preferences = withSelection(preferences, {
+      sessionManualPreferences = withSelection(sessionManualPreferences, {
         modelProvider: ctx.model.provider,
         modelId: ctx.model.id,
         thinkingLevel: pi.getThinkingLevel(),
       });
-      pendingPersist = saveManualPreferences(preferences);
+      pendingPersist = saveManualPreferences(sessionManualPreferences);
     }
     transition = {
       ...transition,
@@ -284,12 +289,10 @@ export function createModelRouteSession(
     queuedRouteBoundaries.clear();
     if (!routeActive) return;
 
-    const latest = await loadManualPreferences();
-    preferences = latest;
-    if (latest.selection) {
-      const restored = await restorePersistedUserSelection(
+    if (sessionManualPreferences.selection) {
+      const restored = await restoreManualSelection(
         ctx,
-        latest.selection,
+        sessionManualPreferences.selection,
       );
       if (restored && ctx.model) {
         ctx.ui.notify(

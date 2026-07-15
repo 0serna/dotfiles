@@ -1119,7 +1119,7 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel);
   });
 
-  it("restores the latest user-selected model and thinking from file", async () => {
+  it("restores the latest session-selected model and thinking", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue();
     renameMock.mockResolvedValue();
@@ -1162,7 +1162,7 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setThinkingLevel).toHaveBeenLastCalledWith("xhigh");
   });
 
-  it("restores the latest file-backed selection when another instance changes it during a route", async () => {
+  it("restores the session manual selection when another session changes persisted preferences during a route", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue();
     renameMock.mockResolvedValue();
@@ -1193,9 +1193,9 @@ describe("manual preferences restoration", () => {
     await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
-    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel2);
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel);
     expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(1, "low");
-    expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "xhigh");
+    expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
   });
 
   it("closes the route and warns when the manual selection cannot be restored", async () => {
@@ -1235,7 +1235,7 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setModel).not.toHaveBeenCalled();
   });
 
-  it("leaves the current model unchanged at settlement when no persisted selection exists", async () => {
+  it("restores the startup selection when persisted preferences disappear during a route", async () => {
     const setup = setupExtension();
     configureFiles({
       prefs: null,
@@ -1251,12 +1251,11 @@ describe("manual preferences restoration", () => {
       setup.ctx,
     );
 
-    const setModelCallsBefore = vi.mocked(setup.pi.setModel).mock.calls.length;
-
     await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
-    expect(vi.mocked(setup.pi.setModel)).toHaveBeenCalledTimes(
-      setModelCallsBefore,
-    );
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel);
+    expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(1, "low");
+    expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
   });
 });
