@@ -1,8 +1,8 @@
-# web-search-regression-tests Specification
+# web-regression-tests Specification
 
 ## Purpose
 
-Regression tests for the web-search extension covering provider orchestration, fetch pipeline fallback, cache behavior, and GitHub URL classification.
+Regression tests for the web extension covering provider orchestration, fetch pipeline fallback, cache behavior, and GitHub URL classification.
 
 ## Requirements
 

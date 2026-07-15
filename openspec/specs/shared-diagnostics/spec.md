@@ -86,7 +86,7 @@ Pi extensions SHALL use the shared diagnostics helpers for migrated failure logs
 
 #### Scenario: Web tools use shared diagnostics
 
-- **WHEN** web-search or web-fetch logs migrated failure diagnostics
+- **WHEN** web or web-fetch logs migrated failure diagnostics
 - **THEN** the payload SHALL be built using the shared diagnostics helpers rather than a web-tools-local diagnostics module
 
 #### Scenario: Existing extensions use shared diagnostics for obvious failures

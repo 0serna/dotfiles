@@ -1,4 +1,4 @@
-# web-search Specification
+# web Specification
 
 ## Purpose
 
