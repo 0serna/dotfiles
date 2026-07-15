@@ -88,7 +88,8 @@ function manualPrefsJson(
 
 type TestModel = { provider: string; id: string };
 type TestContext = {
-  model: TestModel;
+  model?: TestModel;
+  isIdle: ReturnType<typeof vi.fn>;
   modelRegistry: {
     find: (provider: string, id: string) => TestModel | undefined;
     getAvailable: () => TestModel[];
@@ -114,7 +115,7 @@ function setupExtension() {
     commitModel,
     openspecProposeModel,
   ];
-  const ctx = {
+  const ctx: TestContext = {
     model: userModel,
     isIdle: vi.fn(() => true),
     modelRegistry: {
@@ -577,12 +578,12 @@ describe("compact route compaction", () => {
   });
 });
 
-// --- Manual preferences restoration ---
+// --- Session baseline and thinking preferences ---
 
-describe("manual preferences restoration", () => {
-  it("restores persisted selection on session_start even when Pi starts with a contaminated default", async () => {
+describe("session baseline and thinking preferences", () => {
+  it("keeps Pi's startup selection and ignores a legacy persisted selection", async () => {
     const setup = setupExtension();
-    setup.ctx.model = { provider: "commit", id: "model" };
+    setup.ctx.model = setup.commitModel;
 
     configureFiles({
       prefs: manualPrefsJson({
@@ -595,33 +596,26 @@ describe("manual preferences restoration", () => {
 
     await setup.handlers.get("session_start")?.({}, setup.ctx);
 
-    expect(setup.pi.setModel).toHaveBeenCalledWith(setup.userModel);
-    expect(setup.pi.setThinkingLevel).toHaveBeenCalledWith("high");
+    expect(setup.ctx.model).toBe(setup.commitModel);
+    expect(setup.pi.setModel).not.toHaveBeenCalled();
+    expect(setup.pi.setThinkingLevel).not.toHaveBeenCalled();
+    expect(writeFileMock).not.toHaveBeenCalled();
   });
 
-  it("does not restore or persist a selection when the persisted model is unavailable", async () => {
+  it("does not write preferences while capturing Pi's startup selection", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue();
     renameMock.mockResolvedValue();
     const setup = setupExtension();
-    setup.ctx.model = { provider: "commit", id: "model" };
-
-    configureFiles({
-      prefs: manualPrefsJson({
-        modelProvider: "missing",
-        modelId: "model",
-        thinkingLevel: "high",
-      }),
-      routes: "missing",
-    });
 
     await setup.handlers.get("session_start")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).not.toHaveBeenCalled();
+    expect(setup.pi.setThinkingLevel).not.toHaveBeenCalled();
     expect(writeFileMock).not.toHaveBeenCalled();
   });
 
-  it("persists the unified snapshot on manual model select", async () => {
+  it("persists thinking memory only on manual model select", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue();
     renameMock.mockResolvedValue();
@@ -639,13 +633,7 @@ describe("manual preferences restoration", () => {
         `${PREFS_FILE}.tmp`,
         JSON.stringify(
           {
-            selection: {
-              modelProvider: setup.userModel2.provider,
-              modelId: setup.userModel2.id,
-              thinkingLevel: "high",
-            },
             thinkingMemory: {
-              "user/base": "high",
               "user/other": "high",
             },
           },
@@ -657,7 +645,7 @@ describe("manual preferences restoration", () => {
     );
   });
 
-  it("persists the unified snapshot on manual thinking level change", async () => {
+  it("persists thinking memory only on manual thinking level change", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue(undefined);
     renameMock.mockResolvedValue();
@@ -673,11 +661,6 @@ describe("manual preferences restoration", () => {
         `${PREFS_FILE}.tmp`,
         JSON.stringify(
           {
-            selection: {
-              modelProvider: "user",
-              modelId: "base",
-              thinkingLevel: "max",
-            },
             thinkingMemory: { "user/base": "max" },
           },
           null,
@@ -738,10 +721,44 @@ describe("manual preferences restoration", () => {
       expect(writtenContents.length).toBeGreaterThanOrEqual(2),
     );
     const latest = JSON.parse(writtenContents[writtenContents.length - 1]!);
-    expect(latest.selection).toEqual({
-      modelProvider: "user",
-      modelId: "other",
-      thinkingLevel: "high",
+    expect(latest).toEqual({
+      thinkingMemory: {
+        "user/base": "high",
+        "user/other": "high",
+      },
+    });
+  });
+
+  it("lazily removes a legacy selection on the next manual preference change", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue(undefined);
+    renameMock.mockResolvedValue();
+    const setup = setupExtension();
+    configureFiles({
+      prefs: manualPrefsJson(
+        {
+          modelProvider: "legacy",
+          modelId: "selection",
+          thinkingLevel: "low",
+        },
+        { "user/other": "max" },
+      ),
+      routes: "missing",
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+    await setup.handlers.get("thinking_level_select")?.(
+      { level: "xhigh" },
+      setup.ctx,
+    );
+
+    await vi.waitFor(() => expect(writeFileMock).toHaveBeenCalled());
+    const content = vi.mocked(writeFileMock).mock.calls.at(-1)?.[1];
+    expect(JSON.parse(String(content))).toEqual({
+      thinkingMemory: {
+        "user/base": "xhigh",
+        "user/other": "max",
+      },
     });
   });
 
@@ -992,6 +1009,30 @@ describe("manual preferences restoration", () => {
     expect(setup.ctx.model).toBe(setup.commitModel);
   });
 
+  it("captures a late Pi selection before the first route and restores it", async () => {
+    const setup = setupExtension();
+    setup.ctx.model = undefined;
+    configureFiles({
+      prefs: null,
+      routes: JSON.stringify({
+        "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
+      }),
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+    setup.ctx.model = setup.userModel2;
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel2);
+    expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(1, "low");
+    expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
+  });
+
   it("restores a routed selection only after settlement is idle", async () => {
     const setup = setupExtension();
     configureFiles({
@@ -1162,7 +1203,7 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setThinkingLevel).toHaveBeenLastCalledWith("xhigh");
   });
 
-  it("restores the session manual selection when another session changes persisted preferences during a route", async () => {
+  it("restores the session baseline when another session changes thinking preferences during a route", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue();
     renameMock.mockResolvedValue();
@@ -1198,7 +1239,7 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
   });
 
-  it("closes the route and warns when the manual selection cannot be restored", async () => {
+  it("closes the route and warns when the session baseline cannot be restored", async () => {
     const setup = setupExtension();
     configureFiles({
       prefs: null,
@@ -1226,7 +1267,7 @@ describe("manual preferences restoration", () => {
 
     expect(setup.ctx.model).toBe(setup.commitModel);
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
-      "Could not restore user model 'user/base'.",
+      "Could not restore session baseline model 'user/base'.",
       "error",
     );
 
@@ -1235,7 +1276,7 @@ describe("manual preferences restoration", () => {
     expect(setup.pi.setModel).not.toHaveBeenCalled();
   });
 
-  it("restores the startup selection when persisted preferences disappear during a route", async () => {
+  it("restores the session baseline when persisted preferences disappear during a route", async () => {
     const setup = setupExtension();
     configureFiles({
       prefs: null,

@@ -108,62 +108,66 @@ The system SHALL provide a `/model-routes` command that opens an editor listing 
 
 ### Requirement: Manual selection cancels active routing
 
-The system SHALL treat an explicit manual model or thinking-level selection during an active route segment as cancellation of that route and SHALL persist the resulting model and thinking-level pair as the manual selection.
+The system SHALL treat an explicit manual model or thinking-level selection during an active route segment as cancellation of that route, SHALL make the resulting model and thinking-level pair the session baseline selection, and SHALL persist the resulting per-model thinking memory.
 
 #### Scenario: User manually selects a model during routed work
 
 - **WHEN** the user selects or cycles to a model during an active route segment
 - **THEN** the route segment ends
-- **AND** the selected model and resulting thinking level become the manual selection
+- **AND** the selected model and resulting thinking level become the session baseline selection
 - **AND** settled restoration does not replace that selection
 
 #### Scenario: User manually selects a thinking level during routed work
 
 - **WHEN** the user changes the thinking level during an active route segment
 - **THEN** the route segment ends
-- **AND** the routed model with the selected thinking level becomes the manual selection
+- **AND** the routed model with the selected thinking level becomes the session baseline selection
 - **AND** settled restoration does not replace that selection
 
 #### Scenario: Automatic selection event occurs during routing
 
-- **WHEN** a model or thinking-level event is caused by route activation, route restoration, session-start restoration, or an automatic model clamp
+- **WHEN** a model or thinking-level event is caused by route activation, route restoration, or an automatic model clamp
 - **THEN** the event does not cancel the active route
-- **AND** does not overwrite the manual selection
+- **AND** does not overwrite the session baseline selection or persisted thinking memory
 
-### Requirement: Session-owned manual selection
+### Requirement: Session baseline selection
 
-The system SHALL maintain a model and thinking-level pair owned by each Pi session runtime, initialize it from manual preferences at `session_start`, and publish subsequent manual changes to shared preferences without adopting changes published by other active sessions.
+The system SHALL maintain a non-persisted model and thinking-level pair owned by each Pi session runtime as its session baseline selection, initialize it from the selection supplied by Pi, and replace it after explicit manual selections.
 
-#### Scenario: Session starts with persisted manual selection
+#### Scenario: Session starts with a Pi selection
 
-- **WHEN** Pi emits `session_start` with a restorable persisted manual selection
-- **THEN** the system restores that model and thinking level
-- **AND** adopts the pair as the session's manual selection
+- **WHEN** Pi emits `session_start` for startup, reload, new, resume, or fork with a current model and thinking level
+- **THEN** the system adopts that pair as the session baseline selection
+- **AND** does not set the model or thinking level
+- **AND** does not update persisted thinking memory
 
-#### Scenario: User changes the manual selection
+#### Scenario: Session starts without a model
+
+- **WHEN** Pi emits `session_start` without a current model
+- **THEN** the system leaves the session baseline selection unset
+- **AND** captures Pi's current model and thinking level immediately before the first route activation if a model is then available
+
+#### Scenario: User changes the session baseline
 
 - **WHEN** the user manually selects a model or thinking level in a session
-- **THEN** the system updates that session's manual selection
-- **AND** persists the resulting model and thinking-level pair for future sessions
+- **THEN** the system updates that session's baseline selection
+- **AND** updates persisted thinking memory for the selected model
 
-#### Scenario: Another session publishes a manual selection
+#### Scenario: Legacy preferences are loaded
 
-- **WHEN** another active Pi session changes the shared persisted manual selection
-- **THEN** the current session retains its own manual selection in memory
-
-#### Scenario: Session runtime is replaced
-
-- **WHEN** Pi replaces the session runtime and emits a new `session_start`
-- **THEN** the new runtime initializes its manual selection from the latest shared preferences
+- **WHEN** the persisted preferences contain a legacy `selection` and valid `thinkingMemory`
+- **THEN** the system ignores the legacy selection
+- **AND** retains the thinking memory
+- **AND** writes the canonical thinking-memory-only format on the next manual preference change
 
 ### Requirement: Route restoration waits for settled idle state
 
-The system SHALL restore the current session's manual selection after routed work only when Pi is settled and idle.
+The system SHALL restore the current session's baseline selection after routed work only when Pi is settled and idle.
 
 #### Scenario: Low-level attempt ends
 
 - **WHEN** Pi emits `agent_end` during an active route segment
-- **THEN** the system does not restore the manual selection
+- **THEN** the system does not restore the session baseline selection
 
 #### Scenario: Settlement is not idle
 
@@ -175,20 +179,20 @@ The system SHALL restore the current session's manual selection after routed wor
 
 - **WHEN** Pi emits `agent_settled` during an active route segment
 - **AND** `ctx.isIdle()` is true
-- **THEN** the system restores the model and thinking level from the current session's manual selection
+- **THEN** the system restores the model and thinking level from the current session's baseline selection
 - **AND** closes the active route
 
-#### Scenario: Another session changes persisted preferences during routed work
+#### Scenario: Another session changes persisted thinking memory during routed work
 
-- **WHEN** another Pi session changes the shared persisted manual selection while the current session has an active route segment
+- **WHEN** another Pi session changes shared persisted thinking memory while the current session has an active route segment
 - **AND** the current session's routed work settles while idle
-- **THEN** the current session restores its own manual selection
-- **AND** does not adopt the other session's model or thinking level
+- **THEN** the current session restores its own baseline selection
+- **AND** does not adopt a model or thinking level from the other session
 
-#### Scenario: Session manual selection cannot be restored
+#### Scenario: Session baseline selection cannot be restored
 
 - **WHEN** routed work settles while idle
-- **AND** the current session's manual selection is missing, unknown, or cannot activate
+- **AND** the current session's baseline selection is missing, unknown, or cannot activate
 - **THEN** the system retains the currently active model
 - **AND** closes the active route
 - **AND** warns when a configured selection cannot be restored

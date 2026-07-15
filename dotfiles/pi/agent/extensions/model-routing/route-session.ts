@@ -4,12 +4,12 @@ import {
   type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import {
-  emptyManualPreferences,
-  loadManualPreferences,
-  saveManualPreferences,
-  withSelection,
-  type ManualPreferences,
-  type ManualSelection,
+  emptyThinkingPreferences,
+  loadThinkingPreferences,
+  saveThinkingPreferences,
+  withRememberedSelection,
+  type BaselineSelection,
+  type ThinkingPreferences,
 } from "./manual-preferences.ts";
 import { formatModelId, parseModelId } from "./model-ids.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
@@ -58,13 +58,14 @@ export function createModelRouteSession(
   let activeRouteName: string | undefined;
   const queuedRouteBoundaries = new Map<string, number>();
   let transition: TransitionState = createTransitionState();
-  let sessionManualPreferences: ManualPreferences = emptyManualPreferences();
+  let sessionBaselineSelection: BaselineSelection | null = null;
+  let thinkingPreferences: ThinkingPreferences = emptyThinkingPreferences();
   let pendingPersist: Promise<void> = Promise.resolve();
 
   /**
    * Run a function while selection events are considered automatic and
    * must not be persisted as manual preferences. Used around route
-   * activation, route restoration, and session-start restoration.
+   * activation and route restoration.
    */
   async function suppressManualPersistenceWhile<T>(
     fn: () => Promise<T>,
@@ -94,7 +95,7 @@ export function createModelRouteSession(
   function memoryView(): TransitionView {
     return {
       getRememberedLevel: (modelId) =>
-        sessionManualPreferences.thinkingMemory[modelId],
+        thinkingPreferences.thinkingMemory[modelId],
     };
   }
 
@@ -103,16 +104,17 @@ export function createModelRouteSession(
     modelId: string,
     thinkingLevel: ThinkingLevel,
   ): void {
-    const selection: ManualSelection = {
+    const selection: BaselineSelection = {
       modelProvider: provider,
       modelId,
       thinkingLevel,
     };
-    sessionManualPreferences = withSelection(
-      sessionManualPreferences,
+    sessionBaselineSelection = selection;
+    thinkingPreferences = withRememberedSelection(
+      thinkingPreferences,
       selection,
     );
-    pendingPersist = saveManualPreferences(sessionManualPreferences);
+    pendingPersist = saveThinkingPreferences(thinkingPreferences);
   }
 
   function dispatchEffects(effects: TransitionEffect[]): void {
@@ -149,11 +151,20 @@ export function createModelRouteSession(
     return true;
   }
 
-  async function restoreManualSelection(
+  function captureBaselineSelection(ctx: ExtensionContext): void {
+    if (sessionBaselineSelection || !ctx.model) return;
+    sessionBaselineSelection = {
+      modelProvider: ctx.model.provider,
+      modelId: ctx.model.id,
+      thinkingLevel: pi.getThinkingLevel(),
+    };
+  }
+
+  async function restoreBaselineSelection(
     ctx: ExtensionContext,
-    selection: ManualSelection,
+    selection: BaselineSelection,
   ): Promise<boolean> {
-    const restoreError = `Could not restore user model '${selection.modelProvider}/${selection.modelId}'.`;
+    const restoreError = `Could not restore session baseline model '${selection.modelProvider}/${selection.modelId}'.`;
     const model = ctx.modelRegistry.find(
       selection.modelProvider,
       selection.modelId,
@@ -176,32 +187,11 @@ export function createModelRouteSession(
   async function start(ctx: ExtensionContext): Promise<void> {
     cancelActiveRoute();
     queuedRouteBoundaries.clear();
-    const latestPersistedManualPreferences = await loadManualPreferences();
-    sessionManualPreferences = latestPersistedManualPreferences;
+    thinkingPreferences = await loadThinkingPreferences();
+    sessionBaselineSelection = null;
     transition = createTransitionState();
     pendingPersist = Promise.resolve();
-
-    if (sessionManualPreferences.selection) {
-      const restored = await restoreManualSelection(
-        ctx,
-        sessionManualPreferences.selection,
-      );
-      if (restored && ctx.model) {
-        sessionManualPreferences = withSelection(sessionManualPreferences, {
-          modelProvider: ctx.model.provider,
-          modelId: ctx.model.id,
-          thinkingLevel: pi.getThinkingLevel(),
-        });
-        pendingPersist = saveManualPreferences(sessionManualPreferences);
-      }
-    } else if (ctx.model) {
-      sessionManualPreferences = withSelection(sessionManualPreferences, {
-        modelProvider: ctx.model.provider,
-        modelId: ctx.model.id,
-        thinkingLevel: pi.getThinkingLevel(),
-      });
-      pendingPersist = saveManualPreferences(sessionManualPreferences);
-    }
+    captureBaselineSelection(ctx);
     transition = {
       ...transition,
       activeModelId: ctx.model ? formatModelId(ctx.model) : undefined,
@@ -230,6 +220,7 @@ export function createModelRouteSession(
     const route = runtime.getRouteConfig(routeName);
     if (!route) return;
 
+    captureBaselineSelection(ctx);
     const activated = await suppressManualPersistenceWhile(() =>
       activateRoute(pi, route, ctx),
     );
@@ -289,10 +280,10 @@ export function createModelRouteSession(
     queuedRouteBoundaries.clear();
     if (!routeActive) return;
 
-    if (sessionManualPreferences.selection) {
-      const restored = await restoreManualSelection(
+    if (sessionBaselineSelection) {
+      const restored = await restoreBaselineSelection(
         ctx,
-        sessionManualPreferences.selection,
+        sessionBaselineSelection,
       );
       if (restored && ctx.model) {
         ctx.ui.notify(

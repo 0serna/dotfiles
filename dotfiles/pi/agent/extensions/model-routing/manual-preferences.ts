@@ -3,12 +3,8 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { isValidThinkingLevel, type ThinkingLevel } from "./types.ts";
 
-/**
- * A model and thinking-level pair selected manually. The latest persisted
- * manual selection initializes new sessions; each session then owns its
- * in-memory copy for route restoration.
- */
-export interface ManualSelection {
+/** A session-owned model and thinking-level pair used as a route baseline. */
+export interface BaselineSelection {
   modelProvider: string;
   modelId: string;
   thinkingLevel: ThinkingLevel;
@@ -21,15 +17,13 @@ export interface ManualSelection {
 type ThinkingMemory = Record<string, ThinkingLevel>;
 
 /**
- * The unified manual-preference snapshot. A session owns its in-memory
- * snapshot while the same shape is published globally as the latest persisted
- * manual preferences for future sessions.
+ * Durable per-model thinking preferences. The route restoration baseline is
+ * session-owned and intentionally excluded from this shared file.
  *
  * `model-routes.json` is intentionally kept separate because it stores
  * automatic route configuration, which has a different lifecycle.
  */
-export interface ManualPreferences {
-  selection: ManualSelection | null;
+export interface ThinkingPreferences {
   thinkingMemory: ThinkingMemory;
 }
 
@@ -43,16 +37,6 @@ function tempFilePath(): string {
   return `${filePath()}.tmp`;
 }
 
-function isManualSelection(value: unknown): value is ManualSelection {
-  if (typeof value !== "object" || value === null) return false;
-  const selection = value as Record<string, unknown>;
-  return (
-    typeof selection.modelProvider === "string" &&
-    typeof selection.modelId === "string" &&
-    isValidThinkingLevel(selection.thinkingLevel)
-  );
-}
-
 function isThinkingMemory(value: unknown): value is ThinkingMemory {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
@@ -63,22 +47,18 @@ function isThinkingMemory(value: unknown): value is ThinkingMemory {
   return true;
 }
 
-function isManualPreferences(value: unknown): value is ManualPreferences {
+function isThinkingPreferences(value: unknown): value is ThinkingPreferences {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
   const data = value as Record<string, unknown>;
-  if (data.selection !== null && data.selection !== undefined) {
-    if (!isManualSelection(data.selection)) return false;
-  }
-  if (data.thinkingMemory !== undefined) {
-    if (!isThinkingMemory(data.thinkingMemory)) return false;
-  }
-  return true;
+  return (
+    data.thinkingMemory === undefined || isThinkingMemory(data.thinkingMemory)
+  );
 }
 
-export function emptyManualPreferences(): ManualPreferences {
-  return { selection: null, thinkingMemory: {} };
+export function emptyThinkingPreferences(): ThinkingPreferences {
+  return { thinkingMemory: {} };
 }
 
 /**
@@ -89,33 +69,30 @@ export function emptyManualPreferences(): ManualPreferences {
 let writeQueue: Promise<void> = Promise.resolve();
 
 /**
- * Load and structurally validate the latest persisted manual preferences.
+ * Load and structurally validate the persisted per-model thinking preferences.
  * Returns an empty record if the file is missing or malformed; persistence
  * is best-effort and must never break the session flow.
  */
-export async function loadManualPreferences(): Promise<ManualPreferences> {
+export async function loadThinkingPreferences(): Promise<ThinkingPreferences> {
   await writeQueue;
   try {
     const raw = await readFile(filePath(), "utf8");
     const parsed = JSON.parse(raw) as unknown;
-    if (!isManualPreferences(parsed)) return emptyManualPreferences();
-    return {
-      selection: parsed.selection ?? null,
-      thinkingMemory: parsed.thinkingMemory ?? {},
-    };
+    if (!isThinkingPreferences(parsed)) return emptyThinkingPreferences();
+    return { thinkingMemory: parsed.thinkingMemory ?? {} };
   } catch {
-    return emptyManualPreferences();
+    return emptyThinkingPreferences();
   }
 }
 
 /**
- * Persist a complete manual-preferences snapshot. Writes are serialized through
+ * Persist a complete thinking-preferences snapshot. Writes are serialized through
  * a process-local FIFO queue and performed as an atomic rename of a temporary
  * file so readers always see either the previous full record or the next full
  * record, never a partial document.
  */
-export function saveManualPreferences(
-  preferences: ManualPreferences,
+export function saveThinkingPreferences(
+  preferences: ThinkingPreferences,
 ): Promise<void> {
   const content = JSON.stringify(preferences, null, 2);
   const write = writeQueue.then(async () => {
@@ -133,13 +110,12 @@ export function saveManualPreferences(
   return write;
 }
 
-/** Snapshot helpers used by the transition coordinator. */
-export function withSelection(
-  preferences: ManualPreferences,
-  selection: ManualSelection,
-): ManualPreferences {
+/** Record the selected model's level without persisting a route baseline. */
+export function withRememberedSelection(
+  preferences: ThinkingPreferences,
+  selection: BaselineSelection,
+): ThinkingPreferences {
   return {
-    selection,
     thinkingMemory: {
       ...preferences.thinkingMemory,
       [`${selection.modelProvider}/${selection.modelId}`]:

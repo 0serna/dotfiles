@@ -13,10 +13,10 @@ vi.mock("node:os", () => ({
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import {
-  emptyManualPreferences,
-  loadManualPreferences,
-  saveManualPreferences,
-  withSelection,
+  emptyThinkingPreferences,
+  loadThinkingPreferences,
+  saveThinkingPreferences,
+  withRememberedSelection,
 } from "../manual-preferences.ts";
 
 const mkdirMock = vi.mocked(mkdir);
@@ -39,16 +39,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe("loadManualPreferences", () => {
+describe("loadThinkingPreferences", () => {
   it("returns empty preferences when the file is missing", async () => {
     readFileMock.mockRejectedValue(missingFileError());
-    await expect(loadManualPreferences()).resolves.toEqual({
-      selection: null,
+    await expect(loadThinkingPreferences()).resolves.toEqual({
       thinkingMemory: {},
     });
   });
 
-  it("returns the parsed record when structurally valid", async () => {
+  it("retains thinking memory and ignores a legacy selection", async () => {
     readFileMock.mockResolvedValue(
       JSON.stringify({
         selection: {
@@ -59,13 +58,12 @@ describe("loadManualPreferences", () => {
         thinkingMemory: { "user/a": "high", "user/b": "low" },
       }),
     );
-    await expect(loadManualPreferences()).resolves.toEqual({
-      selection: { modelProvider: "user", modelId: "a", thinkingLevel: "high" },
+    await expect(loadThinkingPreferences()).resolves.toEqual({
       thinkingMemory: { "user/a": "high", "user/b": "low" },
     });
   });
 
-  it("returns empty preferences when the file is malformed", async () => {
+  it("ignores a malformed legacy selection", async () => {
     readFileMock.mockResolvedValue(
       JSON.stringify({
         selection: {
@@ -73,36 +71,34 @@ describe("loadManualPreferences", () => {
           modelId: "a",
           thinkingLevel: "nope",
         },
-        thinkingMemory: {},
+        thinkingMemory: { "user/a": "high" },
       }),
     );
-    await expect(loadManualPreferences()).resolves.toEqual({
-      selection: null,
-      thinkingMemory: {},
+    await expect(loadThinkingPreferences()).resolves.toEqual({
+      thinkingMemory: { "user/a": "high" },
     });
   });
 
   it("returns empty preferences when the document is not an object", async () => {
     readFileMock.mockResolvedValue(JSON.stringify(["bad"]));
-    await expect(loadManualPreferences()).resolves.toEqual({
-      selection: null,
+    await expect(loadThinkingPreferences()).resolves.toEqual({
       thinkingMemory: {},
     });
   });
 });
 
-describe("saveManualPreferences", () => {
+describe("saveThinkingPreferences", () => {
   it("writes the file as an atomic rename of a temp file", async () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockResolvedValue();
     renameMock.mockResolvedValue();
 
-    const prefs = withSelection(emptyManualPreferences(), {
+    const prefs = withRememberedSelection(emptyThinkingPreferences(), {
       modelProvider: "user",
       modelId: "a",
       thinkingLevel: "high",
     });
-    await saveManualPreferences(prefs);
+    await saveThinkingPreferences(prefs);
 
     expect(mkdirMock).toHaveBeenCalledWith("/home/test/.local/state/pi", {
       recursive: true,
@@ -142,31 +138,19 @@ describe("saveManualPreferences", () => {
       return lastWritten;
     });
 
-    const first = saveManualPreferences({
-      selection: { modelProvider: "user", modelId: "a", thinkingLevel: "high" },
+    const first = saveThinkingPreferences({
       thinkingMemory: { "user/a": "high" },
     });
     await firstStarted;
 
-    const second = saveManualPreferences({
-      selection: {
-        modelProvider: "user",
-        modelId: "b",
-        thinkingLevel: "xhigh",
-      },
+    const second = saveThinkingPreferences({
       thinkingMemory: { "user/b": "xhigh" },
     });
-    // While the first write is still in flight, no second write has started.
     expect(writeCount).toBe(1);
-    const loaded = loadManualPreferences();
+    const loaded = loadThinkingPreferences();
     releaseFirstWrite();
     await Promise.all([first, second]);
     await expect(loaded).resolves.toEqual({
-      selection: {
-        modelProvider: "user",
-        modelId: "b",
-        thinkingLevel: "xhigh",
-      },
       thinkingMemory: { "user/b": "xhigh" },
     });
   });
@@ -175,37 +159,26 @@ describe("saveManualPreferences", () => {
     mkdirMock.mockResolvedValue(undefined);
     writeFileMock.mockRejectedValue(new Error("disk full"));
     await expect(
-      saveManualPreferences({
-        selection: {
-          modelProvider: "user",
-          modelId: "a",
-          thinkingLevel: "low",
-        },
-        thinkingMemory: {},
-      }),
+      saveThinkingPreferences({ thinkingMemory: {} }),
     ).resolves.toBeUndefined();
   });
 });
 
-describe("withSelection", () => {
-  it("returns a new record that records the selection and updates memory for the selected model", () => {
-    const next = withSelection(emptyManualPreferences(), {
+describe("withRememberedSelection", () => {
+  it("returns a new record that updates memory for the selected model", () => {
+    const next = withRememberedSelection(emptyThinkingPreferences(), {
       modelProvider: "user",
       modelId: "a",
       thinkingLevel: "high",
     });
     expect(next).toEqual({
-      selection: { modelProvider: "user", modelId: "a", thinkingLevel: "high" },
       thinkingMemory: { "user/a": "high" },
     });
   });
 
   it("preserves unrelated memory entries", () => {
-    const next = withSelection(
-      {
-        selection: null,
-        thinkingMemory: { "user/b": "low" },
-      },
+    const next = withRememberedSelection(
+      { thinkingMemory: { "user/b": "low" } },
       { modelProvider: "user", modelId: "a", thinkingLevel: "high" },
     );
     expect(next.thinkingMemory).toEqual({

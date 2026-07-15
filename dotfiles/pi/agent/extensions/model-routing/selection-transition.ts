@@ -3,8 +3,8 @@ import { isValidThinkingLevel, type ThinkingLevel } from "./types.ts";
 /**
  * The internal state of the transition coordinator. It tracks the last
  * model identity we observed and whether selection events should be
- * treated as manual preferences (i.e. ignored while the extension is
- * restoring a route or session-start selection).
+ * treated as manual preferences (i.e. ignored during route activation or
+ * restoration).
  */
 export interface TransitionState {
   /**
@@ -15,8 +15,8 @@ export interface TransitionState {
   activeModelId: string | undefined;
   /**
    * When true, model and thinking-level events are caused by the
-   * extension itself (route activation, route restoration, or
-   * session-start restoration) and MUST NOT update manual preferences.
+   * extension itself (route activation or route restoration) and MUST NOT
+   * update manual preferences.
    */
   suppressManualPersistence: boolean;
 }
