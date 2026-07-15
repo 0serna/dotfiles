@@ -10,15 +10,6 @@
       "installedAt": "2026-04-23T19:55:30.474Z",
       "updatedAt": "2026-07-15T14:35:32.815Z"
     },
-    "find-docs": {
-      "source": "upstash/context7",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/upstash/context7.git",
-      "skillPath": "skills/find-docs/SKILL.md",
-      "skillFolderHash": "f1f7597c0575b2c138a551a222f56808a86e16b1",
-      "installedAt": "2026-05-11T21:15:20.035Z",
-      "updatedAt": "2026-07-08T16:38:13.324Z"
-    },
     "writing-great-skills": {
       "source": "mattpocock/skills",
       "sourceType": "github",
