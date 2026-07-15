@@ -85,6 +85,7 @@ export class ThroughputTracker {
   getDisplay(): string | null {
     if (this._phase !== "streaming" || this.streamStart === null) return null;
     const elapsed = Date.now() - this.streamStart;
+    if (elapsed < 500) return null;
     const live = computeThroughput(this.estimatedTokens, elapsed);
     return live === null ? null : formatThroughput(live);
   }

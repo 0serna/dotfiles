@@ -90,7 +90,7 @@ describe("working-stats extension lifecycle", () => {
       intervalMs: 120,
     });
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
+      "<muted> working 0:00 · gpt-5 · ⏳ 0:00</muted>",
     );
   });
 
@@ -102,7 +102,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_start"]!({}, ctx);
 
     expect(ctx.ui.setWorkingMessage).toHaveBeenCalledWith(
-      "<muted> working 0:00 · gpt-5/high · waiting 0:00</muted>",
+      "<muted> working 0:00 · gpt-5/high · ⏳ 0:00</muted>",
     );
   });
 
@@ -137,7 +137,7 @@ describe("working-stats extension lifecycle", () => {
 
     expect(ctx.ui.notify).toHaveBeenCalledOnce();
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> working 0:05 · gpt-5 · waiting 0:05</muted>",
+      "<accent>✓</accent> <muted> working 0:05 · gpt-5 · ⏳ 0:05</muted>",
       "info",
     );
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith();
@@ -213,7 +213,7 @@ describe("working-stats extension lifecycle", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> working 0:02 · gpt-5 · waiting 0:02</muted>",
+      "<accent>✓</accent> <muted> working 0:02 · gpt-5 · ⏳ 0:02</muted>",
       "info",
     );
   });
@@ -245,12 +245,12 @@ describe("working-stats extension throughput integration", () => {
     handlers["agent_start"]!({}, ctx);
     handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
 
-    vi.advanceTimersByTime(500);
+    vi.advanceTimersByTime(499);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
+      "<muted> working 0:00 · gpt-5 · ⏳ 0:00</muted>",
     );
 
-    vi.advanceTimersByTime(500);
+    vi.advanceTimersByTime(501);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
       "<muted> working 0:01 · gpt-5 · 100 tps</muted>",
     );
@@ -277,7 +277,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(2000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:02 · gpt-5 · waiting 0:02</muted>",
+      "<muted> working 0:02 · gpt-5 · ⏳ 0:02</muted>",
     );
   });
 
@@ -293,7 +293,7 @@ describe("working-stats extension throughput integration", () => {
 
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:02 · gpt-5 · waiting 0:01</muted>",
+      "<muted> working 0:02 · gpt-5 · ⏳ 0:01</muted>",
     );
   });
 
@@ -309,12 +309,12 @@ describe("working-stats extension throughput integration", () => {
     handlers["message_end"]!(messageEnd(100), ctx);
     vi.advanceTimersByTime(1000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:02 · gpt-5 · waiting 0:01</muted>",
+      "<muted> working 0:02 · gpt-5 · ⏳ 0:01</muted>",
     );
 
     vi.advanceTimersByTime(5000);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:07 · gpt-5 · waiting 0:06</muted>",
+      "<muted> working 0:07 · gpt-5 · ⏳ 0:06</muted>",
     );
   });
 
@@ -436,7 +436,7 @@ describe("working-stats extension throughput integration", () => {
 
     handlers["agent_start"]!({}, ctx);
     expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
-      "<muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
+      "<muted> working 0:00 · gpt-5 · ⏳ 0:00</muted>",
     );
   });
 });
@@ -470,7 +470,7 @@ describe("working-stats extension model changes", () => {
     handlers["agent_settled"]!({}, ctx);
 
     expect(ctx.ui.notify).toHaveBeenCalledWith(
-      "<accent>✓</accent> <muted> working 0:00 · gpt-5 · waiting 0:00</muted>",
+      "<accent>✓</accent> <muted> working 0:00 · gpt-5 · ⏳ 0:00</muted>",
       "info",
     );
   });

@@ -38,11 +38,11 @@ export default function (pi: ExtensionAPI) {
   ): string {
     const modelLabel =
       thinkingLevel !== "off" ? `${model}/${thinkingLevel}` : model;
-    const metrics = tokPerSec
-      ? tokPerSec
-      : firstDeltaMs !== null
-        ? `waiting ${formatDuration(Date.now() - streamEndTime!)}`
-        : `waiting ${timeStr}`;
+    const waitDuration =
+      firstDeltaMs !== null
+        ? formatDuration(Date.now() - streamEndTime!)
+        : timeStr;
+    const metrics = tokPerSec ?? `⏳ ${waitDuration}`;
     return ` working ${timeStr} · ${modelLabel} · ${metrics}`;
   }
 
