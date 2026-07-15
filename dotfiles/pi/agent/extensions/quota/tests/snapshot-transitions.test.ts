@@ -2,15 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   applySourceFailure,
   applySourceSuccess,
-  clearConfigConflict,
-  clearExhaustion,
   detectConfigConflict,
   ensureDescriptor,
   expireOldObservations,
-  incrementRevision,
   isObservationUsable,
   recordConfigConflict,
-  type SnapshotMerger,
 } from "../snapshot-transitions.js";
 import {
   SNAPSHOT_VERSION,
@@ -70,12 +66,6 @@ function window(remainingPercent: number, resetAt: number): SourceWindow {
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
-
-describe("incrementRevision", () => {
-  it("advances revision by one", () => {
-    expect(incrementRevision(snapshot({ revision: 5 })).revision).toBe(6);
-  });
-});
 
 describe("ensureDescriptor", () => {
   it("inserts a refreshing record when the source is new", () => {
@@ -296,28 +286,6 @@ describe("isObservationUsable", () => {
   });
 });
 
-describe("exhaustion reconciliation", () => {
-  it("clears provider-confirmed exhaustion explicitly", () => {
-    const sourceRecord = record({
-      state: "exhausted",
-      observedAt: 500,
-      lastSuccessAt: 500,
-      windows: { rolling: window(0, 1_700_000_000) },
-      providerExhaustion: { confirmedAt: 1, reportedBy: "x" },
-    });
-    const base = snapshot({
-      sources: {
-        [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
-          sourceRecord,
-      },
-    });
-    const next = clearExhaustion(base, CODEX_IDENTITY);
-    const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.providerExhaustion).toBeUndefined();
-    expect(next.sources[key]?.state).toBe("fresh");
-  });
-});
-
 describe("configuration conflict handling", () => {
   it("records a conflict without overwriting a valid observation", () => {
     const sourceRecord = record({
@@ -337,21 +305,6 @@ describe("configuration conflict handling", () => {
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
     expect(next.sources[key]?.state).toBe("fresh");
     expect(next.sources[key]?.configConflict).toBe("local credentials missing");
-  });
-
-  it("clears a recorded conflict", () => {
-    const sourceRecord = record({
-      configConflict: "stale",
-    });
-    const base = snapshot({
-      sources: {
-        [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
-          sourceRecord,
-      },
-    });
-    const next = clearConfigConflict(base, CODEX_IDENTITY);
-    const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.configConflict).toBeUndefined();
   });
 });
 
@@ -381,19 +334,5 @@ describe("detectConfigConflict", () => {
       },
     });
     expect(detectConfigConflict(base, descriptor())).toBeUndefined();
-  });
-});
-
-describe("SnapshotMerger composition", () => {
-  it("merges sources from a partial record by reconciling fingerprints", () => {
-    const base = snapshot({
-      sources: {
-        [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]: record(),
-      },
-    });
-    const merger: SnapshotMerger = (current, descriptorInput) =>
-      ensureDescriptor(current, descriptorInput);
-    const next = merger(base, descriptor());
-    expect(next).toBe(base);
   });
 });

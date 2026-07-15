@@ -21,11 +21,6 @@ export const OBSERVATION_RETENTION_MS = 30 * 60 * 1000;
 // Types
 // ---------------------------------------------------------------------------
 
-export type SnapshotMerger = (
-  current: QuotaSnapshot,
-  descriptor: SourceDescriptor,
-) => QuotaSnapshot;
-
 export type SuccessInput = {
   /** Observation timestamp in milliseconds. */
   now: number;
@@ -85,11 +80,6 @@ function replaceSource(
     ...snapshot.sources,
     [sourceKey(record.identity)]: record,
   });
-}
-
-/** Advance the snapshot revision by one, returning a new snapshot. */
-export function incrementRevision(snapshot: QuotaSnapshot): QuotaSnapshot {
-  return { ...snapshot, revision: snapshot.revision + 1 };
 }
 
 /** Validate and load the snapshot's persisted descriptor for a source. */
@@ -240,29 +230,6 @@ export function isObservationUsable(record: SourceRecord): boolean {
   return true;
 }
 
-/** Explicitly clear provider-confirmed exhaustion for a source. */
-export function clearExhaustion(
-  snapshot: QuotaSnapshot,
-  identity: SourceIdentity,
-): QuotaSnapshot {
-  const existing = findRecord(snapshot, identity);
-  if (!existing || !existing.providerExhaustion) {
-    return snapshot;
-  }
-
-  const next: SourceRecord = {
-    ...existing,
-    providerExhaustion: undefined,
-    state: existing.windows
-      ? existing.state === "exhausted"
-        ? "fresh"
-        : existing.state
-      : "refreshing",
-  };
-
-  return replaceSource(snapshot, next);
-}
-
 /** Record a configuration conflict for a source without overwriting its observation. */
 export function recordConfigConflict(
   snapshot: QuotaSnapshot,
@@ -276,17 +243,6 @@ export function recordConfigConflict(
     ...existing,
     configConflict: input.reason,
   };
-  return replaceSource(snapshot, next);
-}
-
-/** Remove any previously recorded configuration conflict. */
-export function clearConfigConflict(
-  snapshot: QuotaSnapshot,
-  identity: SourceIdentity,
-): QuotaSnapshot {
-  const existing = findRecord(snapshot, identity);
-  if (!existing || !existing.configConflict) return snapshot;
-  const next: SourceRecord = { ...existing, configConflict: undefined };
   return replaceSource(snapshot, next);
 }
 

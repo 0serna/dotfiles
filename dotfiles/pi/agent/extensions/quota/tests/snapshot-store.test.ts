@@ -3,12 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  createSnapshotStore,
   emptySnapshot,
-  loadSnapshot,
   quotaStateDir,
   readSnapshotFile,
-  resetSnapshotStore,
-  writeSnapshot,
 } from "../snapshot-store.js";
 import {
   SNAPSHOT_VERSION,
@@ -75,11 +73,9 @@ describe("writeSnapshot + loadSnapshot", () => {
 
   beforeEach(() => {
     root = tempRoot();
-    resetSnapshotStore({ stateDir: root, lockDir: join(root, "locks") });
   });
 
   afterEach(() => {
-    resetSnapshotStore({ stateDir: root, lockDir: join(root, "locks") });
     rmSync(root, { recursive: true, force: true });
   });
 
@@ -92,8 +88,9 @@ describe("writeSnapshot + loadSnapshot", () => {
       },
     });
 
-    await writeSnapshot(snapshot);
-    const loaded = await loadSnapshot();
+    const store = createSnapshotStore({ stateDir: root });
+    await store.write(snapshot);
+    const loaded = await store.load();
     expect(loaded).toEqual(snapshot);
   });
 

@@ -47,14 +47,8 @@ vi.mock("node:fs/promises", () => ({
   watch: vi.fn().mockReturnValue({ close: () => undefined }),
 }));
 
-vi.mock("../loading.js", () => ({
-  withQuotaNotification: vi.fn(async (_ctx: unknown, op: () => unknown) =>
-    op(),
-  ),
-}));
-
-vi.mock("../lifecycle.js", () => ({
-  createQuotaLifecycle: vi.fn(() => ({
+vi.mock("../quota-refresh.js", () => ({
+  createQuotaRefresh: vi.fn(() => ({
     onSnapshot: vi.fn(),
     onStatus: vi.fn(),
     setActiveSource: vi.fn(),
@@ -66,9 +60,7 @@ vi.mock("../lifecycle.js", () => ({
     }),
     start: vi.fn().mockResolvedValue(undefined),
     shutdown: vi.fn().mockResolvedValue(undefined),
-    coordinator: vi.fn().mockReturnValue({
-      recordExhaustion: vi.fn().mockResolvedValue(undefined),
-    }),
+    recordExhaustion: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -83,7 +75,7 @@ vi.mock("../../shared/logger.js", () => ({
 
 // Now safe to import the extension
 const extensionFactory = (await import("../index.ts")).default;
-const { createQuotaLifecycle } = await import("../lifecycle.js");
+const { createQuotaRefresh } = await import("../quota-refresh.js");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,7 +110,11 @@ function bindCtx() {
     setStatus,
     ctx: {
       model: { provider: "opencode-go" },
-      ui: { notify, setStatus },
+      ui: {
+        notify,
+        setStatus,
+        theme: { fg: (_intent: string, text: string) => text },
+      },
       modelRegistry: {
         authStorage: { setRuntimeApiKey, removeRuntimeApiKey, getApiKey },
       },
@@ -243,8 +239,8 @@ afterEach(() => {
 
 describe("session_start — source declaration", () => {
   it("declares Codex even when authentication is missing", () => {
-    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
-    expect(lifecycle?.start).toHaveBeenCalledWith(
+    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
+    expect(refresh?.start).toHaveBeenCalledWith(
       expect.objectContaining({
         sources: expect.arrayContaining([
           expect.objectContaining({
@@ -261,11 +257,11 @@ describe("session_start — source declaration", () => {
     await handlers["session_shutdown"]!({}, ctx);
     vi.stubEnv("OC_GO_API_KEY_1", "");
     vi.stubEnv("OC_GO_API_KEY_2", "");
-    const callsBefore = vi.mocked(createQuotaLifecycle).mock.calls.length;
+    const callsBefore = vi.mocked(createQuotaRefresh).mock.calls.length;
 
     await handlers["session_start"]!({}, ctx);
 
-    expect(vi.mocked(createQuotaLifecycle).mock.calls.length).toBe(
+    expect(vi.mocked(createQuotaRefresh).mock.calls.length).toBe(
       callsBefore + 1,
     );
   });
@@ -273,8 +269,8 @@ describe("session_start — source declaration", () => {
 
 describe("snapshot-driven reselection", () => {
   it("replaces a blind fallback when the first usable snapshot arrives idle", () => {
-    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
-    const onSnapshot = vi.mocked(lifecycle!.onSnapshot).mock.calls[0]![0];
+    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
+    const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
 
     onSnapshot(quotaSnapshot(20, 80));
 
@@ -282,8 +278,8 @@ describe("snapshot-driven reselection", () => {
   });
 
   it("defers blind-fallback reselection until agent_settled", () => {
-    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
-    const onSnapshot = vi.mocked(lifecycle!.onSnapshot).mock.calls[0]![0];
+    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
+    const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
     vi.mocked(ctx.isIdle).mockReturnValue(false);
 
     onSnapshot(quotaSnapshot(20, 80));
@@ -295,8 +291,8 @@ describe("snapshot-driven reselection", () => {
   });
 
   it("keeps an active usable account stable when another becomes better", () => {
-    const lifecycle = vi.mocked(createQuotaLifecycle).mock.results[0]?.value;
-    const onSnapshot = vi.mocked(lifecycle!.onSnapshot).mock.calls[0]![0];
+    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
+    const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
     onSnapshot(quotaSnapshot(20, 80));
     const activationCount = setRuntimeApiKey.mock.calls.length;
 

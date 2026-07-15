@@ -3,13 +3,14 @@ import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resetSnapshotStore, withSnapshotLock } from "../snapshot-store.js";
+import { createSnapshotStore, type SnapshotStore } from "../snapshot-store.js";
 
 let root: string;
+let store: SnapshotStore;
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "quota-lock-"));
-  resetSnapshotStore({ stateDir: root, lockDir: join(root, "locks") });
+  store = createSnapshotStore({ stateDir: root });
 });
 
 afterEach(() => {
@@ -19,14 +20,14 @@ afterEach(() => {
 describe("withSnapshotLock", () => {
   it("serializes concurrent operations on the same state", async () => {
     const order: string[] = [];
-    const a = withSnapshotLock(async () => {
+    const a = store.withLock(async () => {
       order.push("a:start");
       await new Promise((resolve) => {
         setTimeout(resolve, 20);
       });
       order.push("a:end");
     });
-    const b = withSnapshotLock(async () => {
+    const b = store.withLock(async () => {
       order.push("b:start");
       order.push("b:end");
     });
@@ -36,17 +37,17 @@ describe("withSnapshotLock", () => {
 
   it("releases the lock when the operation throws", async () => {
     await expect(
-      withSnapshotLock(async () => {
+      store.withLock(async () => {
         throw new Error("boom");
       }),
     ).rejects.toThrow("boom");
     // The lock should be released; a follow-up operation must succeed.
-    await expect(withSnapshotLock(async () => "ok")).resolves.toBe("ok");
+    await expect(store.withLock(async () => "ok")).resolves.toBe("ok");
   });
 
   it("times out when the lock cannot be acquired", async () => {
     let release: (() => void) | undefined;
-    const blocker = withSnapshotLock(
+    const blocker = store.withLock(
       () =>
         new Promise<void>((resolve) => {
           release = resolve;
@@ -57,7 +58,7 @@ describe("withSnapshotLock", () => {
       setTimeout(resolve, 5);
     });
     await expect(
-      withSnapshotLock(async () => "value", { timeoutMs: 25 }),
+      store.withLock(async () => "value", { timeoutMs: 25 }),
     ).rejects.toThrow(/timeout/i);
     release?.();
     await blocker;
@@ -73,7 +74,7 @@ describe("withSnapshotLock", () => {
     const staleTime = new Date(Date.now() - 10_000);
     utimesSync(lockFile, staleTime, staleTime);
 
-    const result = await withSnapshotLock(async () => "recovered");
+    const result = await store.withLock(async () => "recovered");
     expect(result).toBe("recovered");
   });
 });

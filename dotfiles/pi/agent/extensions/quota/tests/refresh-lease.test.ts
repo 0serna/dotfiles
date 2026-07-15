@@ -3,28 +3,26 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  acquireRefreshLease,
-  readRefreshLease,
-  releaseRefreshLease,
-  setLeaseDirectory,
+  createRefreshLeaseStore,
   type RefreshLease,
+  type RefreshLeaseStore,
 } from "../refresh-lease.js";
 
 let root: string;
+let store: RefreshLeaseStore;
 
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "quota-lease-"));
-  setLeaseDirectory(join(root, "lease"));
+  store = createRefreshLeaseStore(join(root, "lease"));
 });
 
 afterEach(() => {
-  setLeaseDirectory(undefined);
   rmSync(root, { recursive: true, force: true });
 });
 
 describe("acquireRefreshLease", () => {
   it("grants the lease to the first caller and rejects the second", async () => {
-    const first = await acquireRefreshLease({
+    const first = await store.acquire({
       ownerId: "owner-1",
       ttlMs: 5_000,
     });
@@ -33,7 +31,7 @@ describe("acquireRefreshLease", () => {
     expect(first.lease.ownerId).toBe("owner-1");
     expect(first.lease.refreshId).toBeTruthy();
 
-    const second = await acquireRefreshLease({
+    const second = await store.acquire({
       ownerId: "owner-2",
       ttlMs: 5_000,
     });
@@ -42,22 +40,22 @@ describe("acquireRefreshLease", () => {
 
   it("elects exactly one owner when callers race", async () => {
     const results = await Promise.all([
-      acquireRefreshLease({ ownerId: "owner-1", ttlMs: 5_000 }),
-      acquireRefreshLease({ ownerId: "owner-2", ttlMs: 5_000 }),
+      store.acquire({ ownerId: "owner-1", ttlMs: 5_000 }),
+      store.acquire({ ownerId: "owner-2", ttlMs: 5_000 }),
     ]);
 
     expect(results.filter((result) => result.acquired)).toHaveLength(1);
   });
 
   it("releases the lease and lets a new owner acquire it", async () => {
-    const first = await acquireRefreshLease({
+    const first = await store.acquire({
       ownerId: "owner-1",
       ttlMs: 5_000,
     });
     if (!first.acquired) throw new Error("expected first to acquire");
-    await releaseRefreshLease(first.lease.refreshId);
+    await store.release(first.lease.refreshId);
 
-    const second = await acquireRefreshLease({
+    const second = await store.acquire({
       ownerId: "owner-2",
       ttlMs: 5_000,
     });
@@ -65,7 +63,7 @@ describe("acquireRefreshLease", () => {
   });
 
   it("lets a new owner take over after the lease expires", async () => {
-    const first = await acquireRefreshLease({
+    const first = await store.acquire({
       ownerId: "owner-1",
       ttlMs: 1,
     });
@@ -76,7 +74,7 @@ describe("acquireRefreshLease", () => {
       setTimeout(resolve, 5);
     });
 
-    const second = await acquireRefreshLease({
+    const second = await store.acquire({
       ownerId: "owner-2",
       ttlMs: 5_000,
     });
@@ -84,7 +82,7 @@ describe("acquireRefreshLease", () => {
   });
 
   it("elects one takeover owner when an expired lease is contested", async () => {
-    const expired = await acquireRefreshLease({
+    const expired = await store.acquire({
       ownerId: "expired-owner",
       ttlMs: 1,
     });
@@ -92,31 +90,31 @@ describe("acquireRefreshLease", () => {
     await new Promise((resolve) => setTimeout(resolve, 5));
 
     const results = await Promise.all([
-      acquireRefreshLease({ ownerId: "owner-1", ttlMs: 5_000 }),
-      acquireRefreshLease({ ownerId: "owner-2", ttlMs: 5_000 }),
+      store.acquire({ ownerId: "owner-1", ttlMs: 5_000 }),
+      store.acquire({ ownerId: "owner-2", ttlMs: 5_000 }),
     ]);
 
     expect(results.filter((result) => result.acquired)).toHaveLength(1);
   });
 
   it("round-trips a lease via readRefreshLease", async () => {
-    const first = await acquireRefreshLease({
+    const first = await store.acquire({
       ownerId: "owner-1",
       ttlMs: 5_000,
     });
     if (!first.acquired) throw new Error("expected first to acquire");
-    const read = await readRefreshLease();
+    const read = await store.read();
     expect(read?.ownerId).toBe("owner-1");
   });
 
   it("rejects release from a different refresh id", async () => {
-    const first = await acquireRefreshLease({
+    const first = await store.acquire({
       ownerId: "owner-1",
       ttlMs: 5_000,
     });
     if (!first.acquired) throw new Error("expected first to acquire");
-    await releaseRefreshLease("different-refresh-id");
-    const read = await readRefreshLease();
+    await store.release("different-refresh-id");
+    const read = await store.read();
     expect(read?.ownerId).toBe("owner-1");
   });
 });
@@ -124,7 +122,7 @@ describe("acquireRefreshLease", () => {
 describe("RefreshLease invariants", () => {
   it("includes a non-empty refreshId and absolute expiresAt", async () => {
     const before = Date.now();
-    const result = await acquireRefreshLease({
+    const result = await store.acquire({
       ownerId: "owner-1",
       ttlMs: 1000,
     });
