@@ -18,7 +18,7 @@ Some externally-managed skills reference tools by names from other platforms. Us
 
 - Run every quality gate affected by the change before declaring work complete. If a failure is pre-existing and unrelated, ask the user.
 - Fix the root cause of every quality-tool finding. If no valid fix is viable, consult the user rather than adding a suppression.
-- Use the `/tdd` skill when an automated test can meaningfully fail on the changed behavior and prevent a real regression.
+- Use TDD when an automated test can meaningfully fail on the changed behavior and prevent a real regression.
 - Prefer GitHub CLI for GitHub investigations. Clone into `/tmp` when inspecting code that is not available locally.
 - Obtain explicit user permission before creating documentation files.
 
