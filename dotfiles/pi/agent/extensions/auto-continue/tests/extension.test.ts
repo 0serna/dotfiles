@@ -34,13 +34,20 @@ function createHarness() {
   const isIdle = vi.fn().mockReturnValue(true);
   const hasPendingMessages = vi.fn().mockReturnValue(false);
   const notify = vi.fn();
-  const ctx = {
-    model: { provider: "openai-codex", id: "codex-before" },
+  let model = { provider: "openai-codex", id: "codex-before" };
+  const createEventContext = () => ({
+    get model() {
+      return model;
+    },
+    set model(value: { provider: string; id: string }) {
+      model = value;
+    },
     isIdle,
     hasPendingMessages,
     sessionManager: { getSessionId: () => "session-1" },
     ui: { notify },
-  };
+  });
+  const ctx = createEventContext();
 
   return {
     handlers,
@@ -50,6 +57,7 @@ function createHarness() {
     hasPendingMessages,
     notify,
     ctx,
+    createEventContext,
   };
 }
 
@@ -74,15 +82,18 @@ describe("auto-continue lifecycle", () => {
     vi.clearAllMocks();
   });
 
-  it("waits for agent_settled and a one-second quiet period", async () => {
+  it("waits for agent_settled and a one-second quiet period across event contexts", async () => {
     const harness = createHarness();
     await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
+    await harness.handlers.message_end!(
+      transientError,
+      harness.createEventContext(),
+    );
 
     await vi.advanceTimersByTimeAsync(2_000);
     expect(harness.sendUserMessage).not.toHaveBeenCalled();
 
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.agent_settled!({}, harness.createEventContext());
     await vi.advanceTimersByTimeAsync(999);
     expect(harness.sendUserMessage).not.toHaveBeenCalled();
 
@@ -90,6 +101,7 @@ describe("auto-continue lifecycle", () => {
     expect(harness.sendUserMessage).toHaveBeenCalledWith("continue", {
       deliverAs: "followUp",
     });
+    expect(logEvents.some((entry) => entry.event === "cancelled")).toBe(false);
   });
 
   it("uses the response configuration active at dispatch", async () => {
@@ -140,6 +152,26 @@ describe("auto-continue lifecycle", () => {
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(harness.sendUserMessage).not.toHaveBeenCalled();
+    expect(logEvents.at(-1)).toMatchObject({
+      event: "cancelled",
+      data: { cause: "pending-messages" },
+    });
+  });
+
+  it("cancels recovery when the agent is busy at expiry", async () => {
+    const harness = createHarness();
+    await harness.handlers.session_start!({}, harness.ctx);
+    await harness.handlers.message_end!(transientError, harness.ctx);
+    await harness.handlers.agent_settled!({}, harness.ctx);
+    harness.isIdle.mockReturnValue(false);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(harness.sendUserMessage).not.toHaveBeenCalled();
+    expect(logEvents.at(-1)).toMatchObject({
+      event: "cancelled",
+      data: { cause: "agent-busy" },
+    });
   });
 
   it("cleans up a pending timer during session shutdown", async () => {

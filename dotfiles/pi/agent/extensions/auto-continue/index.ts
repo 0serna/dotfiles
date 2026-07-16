@@ -29,20 +29,20 @@ type Origin = { provider?: string; model?: string };
 
 const TRANSIENT_REASON = "transient-failure";
 
-function cancelGuard(
+function cancelRecovery(
   recovery: RecoveryState,
   logFn: (event: string, data?: Record<string, unknown>) => void,
   signal: string,
   cause: string,
-): false {
+): void {
   recovery.cancelRecovery();
   logFn("cancelled", { reason: TRANSIENT_REASON, signal, cause });
-  return false;
 }
 
 export default function autoContinueExtension(pi: ExtensionAPI) {
   let active = false;
-  let currentCtx: ExtensionContext | undefined;
+  let runtimeCtx: ExtensionContext | undefined;
+  let runtimeGeneration = 0;
   let logger: ExtensionLogger | undefined;
   let recovery = new RecoveryState();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -92,19 +92,22 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
 
   function sendTransientContinuation(
     ctx: ExtensionContext,
+    generation: number,
     signal: string,
     origin: Origin,
   ): void {
-    if (
-      !active ||
-      currentCtx !== ctx ||
-      cancelGuard(recovery, log, signal, "inactive-runtime") ||
-      !ctx.isIdle() ||
-      cancelGuard(recovery, log, signal, "agent-busy") ||
-      ctx.hasPendingMessages() ||
-      cancelGuard(recovery, log, signal, "pending-messages")
-    )
+    if (!active || runtimeGeneration !== generation) {
+      cancelRecovery(recovery, log, signal, "inactive-runtime");
       return;
+    }
+    if (!ctx.isIdle()) {
+      cancelRecovery(recovery, log, signal, "agent-busy");
+      return;
+    }
+    if (ctx.hasPendingMessages()) {
+      cancelRecovery(recovery, log, signal, "pending-messages");
+      return;
+    }
 
     dispatchContinuation(
       ctx,
@@ -134,7 +137,7 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
     });
 
     if (payload.reason !== "quota-rotation") return;
-    const ctx = currentCtx;
+    const ctx = runtimeCtx;
     if (!active || !ctx) {
       log("suppressed", {
         reason: payload.reason,
@@ -153,7 +156,8 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
   pi.on("session_start", (_event, ctx) => {
     cancelPending("session-restarted");
     active = true;
-    currentCtx = ctx;
+    runtimeCtx = ctx;
+    runtimeGeneration += 1;
     logger = createExtensionLogger(ctx, "auto-continue");
     recovery = new RecoveryState();
     pendingOrigin = {};
@@ -162,7 +166,7 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
 
   pi.on("message_end", (event: AssistantMessageEndEvent, ctx) => {
     const message = event.message;
-    if (!active || currentCtx !== ctx || message?.role !== "assistant") return;
+    if (!active || message?.role !== "assistant") return;
     recovery.observeAssistantOutcome(message);
     pendingOrigin = {
       provider: message.provider ?? ctx.model?.provider,
@@ -172,7 +176,7 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
   });
 
   pi.on("agent_settled", (_event, ctx) => {
-    if (!active || currentCtx !== ctx) return;
+    if (!active) return;
     const decision = recovery.settle();
     if (decision.kind === "suppressed") {
       log("suppressed", {
@@ -194,6 +198,7 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
     }
 
     const origin = pendingOrigin;
+    const generation = runtimeGeneration;
     log("requested", {
       reason: TRANSIENT_REASON,
       signal: decision.signal,
@@ -207,7 +212,7 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
     });
     timer = setTimeout(() => {
       timer = undefined;
-      sendTransientContinuation(ctx, decision.signal, origin);
+      sendTransientContinuation(ctx, generation, decision.signal, origin);
     }, QUIET_PERIOD_MS);
   });
 
@@ -226,7 +231,8 @@ export default function autoContinueExtension(pi: ExtensionAPI) {
   pi.on("session_shutdown", () => {
     cancelPending("session-shutdown");
     active = false;
-    currentCtx = undefined;
+    runtimeCtx = undefined;
+    runtimeGeneration += 1;
     logger = undefined;
     recovery = new RecoveryState();
     pendingOrigin = {};
