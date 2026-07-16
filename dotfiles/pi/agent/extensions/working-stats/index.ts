@@ -42,8 +42,8 @@ export default function (pi: ExtensionAPI) {
       firstDeltaMs !== null
         ? formatDuration(Date.now() - streamEndTime!)
         : timeStr;
-    const metrics = tokPerSec ?? `⏳ ${waitDuration}`;
-    return ` working ${timeStr} · ${modelLabel} · ${metrics}`;
+    const metrics = tokPerSec ?? `idle ${waitDuration}`;
+    return ` ${modelLabel} · ${timeStr} · ${metrics}`;
   }
 
   function updateWorkingMessage(ctx: ExtensionContext): void {
