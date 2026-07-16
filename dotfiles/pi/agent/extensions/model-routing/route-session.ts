@@ -191,6 +191,18 @@ export function createModelRouteSession(
     sessionBaselineSelection = null;
     transition = createTransitionState();
     pendingPersist = Promise.resolve();
+
+    // Restore remembered thinking level for the current model before
+    // capturing the baseline, so the session starts with the user's
+    // manual preference instead of Pi's default.
+    if (ctx.model) {
+      const modelId = formatModelId(ctx.model);
+      const remembered = thinkingPreferences.thinkingMemory[modelId];
+      if (remembered) {
+        pi.setThinkingLevel(remembered);
+      }
+    }
+
     captureBaselineSelection(ctx);
     transition = {
       ...transition,

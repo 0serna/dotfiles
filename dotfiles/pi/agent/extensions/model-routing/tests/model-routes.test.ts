@@ -581,6 +581,69 @@ describe("compact route compaction", () => {
 // --- Session baseline and thinking preferences ---
 
 describe("session baseline and thinking preferences", () => {
+  it("restores remembered thinking level for the current model on session start", async () => {
+    const setup = setupExtension();
+    configureFiles({
+      prefs: manualPrefsJson(null, {
+        "user/base": "xhigh",
+      }),
+      routes: "missing",
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+
+    expect(setup.pi.setThinkingLevel).toHaveBeenCalledWith("xhigh");
+  });
+
+  it("does not change thinking level when no remembered preference exists for the current model", async () => {
+    const setup = setupExtension();
+    configureFiles({
+      prefs: manualPrefsJson(null, {
+        "user/other": "xhigh",
+      }),
+      routes: "missing",
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+
+    expect(setup.pi.setThinkingLevel).not.toHaveBeenCalled();
+  });
+
+  it("captures baseline with the restored thinking level, not Pi's default", async () => {
+    mkdirMock.mockResolvedValue(undefined);
+    writeFileMock.mockResolvedValue();
+    renameMock.mockResolvedValue();
+    const setup = setupExtension();
+    configureFiles({
+      prefs: manualPrefsJson(null, {
+        "user/base": "xhigh",
+      }),
+      routes: "missing",
+    });
+
+    await setup.handlers.get("session_start")?.({}, setup.ctx);
+
+    // After start, the baseline should reflect the restored level.
+    // Simulate a route activation and settlement to verify baseline restoration.
+    configureFiles({
+      prefs: manualPrefsJson(null, {
+        "user/base": "xhigh",
+      }),
+      routes: JSON.stringify({
+        "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
+      }),
+    });
+
+    await setup.handlers.get("input")?.(
+      { source: "user", text: "/skill:commit now" },
+      setup.ctx,
+    );
+    await setup.handlers.get("agent_settled")?.({}, setup.ctx);
+
+    // Should restore to "xhigh" (the remembered preference), not "high" (Pi's default).
+    expect(setup.pi.setThinkingLevel).toHaveBeenLastCalledWith("xhigh");
+  });
+
   it("keeps Pi's startup selection and ignores a legacy persisted selection", async () => {
     const setup = setupExtension();
     setup.ctx.model = setup.commitModel;
