@@ -62,9 +62,8 @@ export async function buildSnapshotSources(
   accounts: ReadonlyArray<AccountConfig> = [],
 ): Promise<SourceInput[]> {
   const inputs: SourceInput[] = [];
-  const codexToken = await ctx.modelRegistry.authStorage
-    .getApiKey(CODEX_PROVIDER)
-    .catch(() => null);
+  const codexToken =
+    await ctx.modelRegistry.getApiKeyForProvider(CODEX_PROVIDER);
   const codexCredentials: CodexAdapterCredentials | undefined =
     codexToken?.trim() ? { accessToken: codexToken.trim() } : undefined;
   inputs.push({
@@ -119,14 +118,11 @@ async function applyOutcomes(
   for (const outcome of outcomes) {
     switch (outcome.type) {
       case "activate-account":
-        ctx.modelRegistry.authStorage.setRuntimeApiKey(
-          OPENCODE_PROVIDER,
-          outcome.apiKey,
-        );
+        pi.registerProvider(OPENCODE_PROVIDER, { apiKey: outcome.apiKey });
         quotaRefresh?.setActiveSource(outcome.source);
         break;
       case "clear-account":
-        ctx.modelRegistry.authStorage.removeRuntimeApiKey(OPENCODE_PROVIDER);
+        pi.unregisterProvider(OPENCODE_PROVIDER);
         quotaRefresh?.setActiveSource(undefined);
         break;
       case "record-exhaustion":

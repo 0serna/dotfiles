@@ -92,22 +92,18 @@ function createMockPi() {
     sendUserMessage: vi.fn().mockResolvedValue(undefined),
     events: { emit: vi.fn() },
     registerCommand: vi.fn(),
+    registerProvider: vi.fn(),
+    unregisterProvider: vi.fn(),
   } as unknown as ExtensionAPI;
   return { pi, handlers };
 }
 
 function bindCtx() {
   const notify = vi.fn();
-  const setRuntimeApiKey = vi.fn();
-  const removeRuntimeApiKey = vi.fn();
-  const getApiKey = vi.fn().mockResolvedValue(null);
+  const getApiKeyForProvider = vi.fn().mockResolvedValue(undefined);
   const setStatus = vi.fn();
   return {
     notify,
-    setRuntimeApiKey,
-    removeRuntimeApiKey,
-    getApiKey,
-    setStatus,
     ctx: {
       model: { provider: "opencode-go" },
       ui: {
@@ -115,9 +111,7 @@ function bindCtx() {
         setStatus,
         theme: { fg: (_intent: string, text: string) => text },
       },
-      modelRegistry: {
-        authStorage: { setRuntimeApiKey, removeRuntimeApiKey, getApiKey },
-      },
+      modelRegistry: { getApiKeyForProvider },
       hasUI: true,
       isIdle: vi.fn().mockReturnValue(true),
       sessionManager: { getSessionId: () => null },
@@ -209,7 +203,8 @@ function quotaSnapshot(account1: number, account2: number) {
 let handlers: Record<string, Handler>;
 let sendUserMessage: MockInstance;
 let emit: MockInstance;
-let setRuntimeApiKey: MockInstance;
+let registerProvider: MockInstance;
+let unregisterProvider: MockInstance;
 let notify: MockInstance;
 let ctx: ReturnType<typeof bindCtx>["ctx"];
 
@@ -223,7 +218,8 @@ beforeEach(async () => {
   extensionFactory(mock.pi);
   const bound = bindCtx();
   ctx = bound.ctx;
-  setRuntimeApiKey = bound.setRuntimeApiKey;
+  registerProvider = mock.pi.registerProvider as unknown as MockInstance;
+  unregisterProvider = mock.pi.unregisterProvider as unknown as MockInstance;
   notify = bound.notify;
   await handlers["session_start"]!({}, ctx);
 });
@@ -255,6 +251,7 @@ describe("session_start — source declaration", () => {
 
   it("starts quota lifecycle even when no OpenCode runtime API key exists", async () => {
     await handlers["session_shutdown"]!({}, ctx);
+    expect(unregisterProvider).toHaveBeenCalledWith("opencode-go");
     vi.stubEnv("OC_GO_API_KEY_1", "");
     vi.stubEnv("OC_GO_API_KEY_2", "");
     const callsBefore = vi.mocked(createQuotaRefresh).mock.calls.length;
@@ -274,7 +271,9 @@ describe("snapshot-driven reselection", () => {
 
     onSnapshot(quotaSnapshot(20, 80));
 
-    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-2");
+    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
+      apiKey: "key-2",
+    });
   });
 
   it("defers blind-fallback reselection until agent_settled", () => {
@@ -283,25 +282,31 @@ describe("snapshot-driven reselection", () => {
     vi.mocked(ctx.isIdle).mockReturnValue(false);
 
     onSnapshot(quotaSnapshot(20, 80));
-    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-1");
+    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
+      apiKey: "key-1",
+    });
 
     vi.mocked(ctx.isIdle).mockReturnValue(true);
     handlers["agent_settled"]!({}, ctx);
-    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-2");
+    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
+      apiKey: "key-2",
+    });
   });
 
   it("keeps an active usable account stable when another becomes better", () => {
     const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
     const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
     onSnapshot(quotaSnapshot(20, 80));
-    const activationCount = setRuntimeApiKey.mock.calls.length;
+    const activationCount = registerProvider.mock.calls.length;
 
     const newer = quotaSnapshot(90, 50);
     newer.revision = 3;
     onSnapshot(newer);
 
-    expect(setRuntimeApiKey).toHaveBeenLastCalledWith("opencode-go", "key-2");
-    expect(setRuntimeApiKey).toHaveBeenCalledTimes(activationCount);
+    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
+      apiKey: "key-2",
+    });
+    expect(registerProvider).toHaveBeenCalledTimes(activationCount);
   });
 });
 
@@ -314,7 +319,7 @@ describe("handleMessageEnd — rotation gating", () => {
       origin: { provider: "opencode-go" },
     });
     expect(sendUserMessage).not.toHaveBeenCalled();
-    expect(setRuntimeApiKey).toHaveBeenCalled();
+    expect(registerProvider).toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith(
       expect.stringContaining("Rotated OpenCode Go"),
       "info",
@@ -322,18 +327,18 @@ describe("handleMessageEnd — rotation gating", () => {
   });
 
   it("ignores timeout errors", async () => {
-    const activationsBefore = setRuntimeApiKey.mock.calls.length;
+    const activationsBefore = registerProvider.mock.calls.length;
     await handlers["message_end"]!(timeoutError(), ctx);
 
-    expect(setRuntimeApiKey).toHaveBeenCalledTimes(activationsBefore);
+    expect(registerProvider).toHaveBeenCalledTimes(activationsBefore);
     expect(emit).not.toHaveBeenCalled();
   });
 
   it("ignores stream interruption errors", async () => {
-    const activationsBefore = setRuntimeApiKey.mock.calls.length;
+    const activationsBefore = registerProvider.mock.calls.length;
     await handlers["message_end"]!(streamError(), ctx);
 
-    expect(setRuntimeApiKey).toHaveBeenCalledTimes(activationsBefore);
+    expect(registerProvider).toHaveBeenCalledTimes(activationsBefore);
     expect(emit).not.toHaveBeenCalled();
   });
 
