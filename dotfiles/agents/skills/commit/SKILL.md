@@ -6,11 +6,16 @@ description: Commit staged changes, or stage all changes first, then push.
 
 # Commit
 
-Commit staged changes with a conventional message and push. Pass `all` to stage every change first.
+Invoking this skill is the request and authorization to commit and push immediately. Begin in **current-index mode**. Switch to **stage-all mode** only when the user text appended after this skill block is exactly `all`.
 
 ## Workflow
 
-1. If the invocation includes `all`, run `git add --all`; otherwise leave the index unchanged. Complete when the requested staging mode is applied.
+1. Read only the user text appended after the skill block as arguments:
+   - Empty: current-index mode; use the index as-is.
+   - Exactly `all`: stage-all mode; run `git add --all`.
+
+   Complete when the selected mode is applied. Words inside this skill block are instructions, never arguments.
+
 2. Run `git diff --cached --stat` and `git diff --cached` to inspect staged changes; complete when every staged change is reflected in the message decision.
 3. If there are no staged changes, print `No staged changes` and stop.
 4. Generate a conventional commit message from the staged diff; complete when the message follows every rule in Message format.
