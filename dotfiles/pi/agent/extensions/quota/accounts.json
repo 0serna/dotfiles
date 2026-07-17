@@ -13,6 +13,12 @@
         "apiKeyEnv": "OC_GO_API_KEY_2",
         "workspaceEnv": "OC_GO_WORKSPACE_2",
         "cookieEnv": "OC_GO_COOKIE_2"
+      },
+      {
+        "name": "3",
+        "apiKeyEnv": "OC_GO_API_KEY_3",
+        "workspaceEnv": "OC_GO_WORKSPACE_3",
+        "cookieEnv": "OC_GO_COOKIE_3"
       }
     ]
   }
