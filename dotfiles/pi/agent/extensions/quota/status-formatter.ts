@@ -11,6 +11,12 @@ import {
 // ---------------------------------------------------------------------------
 
 const COMPACT_SEPARATOR = " ";
+const WINDOW_NAMES = ["monthly", "weekly", "rolling"] as const;
+const REQUIRED_WINDOWS_BY_PROVIDER: Partial<
+  Record<string, readonly WindowName[]>
+> = {
+  "opencode-go": ["rolling", "weekly", "monthly"],
+};
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,6 +30,8 @@ export type CompactStatusOptions = {
   /** When provided, each segment is wrapped with the colorizer and joined. */
   colorize?: (intent: ColorIntent, text: string) => string;
 };
+
+type WindowName = (typeof WINDOW_NAMES)[number];
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -69,26 +77,33 @@ function exhaustedSuffix(record: SourceRecord): string | undefined {
   return undefined;
 }
 
-/** Returns the most-constrained window percentage with its suffix. */
+/** Returns the least remaining window percentage with its suffix. */
 function selectPercent(record: SourceRecord): string | undefined {
   const windows = record.windows;
   if (!windows) return undefined;
-  if (windows.rolling)
-    return `${clampPercent(windows.rolling.remainingPercent)}r`;
-  if (windows.weekly)
-    return `${clampPercent(windows.weekly.remainingPercent)}w`;
-  if (windows.monthly)
-    return `${clampPercent(windows.monthly.remainingPercent)}m`;
-  return undefined;
+
+  let selected: { name: WindowName; remainingPercent: number } | undefined;
+  for (const name of WINDOW_NAMES) {
+    const window = windows[name];
+    if (!window) continue;
+    const remainingPercent = clampPercent(window.remainingPercent);
+    if (!selected || remainingPercent < selected.remainingPercent) {
+      selected = { name, remainingPercent };
+    }
+  }
+  return selected
+    ? `${selected.remainingPercent}${selected.name[0]}`
+    : undefined;
 }
 
-function isLow(record: SourceRecord): boolean {
-  if (!record.windows) return false;
-  return (
-    (record.windows.rolling?.remainingPercent ?? 100) <= 10 ||
-    (record.windows.weekly?.remainingPercent ?? 100) <= 10 ||
-    (record.windows.monthly?.remainingPercent ?? 100) <= 10
-  );
+function hasCompleteExpectedWindows(record: SourceRecord): boolean {
+  const windows = record.windows;
+  if (!windows) return false;
+  const required = REQUIRED_WINDOWS_BY_PROVIDER[record.identity.providerId];
+  if (required) return required.every((name) => windows[name] != null);
+
+  // Codex can validly report either a rolling or weekly window, but needs one.
+  return WINDOW_NAMES.some((name) => windows[name] != null);
 }
 
 type CompactSegment = {
@@ -119,16 +134,17 @@ function formatSourceCompact(
     return { text: `${label} error`, intent: "warning" };
   }
 
+  if (!hasCompleteExpectedWindows(record)) {
+    return { text: `${label} incomplete`, intent: "warning" };
+  }
+
   const percent = selectPercent(record);
   const percentLabel = percent ?? "0";
   const degraded = record.state === "degraded";
 
-  const degradedPrefix = degraded ? "⚠ " : "";
-  const intent: ColorIntent = degraded || isLow(record) ? "warning" : "dim";
-
   return {
-    text: `${degradedPrefix}${label} ${percentLabel}`,
-    intent,
+    text: `${degraded ? "⚠ " : ""}${label} ${percentLabel}`,
+    intent: degraded ? "warning" : "dim",
   };
 }
 

@@ -113,8 +113,12 @@ The source chosen by one Pi runtime to represent and supply a provider, independ
 _Avoid_: active model, global source, shared account
 
 **Compact quota status**:
-A single-line footer summary of every active quota source, showing the most constrained window's remaining percentage, banked reset count when known, and a visual prefix for degraded or error states. Spendable balances and reset times are excluded; the `/quota` command provides full detail.
+A single-line footer summary rendered from each provider's active quota source. It shows that source's lowest remaining expected quota window and warns only for an exhausted window, an incomplete expected observation, or a degraded/error state; inactive sources do not affect it. Spendable balances and reset times are excluded; the `/quota` command provides full detail.
 _Avoid_: quota detail, provider status, live quota
+
+**Expected quota windows**:
+The quota windows that a provider normally exposes and against which an observation's completeness is assessed. OpenCode Go expects rolling, weekly, and monthly windows; Codex may validly expose a partial set, including only its weekly window.
+_Avoid_: universal quota windows, missing quota
 
 **Aggregated quota snapshot**:
 A user-scoped view containing the latest quota observation for every configured quota source. Concurrent Pi processes share the same snapshot.

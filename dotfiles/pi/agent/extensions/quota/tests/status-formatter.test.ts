@@ -20,6 +20,13 @@ const OPENCODE: SourceDescriptor = {
   configFingerprint: "fingerprint:opencode-go:2",
 };
 
+const OPENCODE_ONE: SourceDescriptor = {
+  identity: { providerId: "opencode-go", sourceId: "opencode-go:1" },
+  displayName: "OpenCode 1",
+  compactPrefix: "OpenCode",
+  configFingerprint: "fingerprint:opencode-go:1",
+};
+
 function makeRecord(
   descriptor: SourceDescriptor,
   overrides: Partial<SourceRecord> = {},
@@ -69,6 +76,8 @@ describe("formatCompactStatus", () => {
       makeRecord(OPENCODE, {
         windows: {
           rolling: { remainingPercent: 75, resetAt: NOW_SECONDS + 7200 },
+          weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 86400 },
+          monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 172800 },
         },
       }),
     ]);
@@ -83,6 +92,8 @@ describe("formatCompactStatus", () => {
       makeRecord(OPENCODE, {
         windows: {
           rolling: { remainingPercent: 75, resetAt: NOW_SECONDS + 7200 },
+          weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 86400 },
+          monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 172800 },
         },
       }),
     ]);
@@ -118,7 +129,7 @@ describe("formatCompactStatus", () => {
     expect(formatCompactStatus(monthlyOnly)).toBe("Codex 90m");
   });
 
-  it("prefers rolling over weekly over monthly", () => {
+  it("renders the least remaining window", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -128,7 +139,72 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(snapshot)).toBe("Codex 80r");
+    expect(formatCompactStatus(snapshot)).toBe("Codex 70w");
+  });
+
+  it("renders the active OpenCode account without considering exhausted inactive accounts", () => {
+    const snapshot = makeSnapshot([
+      makeRecord(OPENCODE_ONE, {
+        windows: {
+          rolling: { remainingPercent: 90, resetAt: NOW_SECONDS + 3600 },
+          weekly: { remainingPercent: 50, resetAt: NOW_SECONDS + 7200 },
+          monthly: { remainingPercent: 0, resetAt: NOW_SECONDS + 86400 },
+        },
+      }),
+      makeRecord(OPENCODE, {
+        windows: {
+          rolling: { remainingPercent: 90, resetAt: NOW_SECONDS + 3600 },
+          weekly: { remainingPercent: 9, resetAt: NOW_SECONDS + 7200 },
+          monthly: { remainingPercent: 27, resetAt: NOW_SECONDS + 86400 },
+        },
+      }),
+    ]);
+    const intents: string[] = [];
+    const result = formatCompactStatus(snapshot, {
+      activeSource: OPENCODE.identity,
+      colorize: (intent, text) => {
+        intents.push(intent);
+        return text;
+      },
+    });
+
+    expect(result).toBe("OpenCode 9w");
+    expect(intents).toEqual(["dim"]);
+  });
+
+  it("renders an exhausted higher-granularity window as zero", () => {
+    const snapshot = makeSnapshot([
+      makeRecord(OPENCODE, {
+        windows: {
+          rolling: { remainingPercent: 90, resetAt: NOW_SECONDS + 3600 },
+          weekly: { remainingPercent: 50, resetAt: NOW_SECONDS + 7200 },
+          monthly: { remainingPercent: 0, resetAt: NOW_SECONDS + 86400 },
+        },
+      }),
+    ]);
+
+    expect(formatCompactStatus(snapshot)).toBe("OpenCode 0m");
+  });
+
+  it("warns when OpenCode is missing an expected window", () => {
+    const snapshot = makeSnapshot([
+      makeRecord(OPENCODE, {
+        windows: {
+          rolling: { remainingPercent: 90, resetAt: NOW_SECONDS + 3600 },
+          weekly: { remainingPercent: 50, resetAt: NOW_SECONDS + 7200 },
+        },
+      }),
+    ]);
+    const intents: string[] = [];
+    const result = formatCompactStatus(snapshot, {
+      colorize: (intent, text) => {
+        intents.push(intent);
+        return text;
+      },
+    });
+
+    expect(result).toBe("OpenCode incomplete");
+    expect(intents).toEqual(["warning"]);
   });
 
   describe("exhausted window suffixes", () => {
@@ -286,6 +362,8 @@ describe("formatCompactStatus", () => {
         state: "fresh",
         windows: {
           rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
+          weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
+          monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
         },
       }),
     ]);
@@ -354,7 +432,7 @@ describe("formatCompactStatus", () => {
       expect(intents).toEqual(["dim"]);
     });
 
-    it("returns warning for segments below 10%", () => {
+    it("returns dim for positive low-quota segments", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
           windows: {
@@ -370,7 +448,7 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      expect(intents).toEqual(["warning"]);
+      expect(intents).toEqual(["dim"]);
     });
 
     it("returns warning for degraded segments", () => {
@@ -421,6 +499,8 @@ describe("formatCompactStatus", () => {
           state: "fresh",
           windows: {
             rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
+            weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
+            monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
           },
         }),
       ]);
@@ -446,6 +526,8 @@ describe("formatCompactStatus", () => {
         makeRecord(OPENCODE, {
           windows: {
             rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
+            weekly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
+            monthly: { remainingPercent: 100, resetAt: NOW_SECONDS + 172800 },
           },
         }),
       ]);
@@ -457,9 +539,9 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      // Codex <10% → warning, OpenCode → dim, separator → dim
+      // Positive low quota remains dim; OpenCode and the separator are also dim.
       expect(calls).toEqual([
-        { intent: "warning", text: "Codex 5r" },
+        { intent: "dim", text: "Codex 5r" },
         { intent: "dim", text: "OpenCode 80r" },
         { intent: "dim", text: " " },
       ]);
