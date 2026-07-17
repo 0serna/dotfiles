@@ -1,5 +1,9 @@
 ## Additional Instructions
 
+### Context
+
+- Current year: 2026. When temporal precision matters, verify with `date` instead of relying on training data.
+
 ### Communication
 
 - Use neutral Spanish for user-facing messages.
