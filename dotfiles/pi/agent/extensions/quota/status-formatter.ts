@@ -45,10 +45,14 @@ function isExhausted(record: SourceRecord): boolean {
   if (record.state === "exhausted") return true;
   const windows = record.windows;
   if (!windows) return false;
+  const existingWindows = [
+    windows.rolling,
+    windows.weekly,
+    windows.monthly,
+  ].filter((w) => w != null);
   return (
-    (windows.rolling?.remainingPercent ?? 100) === 0 ||
-    (windows.weekly?.remainingPercent ?? 100) === 0 ||
-    (windows.monthly?.remainingPercent ?? 100) === 0
+    existingWindows.length > 0 &&
+    existingWindows.every((w) => w.remainingPercent === 0)
   );
 }
 
@@ -77,23 +81,30 @@ function exhaustedSuffix(record: SourceRecord): string | undefined {
   return undefined;
 }
 
-/** Returns the least remaining window percentage with its suffix. */
+/** Returns the smallest temporal window with remaining > 0%, or the highest-granularity exhausted suffix if all are 0. */
 function selectPercent(record: SourceRecord): string | undefined {
   const windows = record.windows;
   if (!windows) return undefined;
 
-  let selected: { name: WindowName; remainingPercent: number } | undefined;
-  for (const name of WINDOW_NAMES) {
+  // Priority: rolling > weekly > monthly (smallest temporal window first)
+  // WINDOW_NAMES is ["monthly", "weekly", "rolling"], so iterate in reverse
+  for (let i = WINDOW_NAMES.length - 1; i >= 0; i--) {
+    const name = WINDOW_NAMES[i];
     const window = windows[name];
     if (!window) continue;
     const remainingPercent = clampPercent(window.remainingPercent);
-    if (!selected || remainingPercent < selected.remainingPercent) {
-      selected = { name, remainingPercent };
+    if (remainingPercent > 0) {
+      return `${remainingPercent}${name[0]}`;
     }
   }
-  return selected
-    ? `${selected.remainingPercent}${selected.name[0]}`
-    : undefined;
+
+  for (const name of WINDOW_NAMES) {
+    if (windows[name]) {
+      return `0${name[0]}`;
+    }
+  }
+
+  return undefined;
 }
 
 function hasCompleteExpectedWindows(record: SourceRecord): boolean {

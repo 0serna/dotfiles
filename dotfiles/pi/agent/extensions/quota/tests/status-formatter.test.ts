@@ -129,7 +129,7 @@ describe("formatCompactStatus", () => {
     expect(formatCompactStatus(monthlyOnly)).toBe("Codex 90m");
   });
 
-  it("renders the least remaining window", () => {
+  it("renders the smallest temporal window when available", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         windows: {
@@ -139,7 +139,7 @@ describe("formatCompactStatus", () => {
         },
       }),
     ]);
-    expect(formatCompactStatus(snapshot)).toBe("Codex 70w");
+    expect(formatCompactStatus(snapshot)).toBe("Codex 80r");
   });
 
   it("renders the active OpenCode account without considering exhausted inactive accounts", () => {
@@ -168,11 +168,11 @@ describe("formatCompactStatus", () => {
       },
     });
 
-    expect(result).toBe("OpenCode 9w");
+    expect(result).toBe("OpenCode 90r");
     expect(intents).toEqual(["dim"]);
   });
 
-  it("renders an exhausted higher-granularity window as zero", () => {
+  it("renders the smallest temporal window even when a higher one is exhausted", () => {
     const snapshot = makeSnapshot([
       makeRecord(OPENCODE, {
         windows: {
@@ -183,7 +183,7 @@ describe("formatCompactStatus", () => {
       }),
     ]);
 
-    expect(formatCompactStatus(snapshot)).toBe("OpenCode 0m");
+    expect(formatCompactStatus(snapshot)).toBe("OpenCode 90r");
   });
 
   it("warns when OpenCode is missing an expected window", () => {
