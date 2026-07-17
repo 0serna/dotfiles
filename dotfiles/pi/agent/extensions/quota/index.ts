@@ -43,6 +43,8 @@ const STATUS_KEY = "quota";
 let accountSelection: AccountSelection | undefined;
 let quotaRefresh: QuotaRefresh | undefined;
 let logger: ExtensionLogger | undefined;
+let activeOpenCodeApiKey: string | undefined;
+let activeOpenCodeAccount: string | undefined;
 
 async function loadProviderConfig(provider: string): Promise<AccountConfig[]> {
   try {
@@ -110,6 +112,30 @@ function isQuotaExhaustionError(message?: string): boolean {
   return message?.includes("GoUsageLimitError") ?? false;
 }
 
+function bindOpenCodeAccount(
+  accountName: string,
+  apiKey: string,
+  pi: ExtensionAPI,
+): void {
+  activeOpenCodeAccount = accountName;
+  activeOpenCodeApiKey = apiKey;
+  pi.registerProvider(OPENCODE_PROVIDER, { apiKey });
+}
+
+function applyActiveOpenCodeAuthorization(
+  headers: Record<string, string | null>,
+): void {
+  if (!activeOpenCodeApiKey) return;
+  for (const name of Object.keys(headers)) {
+    if (name.toLowerCase() === "authorization") delete headers[name];
+  }
+  headers.Authorization = `Bearer ${activeOpenCodeApiKey}`;
+  logger?.log("request_auth_applied", {
+    provider: OPENCODE_PROVIDER,
+    account: activeOpenCodeAccount,
+  });
+}
+
 async function applyOutcomes(
   outcomes: ReadonlyArray<AccountSelectionOutcome>,
   pi: ExtensionAPI,
@@ -118,18 +144,14 @@ async function applyOutcomes(
   for (const outcome of outcomes) {
     switch (outcome.type) {
       case "activate-account":
-        pi.registerProvider(OPENCODE_PROVIDER, { apiKey: outcome.apiKey });
+        bindOpenCodeAccount(outcome.accountName, outcome.apiKey, pi);
         quotaRefresh?.setActiveSource(outcome.source);
         break;
       case "clear-account":
+        activeOpenCodeApiKey = undefined;
+        activeOpenCodeAccount = undefined;
         pi.unregisterProvider(OPENCODE_PROVIDER);
         quotaRefresh?.setActiveSource(undefined);
-        break;
-      case "record-exhaustion":
-        await quotaRefresh?.recordExhaustion(
-          outcome.source,
-          outcome.exhaustion,
-        );
         break;
       case "notify":
         if (ctx.hasUI) ctx.ui.notify(outcome.message, outcome.level);
@@ -159,6 +181,8 @@ async function startSession(
   ctx: ExtensionContext,
 ): Promise<void> {
   logger = createExtensionLogger(ctx, "quota");
+  activeOpenCodeApiKey = undefined;
+  activeOpenCodeAccount = undefined;
   const accounts = await loadProviderConfig(OPENCODE_PROVIDER);
   accountSelection = createAccountSelection({ accounts });
   logger.log("session_start", {
@@ -176,8 +200,6 @@ async function startSession(
       accountSelection.handle({
         type: "snapshot-revision",
         snapshot,
-        idle: ctx.isIdle(),
-        now: Date.now(),
       }),
       pi,
       ctx,
@@ -207,6 +229,8 @@ async function shutdownSession(
   ctx.ui.setStatus(STATUS_KEY, undefined);
   accountSelection = undefined;
   quotaRefresh = undefined;
+  activeOpenCodeApiKey = undefined;
+  activeOpenCodeAccount = undefined;
   logger = undefined;
 }
 
@@ -244,6 +268,10 @@ export default function quotaExtension(pi: ExtensionAPI) {
       ctx,
     );
   });
+  pi.on("before_provider_headers", (event, ctx) => {
+    if (ctx.model?.provider !== OPENCODE_PROVIDER) return;
+    applyActiveOpenCodeAuthorization(event.headers);
+  });
   pi.on("message_end", async (event, ctx) => {
     if (
       ctx.model?.provider !== OPENCODE_PROVIDER ||
@@ -258,7 +286,6 @@ export default function quotaExtension(pi: ExtensionAPI) {
       accountSelection.handle({
         type: "provider-exhausted",
         now: Date.now(),
-        reportedBy: ctx.sessionManager.getSessionId() ?? "unknown",
       }),
       pi,
       ctx,

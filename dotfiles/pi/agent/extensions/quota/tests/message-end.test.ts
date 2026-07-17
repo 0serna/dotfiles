@@ -1,6 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
-  afterEach,
   beforeEach,
   describe,
   expect,
@@ -8,10 +7,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
-
-// ---------------------------------------------------------------------------
-// Mocks — must be declared before importing the extension module
-// ---------------------------------------------------------------------------
+import type { QuotaSnapshot } from "../snapshot.js";
 
 const accountsJson = {
   provider: "opencode-go",
@@ -47,22 +43,7 @@ vi.mock("node:fs/promises", () => ({
   watch: vi.fn().mockReturnValue({ close: () => undefined }),
 }));
 
-vi.mock("../quota-refresh.js", () => ({
-  createQuotaRefresh: vi.fn(() => ({
-    onSnapshot: vi.fn(),
-    onStatus: vi.fn(),
-    setActiveSource: vi.fn(),
-    read: vi.fn().mockResolvedValue({
-      version: 1,
-      revision: 1,
-      cycle: { cycleStartedAt: 0 },
-      sources: {},
-    }),
-    start: vi.fn().mockResolvedValue(undefined),
-    shutdown: vi.fn().mockResolvedValue(undefined),
-    recordExhaustion: vi.fn().mockResolvedValue(undefined),
-  })),
-}));
+vi.mock("../quota-refresh.js", () => ({ createQuotaRefresh: vi.fn() }));
 
 const logEvents: Array<{ event: string; data?: Record<string, unknown> }> = [];
 vi.mock("../../shared/logger.js", () => ({
@@ -73,13 +54,8 @@ vi.mock("../../shared/logger.js", () => ({
   }),
 }));
 
-// Now safe to import the extension
 const extensionFactory = (await import("../index.ts")).default;
 const { createQuotaRefresh } = await import("../quota-refresh.js");
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 type Handler = (event: unknown, ctx: unknown) => Promise<unknown> | unknown;
 
@@ -89,7 +65,6 @@ function createMockPi() {
     on(event: string, handler: Handler) {
       handlers[event] = handler;
     },
-    sendUserMessage: vi.fn().mockResolvedValue(undefined),
     events: { emit: vi.fn() },
     registerCommand: vi.fn(),
     registerProvider: vi.fn(),
@@ -102,10 +77,11 @@ function bindCtx() {
   const notify = vi.fn();
   const getApiKeyForProvider = vi.fn().mockResolvedValue(undefined);
   const setStatus = vi.fn();
+  const model = { provider: "opencode-go", id: "mimo-v2.5-pro" };
   return {
     notify,
     ctx: {
-      model: { provider: "opencode-go" },
+      model,
       ui: {
         notify,
         setStatus,
@@ -139,28 +115,6 @@ function quotaError(provider = "opencode-go") {
   };
 }
 
-function timeoutError(provider = "opencode-go") {
-  return {
-    message: {
-      role: "assistant",
-      stopReason: "error",
-      errorMessage: "Request timed out.",
-      provider,
-    },
-  };
-}
-
-function streamError(provider = "opencode-go") {
-  return {
-    message: {
-      role: "assistant",
-      stopReason: "error",
-      errorMessage: "Stream ended without finish_reason",
-      provider,
-    },
-  };
-}
-
 function quotaSnapshot(account1: number, account2: number) {
   const source = (name: string, remainingPercent: number) => ({
     identity: {
@@ -176,7 +130,7 @@ function quotaSnapshot(account1: number, account2: number) {
       compactPrefix: "OpenCode",
       configFingerprint: `f-${name}`,
     },
-    state: "fresh" as const,
+    state: remainingPercent === 0 ? ("exhausted" as const) : ("fresh" as const),
     observedAt: Date.now(),
     lastSuccessAt: Date.now(),
     windows: {
@@ -196,47 +150,50 @@ function quotaSnapshot(account1: number, account2: number) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Setup
-// ---------------------------------------------------------------------------
+function createRefresh(snapshot: QuotaSnapshot) {
+  return {
+    onSnapshot: vi.fn(),
+    onStatus: vi.fn(),
+    setActiveSource: vi.fn(),
+    read: vi.fn().mockResolvedValue(snapshot),
+    start: vi.fn().mockResolvedValue(undefined),
+    shutdown: vi.fn().mockResolvedValue(undefined),
+  };
+}
 
 let handlers: Record<string, Handler>;
-let sendUserMessage: MockInstance;
 let emit: MockInstance;
 let registerProvider: MockInstance;
 let unregisterProvider: MockInstance;
 let notify: MockInstance;
 let ctx: ReturnType<typeof bindCtx>["ctx"];
+let refresh: ReturnType<typeof createRefresh>;
 
-beforeEach(async () => {
-  logEvents.length = 0;
-  setEnv();
+async function start(snapshot: QuotaSnapshot = quotaSnapshot(90, 80)) {
+  refresh = createRefresh(snapshot);
+  vi.mocked(createQuotaRefresh).mockReturnValue(refresh as never);
   const mock = createMockPi();
   handlers = mock.handlers;
-  sendUserMessage = mock.pi.sendUserMessage as unknown as MockInstance;
-  emit = mock.pi.events.emit as unknown as MockInstance;
   extensionFactory(mock.pi);
   const bound = bindCtx();
   ctx = bound.ctx;
+  emit = mock.pi.events.emit as unknown as MockInstance;
   registerProvider = mock.pi.registerProvider as unknown as MockInstance;
   unregisterProvider = mock.pi.unregisterProvider as unknown as MockInstance;
   notify = bound.notify;
   await handlers["session_start"]!({}, ctx);
-});
+}
 
-afterEach(() => {
-  vi.unstubAllEnvs();
+beforeEach(async () => {
+  logEvents.length = 0;
   vi.clearAllMocks();
+  setEnv();
+  await start();
 });
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-describe("session_start — source declaration", () => {
+describe("session start", () => {
   it("declares Codex even when authentication is missing", () => {
-    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
-    expect(refresh?.start).toHaveBeenCalledWith(
+    expect(refresh.start).toHaveBeenCalledWith(
       expect.objectContaining({
         sources: expect.arrayContaining([
           expect.objectContaining({
@@ -249,141 +206,142 @@ describe("session_start — source declaration", () => {
     );
   });
 
-  it("starts quota lifecycle even when no OpenCode runtime API key exists", async () => {
-    await handlers["session_shutdown"]!({}, ctx);
-    expect(unregisterProvider).toHaveBeenCalledWith("opencode-go");
-    vi.stubEnv("OC_GO_API_KEY_1", "");
-    vi.stubEnv("OC_GO_API_KEY_2", "");
-    const callsBefore = vi.mocked(createQuotaRefresh).mock.calls.length;
-
-    await handlers["session_start"]!({}, ctx);
-
-    expect(vi.mocked(createQuotaRefresh).mock.calls.length).toBe(
-      callsBefore + 1,
-    );
-  });
-});
-
-describe("snapshot-driven reselection", () => {
-  it("replaces a blind fallback when the first usable snapshot arrives idle", () => {
-    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
-    const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
-
-    onSnapshot(quotaSnapshot(20, 80));
-
-    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
-      apiKey: "key-2",
-    });
-  });
-
-  it("defers blind-fallback reselection until agent_settled", () => {
-    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
-    const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
-    vi.mocked(ctx.isIdle).mockReturnValue(false);
-
-    onSnapshot(quotaSnapshot(20, 80));
+  it("activates the best account", () => {
     expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
       apiKey: "key-1",
     });
-
-    vi.mocked(ctx.isIdle).mockReturnValue(true);
-    handlers["agent_settled"]!({}, ctx);
-    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
-      apiKey: "key-2",
-    });
   });
 
-  it("keeps an active usable account stable when another becomes better", () => {
-    const refresh = vi.mocked(createQuotaRefresh).mock.results[0]?.value;
-    const onSnapshot = vi.mocked(refresh!.onSnapshot).mock.calls[0]![0];
-    onSnapshot(quotaSnapshot(20, 80));
-    const activationCount = registerProvider.mock.calls.length;
-
-    const newer = quotaSnapshot(90, 50);
-    newer.revision = 3;
-    onSnapshot(newer);
-
-    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
-      apiKey: "key-2",
+  it("does not replace the OpenCode credential without a selectable snapshot", async () => {
+    await handlers["session_shutdown"]!({}, ctx);
+    await start({
+      version: 1,
+      revision: 1,
+      cycle: { cycleStartedAt: 0 },
+      sources: {},
     });
-    expect(registerProvider).toHaveBeenCalledTimes(activationCount);
+
+    expect(registerProvider).not.toHaveBeenCalled();
+  });
+
+  it("does not select an account from a later refresh", async () => {
+    await handlers["session_shutdown"]!({}, ctx);
+    await start({
+      version: 1,
+      revision: 1,
+      cycle: { cycleStartedAt: 0 },
+      sources: {},
+    });
+    const onSnapshot = vi.mocked(refresh.onSnapshot).mock.calls[0]![0];
+
+    onSnapshot(quotaSnapshot(20, 80));
+
+    expect(registerProvider).not.toHaveBeenCalled();
   });
 });
 
-describe("handleMessageEnd — rotation gating", () => {
-  it("rotates and requests centralized continuation on GoUsageLimitError", async () => {
+describe("request authentication", () => {
+  it("overrides a stored credential with the active account key", async () => {
+    const headers: Record<string, string | null> = {
+      authorization: "Bearer stored-key",
+      "x-opencode-client": "pi",
+    };
+
+    await handlers["before_provider_headers"]!({ headers }, ctx);
+
+    expect(headers).toEqual({
+      Authorization: "Bearer key-1",
+      "x-opencode-client": "pi",
+    });
+    expect(logEvents).toContainEqual({
+      event: "request_auth_applied",
+      data: { provider: "opencode-go", account: "1" },
+    });
+  });
+
+  it("does not modify requests for another provider", async () => {
+    const headers: Record<string, string | null> = {
+      Authorization: "Bearer other-key",
+    };
+    const otherCtx = { ...ctx, model: { provider: "anthropic", id: "claude" } };
+
+    await handlers["before_provider_headers"]!({ headers }, otherCtx);
+
+    expect(headers.Authorization).toBe("Bearer other-key");
+  });
+
+  it("does not override credentials without a selected account", async () => {
+    await handlers["session_shutdown"]!({}, ctx);
+    await start({
+      version: 1,
+      revision: 1,
+      cycle: { cycleStartedAt: 0 },
+      sources: {},
+    });
+    const headers: Record<string, string | null> = {
+      Authorization: "Bearer stored-key",
+    };
+
+    await handlers["before_provider_headers"]!({ headers }, ctx);
+
+    expect(headers.Authorization).toBe("Bearer stored-key");
+  });
+});
+
+describe("runtime rotation", () => {
+  it("rotates to the best eligible account and requests continuation", async () => {
     await handlers["message_end"]!(quotaError(), ctx);
 
+    expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
+      apiKey: "key-2",
+    });
+    const headers: Record<string, string | null> = {
+      Authorization: "Bearer stored-key",
+    };
+    await handlers["before_provider_headers"]!({ headers }, ctx);
+    expect(headers.Authorization).toBe("Bearer key-2");
     expect(emit).toHaveBeenCalledWith("auto-continue:request", {
       reason: "quota-rotation",
       origin: { provider: "opencode-go" },
     });
-    expect(sendUserMessage).not.toHaveBeenCalled();
-    expect(registerProvider).toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith(
       expect.stringContaining("Rotated OpenCode Go"),
       "info",
     );
+    expect(logEvents.some(({ event }) => event === "rotate_success")).toBe(
+      true,
+    );
   });
 
-  it("ignores timeout errors", async () => {
-    const activationsBefore = registerProvider.mock.calls.length;
-    await handlers["message_end"]!(timeoutError(), ctx);
+  it("does not mutate the shared quota snapshot after a runtime rejection", async () => {
+    await handlers["message_end"]!(quotaError(), ctx);
 
-    expect(registerProvider).toHaveBeenCalledTimes(activationsBefore);
+    expect(refresh).not.toHaveProperty("recordExhaustion");
+  });
+
+  it("skips known exhausted accounts and does not continue without a candidate", async () => {
+    const onSnapshot = vi.mocked(refresh.onSnapshot).mock.calls[0]![0];
+    onSnapshot(quotaSnapshot(90, 0));
+
+    await handlers["message_end"]!(quotaError(), ctx);
+
     expect(emit).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledWith(
+      expect.stringContaining("No eligible OpenCode Go account"),
+      "warning",
+    );
   });
 
-  it("ignores stream interruption errors", async () => {
-    const activationsBefore = registerProvider.mock.calls.length;
-    await handlers["message_end"]!(streamError(), ctx);
-
-    expect(registerProvider).toHaveBeenCalledTimes(activationsBefore);
-    expect(emit).not.toHaveBeenCalled();
-  });
-
-  it("ignores errors on non-opencode-go providers", async () => {
+  it("ignores runtime errors from other providers", async () => {
     const otherCtx = { ...ctx, model: { provider: "anthropic" } };
     await handlers["message_end"]!(quotaError("anthropic"), otherCtx);
 
     expect(emit).not.toHaveBeenCalled();
-    expect(sendUserMessage).not.toHaveBeenCalled();
   });
-});
 
-describe("handleMessageEnd — processing cycle exhaustion", () => {
-  it("stops after every account has been attempted across turns", async () => {
-    await handlers["message_end"]!(quotaError(), ctx);
-    expect(emit).toHaveBeenCalledTimes(1);
+  it("clears the provider override on shutdown", async () => {
+    await handlers["session_shutdown"]!({}, ctx);
 
-    handlers["turn_start"]!({}, ctx);
-    await handlers["message_end"]!(quotaError(), ctx);
-
-    expect(emit).toHaveBeenCalledTimes(1);
-    expect(notify).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "All OpenCode Go accounts have been attempted during this processing cycle",
-      ),
-      "warning",
-    );
-  });
-});
-
-describe("handleAgentSettled — processing cycle reset", () => {
-  it("allows an account again in a later cycle after its cooldown expires", async () => {
-    const now = Date.now();
-    const nowSpy = vi.spyOn(Date, "now").mockReturnValue(now);
-
-    await handlers["message_end"]!(quotaError(), ctx);
-    handlers["turn_start"]!({}, ctx);
-    await handlers["message_end"]!(quotaError(), ctx);
-    expect(emit).toHaveBeenCalledTimes(1);
-
-    handlers["agent_settled"]!({}, ctx);
-    handlers["turn_start"]!({}, ctx);
-    nowSpy.mockReturnValue(now + 61_000);
-    await handlers["message_end"]!(quotaError(), ctx);
-
-    expect(emit).toHaveBeenCalledTimes(2);
+    expect(unregisterProvider).toHaveBeenCalledWith("opencode-go");
   });
 });

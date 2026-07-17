@@ -17,14 +17,12 @@ import {
   applySourceFailure,
   applySourceSuccess,
   expireOldObservations,
-  markExhausted,
   recordConfigConflict,
 } from "./snapshot-transitions.js";
 import { watchSnapshot, type WatcherSubscription } from "./snapshot-watcher.js";
 import type {
   QuotaSnapshot,
   SourceDescriptor,
-  SourceExhaustion,
   SourceIdentity,
 } from "./snapshot.js";
 import { formatCompactStatus, type ColorIntent } from "./status-formatter.js";
@@ -60,10 +58,6 @@ export type QuotaRefresh = {
     close: () => void;
   };
   read(): Promise<QuotaSnapshot>;
-  recordExhaustion(
-    identity: SourceIdentity,
-    exhaustion: SourceExhaustion,
-  ): Promise<void>;
   shutdown(): Promise<void>;
 };
 
@@ -387,12 +381,6 @@ export function createQuotaRefresh(options: QuotaRefreshOptions): QuotaRefresh {
     },
     async read() {
       return (await snapshotStore.load()) ?? latestSnapshot;
-    },
-    async recordExhaustion(identity, exhaustion) {
-      const next = await snapshotStore.mutate((current) =>
-        markExhausted(current, identity, exhaustion),
-      );
-      publish(next);
     },
     async shutdown() {
       if (stopped) return;

@@ -1,11 +1,9 @@
 import {
   type QuotaSnapshot,
   type SourceDescriptor,
-  type SourceExhaustion,
   type SourceFailure,
   type SourceIdentity,
   type SourceRecord,
-  type SourceState,
   type SourceWindow,
   sourceKey,
 } from "./snapshot.js";
@@ -32,8 +30,6 @@ export type SuccessInput = {
   };
   /** Optional extras (credits, resets, balance). */
   extras?: SourceRecord["extras"];
-  /** Optional exhaustion reported alongside a positive observation. */
-  providerExhaustion?: SourceExhaustion;
 };
 
 export type FailureInput = {
@@ -125,8 +121,8 @@ export function ensureDescriptor(
 
 /**
  * Apply a successful source observation. Always advances the revision and
- * clears the previous failure. Provider-confirmed exhaustion is reconciled
- * with the new positive observation.
+ * clears the previous failure. Any observed zero window marks the source
+ * exhausted; a fully positive observation restores it to fresh.
  */
 export function applySourceSuccess(
   snapshot: QuotaSnapshot,
@@ -140,13 +136,12 @@ export function applySourceSuccess(
 
   const next: SourceRecord = {
     ...existing,
-    state: "fresh",
+    state: hasExhaustedQuotaWindow(input.windows) ? "exhausted" : "fresh",
     observedAt: input.now,
     lastSuccessAt: input.now,
     windows: input.windows,
     extras: input.extras,
     failure: undefined,
-    providerExhaustion: input.providerExhaustion,
     configConflict: undefined,
   };
 
@@ -155,8 +150,9 @@ export function applySourceSuccess(
 
 /**
  * Apply a source-level failure. Preserves the prior observation if available
- * and marks the source `degraded` until the 30-minute expiry. A source with
- * no prior observation becomes `unavailable`.
+ * and marks the source `degraded` until the 30-minute expiry. A retained
+ * exhausted window remains exhausted; a source with no prior observation becomes
+ * `unavailable`.
  */
 export function applySourceFailure(
   snapshot: QuotaSnapshot,
@@ -179,7 +175,11 @@ export function applySourceFailure(
 
   const next: SourceRecord = {
     ...existing,
-    state: hadObservation ? "degraded" : "unavailable",
+    state: hasExhaustedQuotaWindow(existing.windows)
+      ? "exhausted"
+      : hadObservation
+        ? "degraded"
+        : "unavailable",
     observedAt: input.now,
     failure,
   };
@@ -218,16 +218,19 @@ export function expireOldObservations(
 }
 
 /** True when a source has a usable observation for selection or status. */
+export function hasExhaustedQuotaWindow(
+  windows: SourceRecord["windows"],
+): boolean {
+  return Object.values(windows ?? {}).some(
+    (window) => window?.remainingPercent === 0,
+  );
+}
+
 export function isObservationUsable(record: SourceRecord): boolean {
-  if (
-    record.state === "expired" ||
-    record.state === "unavailable" ||
-    record.state === "exhausted"
-  ) {
+  if (record.state === "expired" || record.state === "unavailable") {
     return false;
   }
-  if (record.providerExhaustion) return false;
-  return true;
+  return !hasExhaustedQuotaWindow(record.windows);
 }
 
 /** Record a configuration conflict for a source without overwriting its observation. */
@@ -257,20 +260,4 @@ export function detectConfigConflict(
     return undefined;
   }
   return `shared fingerprint "${existing.descriptor.configFingerprint}" disagrees with local "${descriptor.configFingerprint}"`;
-}
-
-/** Mark a source as provider-confirmed exhausted. */
-export function markExhausted(
-  snapshot: QuotaSnapshot,
-  identity: SourceIdentity,
-  exhaustion: SourceExhaustion,
-): QuotaSnapshot {
-  const existing = findRecord(snapshot, identity);
-  if (!existing) return snapshot;
-  const next: SourceRecord = {
-    ...existing,
-    state: "exhausted" as SourceState,
-    providerExhaustion: exhaustion,
-  };
-  return replaceSource(snapshot, next);
 }

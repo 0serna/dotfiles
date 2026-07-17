@@ -1,9 +1,5 @@
 import { isObservationUsable } from "./snapshot-transitions.js";
-import type {
-  QuotaSnapshot,
-  SourceExhaustion,
-  SourceIdentity,
-} from "./snapshot.js";
+import type { QuotaSnapshot, SourceIdentity } from "./snapshot.js";
 import type { AccountConfig, AccountState } from "./types.js";
 
 const PROVIDER_ID = "opencode-go";
@@ -11,13 +7,8 @@ export const DEFAULT_COOLDOWN_MS = 60_000;
 
 export type AccountSelectionFact =
   | { type: "startup"; snapshot: QuotaSnapshot; now: number }
-  | {
-      type: "snapshot-revision";
-      snapshot: QuotaSnapshot;
-      idle: boolean;
-      now: number;
-    }
-  | { type: "provider-exhausted"; now: number; reportedBy: string }
+  | { type: "snapshot-revision"; snapshot: QuotaSnapshot }
+  | { type: "provider-exhausted"; now: number }
   | { type: "turn-start" }
   | { type: "processing-settled"; idle: boolean; now: number }
   | { type: "shutdown" };
@@ -30,11 +21,6 @@ export type AccountSelectionOutcome =
       source: SourceIdentity;
     }
   | { type: "clear-account" }
-  | {
-      type: "record-exhaustion";
-      source: SourceIdentity;
-      exhaustion: SourceExhaustion;
-    }
   | { type: "request-continuation"; reason: "quota-rotation" }
   | { type: "notify"; level: "info" | "warning"; message: string }
   | { type: "log"; event: string; data?: Record<string, unknown> };
@@ -117,8 +103,6 @@ export function createAccountSelection(
   const cooldownMs = options.cooldownMs ?? DEFAULT_COOLDOWN_MS;
   let activeIndex = -1;
   let latestSnapshot: QuotaSnapshot | undefined;
-  let blindFallback = false;
-  let pendingReselection = false;
   let continuationRequested = false;
   const attemptedAccounts = new Set<string>();
   let stopped = false;
@@ -148,7 +132,12 @@ export function createAccountSelection(
     ];
   };
 
-  const selectFromSnapshot = (snapshot: QuotaSnapshot, now: number): number => {
+  const selectFromSnapshot = (
+    snapshot: QuotaSnapshot | undefined,
+    now: number,
+    excludedAccounts: ReadonlySet<string> = new Set(),
+  ): number => {
+    if (!snapshot) return -1;
     let bestIndex = -1;
     let bestScore: number[] | undefined;
     for (const account of configuredAccounts) {
@@ -156,7 +145,13 @@ export function createAccountSelection(
         (state) => state.name === account.name,
       );
       const state = states[stateIndex];
-      if (!state || state.cooldownUntil > now) continue;
+      if (
+        !state ||
+        state.cooldownUntil > now ||
+        excludedAccounts.has(state.name)
+      ) {
+        continue;
+      }
       const record =
         snapshot.sources[`${PROVIDER_ID}/${PROVIDER_ID}:${account.name}`];
       if (!record || !isObservationUsable(record)) continue;
@@ -170,127 +165,67 @@ export function createAccountSelection(
     return bestIndex;
   };
 
-  const reselect = (now: number): AccountSelectionOutcome[] => {
-    if (!latestSnapshot) return [];
-    const selected = selectFromSnapshot(latestSnapshot, now);
-    if (selected < 0) return [];
-    blindFallback = false;
-    pendingReselection = false;
-    if (selected === activeIndex) return [];
-    return [
-      ...activation(selected),
-      {
-        type: "log",
-        event: "preventive_reselection",
-        data: { provider: PROVIDER_ID, account: active()?.name },
-      },
-    ];
-  };
-
-  const needsReselection = (): boolean => {
-    if (blindFallback) return true;
-    const source = activeSource();
-    if (!source || !latestSnapshot) return false;
-    const record =
-      latestSnapshot.sources[`${source.providerId}/${source.sourceId}`];
-    return !record || !isObservationUsable(record);
-  };
-
   return {
     handle(fact) {
       if (stopped && fact.type !== "shutdown") return [];
       switch (fact.type) {
         case "startup": {
           latestSnapshot = fact.snapshot;
-          const selected = selectFromSnapshot(fact.snapshot, fact.now);
-          const chosen = selected >= 0 ? selected : states.length > 0 ? 0 : -1;
-          blindFallback = selected < 0 && chosen >= 0;
-          const outcomes = activation(chosen);
-          if (blindFallback) {
-            outcomes.push({
-              type: "log",
-              event: "session_start_blind_fallback",
-              data: {
-                provider: PROVIDER_ID,
-                reason:
-                  "no usable snapshot observation, activating first account",
-              },
-            });
-          }
-          return outcomes;
+          return activation(selectFromSnapshot(fact.snapshot, fact.now));
         }
         case "snapshot-revision":
           latestSnapshot = fact.snapshot;
-          if (activeIndex < 0 || !needsReselection()) return [];
-          if (!fact.idle) {
-            pendingReselection = true;
-            return [];
-          }
-          return reselect(fact.now);
+          return [];
         case "provider-exhausted": {
           const current = active();
-          if (!current) return [];
-          const outcomes: AccountSelectionOutcome[] = [
-            {
-              type: "record-exhaustion",
-              source: sourceFor(current.name),
-              exhaustion: {
-                confirmedAt: fact.now,
-                reportedBy: fact.reportedBy,
-              },
-            },
-          ];
-          attemptedAccounts.add(current.name);
-          if (states.every((state) => attemptedAccounts.has(state.name))) {
-            outcomes.push(
+          if (!current) {
+            return [
               {
                 type: "log",
-                event: "rotate_cycle_exhausted",
+                event: "rotation_skipped",
+                data: { provider: PROVIDER_ID, reason: "no_active_account" },
+              },
+              {
+                type: "notify",
+                level: "warning",
+                message:
+                  "OpenCode Go rejected the request, but no quota account is active to rotate.",
+              },
+            ];
+          }
+          if (continuationRequested) return [];
+
+          current.lastStatus = "rate-limited";
+          current.cooldownUntil = fact.now + cooldownMs;
+          current.failures += 1;
+          attemptedAccounts.add(current.name);
+
+          const nextIndex = selectFromSnapshot(
+            latestSnapshot,
+            fact.now,
+            attemptedAccounts,
+          );
+          if (nextIndex < 0) {
+            return [
+              {
+                type: "log",
+                event: "rotation_unavailable",
                 data: {
                   provider: PROVIDER_ID,
                   triedAccounts: [...attemptedAccounts],
-                  accountCount: states.length,
                 },
               },
               {
                 type: "notify",
                 level: "warning",
                 message:
-                  "All OpenCode Go accounts have been attempted during this processing cycle. Quota may be exhausted on every account.",
+                  "No eligible OpenCode Go account is available for rotation.",
               },
-            );
-            return outcomes;
+            ];
           }
-          if (continuationRequested) return outcomes;
-          current.lastStatus = "rate-limited";
-          current.cooldownUntil = fact.now + cooldownMs;
-          current.failures += 1;
-          let nextIndex = -1;
-          for (let offset = 1; offset <= states.length; offset += 1) {
-            const candidate = (activeIndex + offset) % states.length;
-            if (states[candidate]!.cooldownUntil <= fact.now) {
-              nextIndex = candidate;
-              break;
-            }
-          }
-          if (nextIndex < 0 || nextIndex === activeIndex) {
-            outcomes.push(
-              {
-                type: "log",
-                event: "rotate_exhausted",
-                data: { provider: PROVIDER_ID, accountCount: states.length },
-              },
-              {
-                type: "notify",
-                level: "warning",
-                message:
-                  "All OpenCode Go accounts are exhausted or on cooldown.",
-              },
-            );
-            return outcomes;
-          }
+
           const previousName = current.name;
-          outcomes.push(...activation(nextIndex));
+          const outcomes = activation(nextIndex);
           outcomes.push(
             {
               type: "log",
@@ -316,11 +251,7 @@ export function createAccountSelection(
           continuationRequested = false;
           return [];
         case "processing-settled":
-          if (!fact.idle) return [];
-          attemptedAccounts.clear();
-          if (pendingReselection && needsReselection())
-            return reselect(fact.now);
-          pendingReselection = false;
+          if (fact.idle) attemptedAccounts.clear();
           return [];
         case "shutdown":
           stopped = true;

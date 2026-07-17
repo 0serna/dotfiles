@@ -5,6 +5,7 @@ import {
   detectConfigConflict,
   ensureDescriptor,
   expireOldObservations,
+  hasExhaustedQuotaWindow,
   isObservationUsable,
   recordConfigConflict,
 } from "../snapshot-transitions.js";
@@ -142,11 +143,8 @@ describe("applySourceSuccess", () => {
     expect(next.sources[key]?.failure).toBeUndefined();
   });
 
-  it("clears provider-confirmed exhaustion on a positive observation", () => {
-    const sourceRecord = record({
-      state: "exhausted",
-      providerExhaustion: { confirmedAt: 500, reportedBy: "other" },
-    });
+  it("marks a source exhausted when any observed window reaches zero", () => {
+    const sourceRecord = record({ state: "refreshing" });
     const base = snapshot({
       sources: {
         [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
@@ -155,11 +153,13 @@ describe("applySourceSuccess", () => {
     });
     const next = applySourceSuccess(base, CODEX_IDENTITY, {
       now: 1_000,
-      windows: { rolling: window(50, 1_700_000_000) },
+      windows: {
+        rolling: window(50, 1_700_000_000),
+        weekly: window(0, 1_700_000_000),
+      },
     });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("fresh");
-    expect(next.sources[key]?.providerExhaustion).toBeUndefined();
+    expect(next.sources[key]?.state).toBe("exhausted");
   });
 });
 
@@ -266,21 +266,41 @@ describe("expireOldObservations", () => {
   });
 });
 
-describe("isObservationUsable", () => {
-  it("rejects expired, unavailable, and exhausted sources", () => {
+describe("quota exhaustion", () => {
+  it("rejects expired, unavailable, and zero-window sources", () => {
     expect(isObservationUsable(record({ state: "expired" }))).toBe(false);
     expect(isObservationUsable(record({ state: "unavailable" }))).toBe(false);
     expect(
       isObservationUsable(
         record({
           state: "fresh",
-          providerExhaustion: { confirmedAt: 1, reportedBy: "x" },
+          windows: { rolling: window(0, 1_700_000_000) },
         }),
       ),
     ).toBe(false);
   });
 
-  it("accepts fresh and degraded observations", () => {
+  it("recognizes any zero window as exhausted", () => {
+    expect(
+      hasExhaustedQuotaWindow({
+        rolling: window(75, 1_700_000_000),
+        weekly: window(0, 1_700_000_000),
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps a legacy exhausted state selectable when no window is zero", () => {
+    expect(
+      isObservationUsable(
+        record({
+          state: "exhausted",
+          windows: { rolling: window(50, 1_700_000_000) },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts fresh and degraded observations without exhausted windows", () => {
     expect(isObservationUsable(record({ state: "fresh" }))).toBe(true);
     expect(isObservationUsable(record({ state: "degraded" }))).toBe(true);
   });

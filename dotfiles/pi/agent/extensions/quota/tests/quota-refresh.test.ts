@@ -182,32 +182,6 @@ describe("quota refresh interface", () => {
     release?.();
   });
 
-  it("records shared exhaustion and converges through the watcher", async () => {
-    const root = temporaryRoot();
-    const shared = adapter("provider-a", async () => ({
-      state: "ok",
-      windows: { rolling: { remainingPercent: 80, resetAt: 2_000_000_000 } },
-    }));
-    const owner = create(root, [shared], 60_000);
-    const observer = create(root, [shared], 60_000);
-    let observed = false;
-    observer.onSnapshot((snapshot) => {
-      observed = snapshot.sources["provider-a/a"]?.state === "exhausted";
-    });
-    await owner.start({ sources: [source()], registerStatus: vi.fn() });
-    await waitFor(
-      asyncFlag(() =>
-        owner.read().then((s) => s.sources["provider-a/a"]?.state === "fresh"),
-      ),
-    );
-    await observer.start({ sources: [source()], registerStatus: vi.fn() });
-    await owner.recordExhaustion(
-      { providerId: "provider-a", sourceId: "a" },
-      { confirmedAt: Date.now(), reportedBy: "owner" },
-    );
-    await waitFor(() => observed);
-  });
-
   it("aborts active source requests and clears status on shutdown", async () => {
     const root = temporaryRoot();
     let aborted = false;

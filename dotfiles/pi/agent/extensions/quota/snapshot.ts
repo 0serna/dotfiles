@@ -67,14 +67,6 @@ export type SourceFailure = {
   message?: string;
 };
 
-/** Source-level provider-confirmed exhaustion evidence. */
-export type SourceExhaustion = {
-  /** Absolute confirmation timestamp in milliseconds. */
-  confirmedAt: number;
-  /** Source identifier that reported the exhaustion. */
-  reportedBy: string;
-};
-
 /** Lifecycle state for a single source. */
 export type SourceState =
   | "refreshing"
@@ -102,8 +94,6 @@ export type SourceRecord = {
   extras?: SourceExtras;
   /** Last failure metadata retained for the 30-minute window. */
   failure?: SourceFailure;
-  /** Provider-confirmed exhaustion evidence. */
-  providerExhaustion?: SourceExhaustion;
   /** Configuration conflict between this process and the shared snapshot. */
   configConflict?: string;
 };

@@ -1,5 +1,8 @@
 import { clampPercent } from "./formatting.js";
-import { OBSERVATION_RETENTION_MS } from "./snapshot-transitions.js";
+import {
+  hasExhaustedQuotaWindow,
+  OBSERVATION_RETENTION_MS,
+} from "./snapshot-transitions.js";
 import {
   type QuotaSnapshot,
   type SourceIdentity,
@@ -42,18 +45,7 @@ function providerLabel(record: SourceRecord): string {
 }
 
 function isExhausted(record: SourceRecord): boolean {
-  if (record.state === "exhausted") return true;
-  const windows = record.windows;
-  if (!windows) return false;
-  const existingWindows = [
-    windows.rolling,
-    windows.weekly,
-    windows.monthly,
-  ].filter((w) => w != null);
-  return (
-    existingWindows.length > 0 &&
-    existingWindows.every((w) => w.remainingPercent === 0)
-  );
+  return hasExhaustedQuotaWindow(record.windows);
 }
 
 function isUsable(record: SourceRecord, now: number): boolean {
@@ -64,7 +56,6 @@ function isUsable(record: SourceRecord, now: number): boolean {
   ) {
     return false;
   }
-  if (record.providerExhaustion) return false;
   if (record.state === "degraded") {
     return now - record.lastSuccessAt <= OBSERVATION_RETENTION_MS;
   }
@@ -89,7 +80,7 @@ function selectPercent(record: SourceRecord): string | undefined {
   // Priority: rolling > weekly > monthly (smallest temporal window first)
   // WINDOW_NAMES is ["monthly", "weekly", "rolling"], so iterate in reverse
   for (let i = WINDOW_NAMES.length - 1; i >= 0; i--) {
-    const name = WINDOW_NAMES[i];
+    const name = WINDOW_NAMES[i]!;
     const window = windows[name];
     if (!window) continue;
     const remainingPercent = clampPercent(window.remainingPercent);

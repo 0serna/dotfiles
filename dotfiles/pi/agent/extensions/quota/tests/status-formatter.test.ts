@@ -172,7 +172,7 @@ describe("formatCompactStatus", () => {
     expect(intents).toEqual(["dim"]);
   });
 
-  it("renders the smallest temporal window even when a higher one is exhausted", () => {
+  it("warns when any observed window is exhausted", () => {
     const snapshot = makeSnapshot([
       makeRecord(OPENCODE, {
         windows: {
@@ -183,7 +183,7 @@ describe("formatCompactStatus", () => {
       }),
     ]);
 
-    expect(formatCompactStatus(snapshot)).toBe("OpenCode 90r");
+    expect(formatCompactStatus(snapshot)).toBe("OpenCode 0m");
   });
 
   it("warns when OpenCode is missing an expected window", () => {
@@ -278,29 +278,12 @@ describe("formatCompactStatus", () => {
       expect(formatCompactStatus(snapshot)).toBe("Codex 0m");
     });
 
-    it("shows 0 without suffix when state is exhausted but no windows are present", () => {
+    it("shows an exhausted window regardless of the persisted source state", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
-          state: "exhausted",
-          providerExhaustion: {
-            confirmedAt: Date.now(),
-            reportedBy: "test",
-          },
-        }),
-      ]);
-      expect(formatCompactStatus(snapshot)).toBe("Codex 0");
-    });
-
-    it("shows 0 with suffix when state is exhausted and a window is present at 0%", () => {
-      const snapshot = makeSnapshot([
-        makeRecord(CODEX, {
-          state: "exhausted",
+          state: "fresh",
           windows: {
             rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
-          },
-          providerExhaustion: {
-            confirmedAt: Date.now(),
-            reportedBy: "test",
           },
         }),
       ]);

@@ -85,7 +85,7 @@ A Codex reset credit that can restore quota before its expiry. Compact Codex sta
 _Avoid_: reset timer, quota window
 
 **Account selection**:
-The process that evaluates OpenCode Go account observations from the aggregated quota snapshot and picks the account with the most balanced remaining quota across all windows. It does not wait for network refreshes, reevaluates an initial blind fallback when the first usable snapshot arrives, and otherwise reselects only when the active account is no longer usable; preventive reselection is applied only while the Pi runtime is fully idle.
+The session-start process that evaluates the latest aggregated quota snapshot and picks the eligible OpenCode Go account with the most balanced remaining quota across complete windows. A degraded retained observation remains selectable; without a selectable observation, no account is selected.
 _Avoid_: account picker, provider selection
 
 **Quota window**:
@@ -109,7 +109,7 @@ A declared quota source that cannot be fetched because required configuration or
 _Avoid_: undeclared provider, degraded source, fetch failure
 
 **Active quota source**:
-The source chosen by one Pi runtime to represent and supply a provider, independent of whether that provider's model is currently selected. It is not shared across Pi processes; compact status shows the local active source, while `/quota` shows every declared source.
+The source chosen by one Pi runtime to represent and supply a provider, independent of whether that provider's model is currently selected. It is not shared across Pi processes and may remain unselected when no quota observation is selectable; compact status shows the local active source, while `/quota` shows every declared source.
 _Avoid_: active model, global source, shared account
 
 **Compact quota status**:
@@ -140,17 +140,13 @@ _Avoid_: failed snapshot, missing provider, invalid quota
 A retained provider observation whose last successful refresh is more than 30 minutes old. It is no longer presented as usable quota; the provider is shown as an error instead.
 _Avoid_: degraded source, zero quota, exhausted window
 
-**Provider-confirmed quota exhaustion**:
-Shared evidence from an explicit runtime quota error that a quota source is not currently usable, even when its previous dashboard observation reported remaining allowance. The next positive dashboard observation restores global eligibility without making an already-attempted account eligible again within the current processing cycle.
-_Avoid_: account cooldown, inferred zero percent, dashboard failure
+**Runtime quota rejection**:
+An explicit OpenCode Go runtime quota error. It triggers only session-local account rotation and cooldown; it neither changes the shared snapshot nor declares a quota source exhausted.
+_Avoid_: provider-confirmed quota exhaustion, inferred zero percent, dashboard failure
 
 **Account cooldown**:
 A temporary, Pi-runtime-local ban applied to an account after a rate-limit or authorization error, preventing it from being selected again until the cooldown expires. Cooldowns are not part of the shared quota snapshot.
 _Avoid_: global account lockout, penalty period, refresh backoff
-
-**Blind fallback**:
-Activating the first configured OpenCode Go account without a usable quota observation, including when no shared snapshot exists at session start. It is reevaluated when the first usable snapshot arrives and still relies on runtime rotation if exhausted.
-_Avoid_: default account, emergency fallback, unverified activation
 
 **Transient failure**:
 A terminal assistant outcome explicitly classified as temporary after Pi has exhausted its own automatic recovery. It is independent of provider identity and does not imply quota exhaustion.
@@ -167,3 +163,11 @@ _Avoid_: processing cycle, retry loop, quota rotation cycle
 **Recovery continuation**:
 An automatic `continue` message issued after Pi settles and a one-second quiet period. It uses the response configuration then in effect and is cancelled when new activity appears, so it does not guarantee replaying the same request, account, provider, or model.
 _Avoid_: request retry, model retry, delayed user prompt
+
+**Title source**:
+The text from up to the three most recent user messages in the active session branch. It excludes assistant responses, tool activity, and image-only messages.
+_Avoid_: conversation transcript, recent messages, chat history
+
+**Generated session title**:
+The session display name produced on explicit request from a Title Source. It replaces any existing display name; a non-empty model response is retained even when it exceeds the requested word limit.
+_Avoid_: manual title, session filename, first message

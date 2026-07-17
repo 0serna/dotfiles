@@ -27,11 +27,13 @@ function snapshot(
   one = 20,
   two = 80,
   oneState: SourceState = "fresh",
+  oneWindows = true,
 ): QuotaSnapshot {
   const source = (
     name: string,
     remainingPercent: number,
     state: SourceState,
+    complete = true,
   ) => ({
     identity: { providerId: "opencode-go", sourceId: `opencode-go:${name}` },
     descriptor: {
@@ -43,18 +45,20 @@ function snapshot(
     state,
     observedAt: NOW,
     lastSuccessAt: NOW,
-    windows: {
-      rolling: { remainingPercent, resetAt: NOW / 1000 + 1000 },
-      weekly: { remainingPercent, resetAt: NOW / 1000 + 2000 },
-      monthly: { remainingPercent, resetAt: NOW / 1000 + 3000 },
-    },
+    windows: complete
+      ? {
+          rolling: { remainingPercent, resetAt: NOW / 1000 + 1000 },
+          weekly: { remainingPercent, resetAt: NOW / 1000 + 2000 },
+          monthly: { remainingPercent, resetAt: NOW / 1000 + 3000 },
+        }
+      : { rolling: { remainingPercent, resetAt: NOW / 1000 + 1000 } },
   });
   return {
     version: 1,
     revision: 1,
     cycle: { cycleStartedAt: NOW, lastCompletedAt: NOW },
     sources: {
-      "opencode-go/opencode-go:one": source("one", one, oneState),
+      "opencode-go/opencode-go:one": source("one", one, oneState, oneWindows),
       "opencode-go/opencode-go:two": source("two", two, "fresh"),
     },
   };
@@ -65,7 +69,7 @@ function activations(outcomes: AccountSelectionOutcome[]) {
 }
 
 describe("account selection interface", () => {
-  it("selects the best observed account at startup", () => {
+  it("selects the best complete observed account at startup", () => {
     const selection = createAccountSelection({ accounts, env });
     const outcomes = selection.handle({
       type: "startup",
@@ -77,102 +81,117 @@ describe("account selection interface", () => {
     ]);
   });
 
-  it("uses the first configured account as a blind fallback", () => {
+  it("does not activate an account without a selectable observation", () => {
     const selection = createAccountSelection({ accounts, env });
-    const outcomes = selection.handle({
-      type: "startup",
-      snapshot: { ...snapshot(), sources: {} },
-      now: NOW,
-    });
-    expect(activations(outcomes)).toEqual([
-      expect.objectContaining({ accountName: "one", apiKey: "key-one" }),
-    ]);
-  });
-
-  it("defers preventive reselection until processing is settled", () => {
-    const selection = createAccountSelection({ accounts, env });
-    selection.handle({ type: "startup", snapshot: snapshot(90, 80), now: NOW });
-    const exhausted = snapshot(90, 80, "exhausted");
     expect(
       activations(
         selection.handle({
-          type: "snapshot-revision",
-          snapshot: exhausted,
-          idle: false,
-          now: NOW + 1,
+          type: "startup",
+          snapshot: { ...snapshot(), sources: {} },
+          now: NOW,
         }),
       ),
     ).toEqual([]);
+    expect(selection.activeAccountName()).toBeUndefined();
+  });
+
+  it("accepts a degraded retained observation at startup", () => {
+    const selection = createAccountSelection({ accounts, env });
     expect(
       activations(
         selection.handle({
-          type: "processing-settled",
-          idle: true,
-          now: NOW + 2,
+          type: "startup",
+          snapshot: snapshot(90, 80, "degraded"),
+          now: NOW,
+        }),
+      ),
+    ).toEqual([expect.objectContaining({ accountName: "one" })]);
+  });
+
+  it("does not select an incomplete observation", () => {
+    const selection = createAccountSelection({ accounts, env });
+    expect(
+      activations(
+        selection.handle({
+          type: "startup",
+          snapshot: snapshot(90, 80, "fresh", false),
+          now: NOW,
         }),
       ),
     ).toEqual([expect.objectContaining({ accountName: "two" })]);
   });
 
-  it("rotates after provider-confirmed exhaustion and requests continuation", () => {
+  it("does not reselect when later snapshots change", () => {
+    const selection = createAccountSelection({ accounts, env });
+    selection.handle({ type: "startup", snapshot: snapshot(90, 80), now: NOW });
+    expect(
+      activations(
+        selection.handle({
+          type: "snapshot-revision",
+          snapshot: snapshot(20, 99),
+        }),
+      ),
+    ).toEqual([]);
+    expect(selection.activeAccountName()).toBe("one");
+  });
+
+  it("rotates to the best eligible account after a runtime rejection", () => {
     const selection = createAccountSelection({ accounts, env });
     selection.handle({ type: "startup", snapshot: snapshot(90, 80), now: NOW });
     const outcomes = selection.handle({
       type: "provider-exhausted",
       now: NOW + 1,
-      reportedBy: "session-1",
     });
     expect(outcomes.map((outcome) => outcome.type)).toEqual(
-      expect.arrayContaining([
-        "record-exhaustion",
-        "activate-account",
-        "request-continuation",
-      ]),
+      expect.arrayContaining(["activate-account", "request-continuation"]),
     );
     expect(activations(outcomes)).toEqual([
       expect.objectContaining({ accountName: "two" }),
     ]);
+    expect(outcomes).not.toContainEqual(
+      expect.objectContaining({ type: "record-exhaustion" }),
+    );
   });
 
-  it("stops after every account was attempted in one processing cycle", () => {
-    const selection = createAccountSelection({ accounts, env, cooldownMs: 0 });
+  it("skips accounts whose observed window is exhausted", () => {
+    const selection = createAccountSelection({ accounts, env });
     selection.handle({ type: "startup", snapshot: snapshot(90, 80), now: NOW });
-    selection.handle({
-      type: "provider-exhausted",
-      now: NOW + 1,
-      reportedBy: "s",
-    });
-    selection.handle({ type: "turn-start" });
+    const exhausted = snapshot(90, 0);
+    exhausted.sources["opencode-go/opencode-go:two"]!.state = "exhausted";
+    selection.handle({ type: "snapshot-revision", snapshot: exhausted });
+
     const outcomes = selection.handle({
       type: "provider-exhausted",
-      now: NOW + 2,
-      reportedBy: "s",
+      now: NOW + 1,
     });
-    expect(
-      outcomes.some((outcome) => outcome.type === "request-continuation"),
-    ).toBe(false);
+    expect(activations(outcomes)).toEqual([]);
     expect(outcomes).toContainEqual(
       expect.objectContaining({ type: "notify", level: "warning" }),
     );
   });
 
-  it("clears attempted accounts after the processing cycle settles", () => {
-    const selection = createAccountSelection({ accounts, env, cooldownMs: 0 });
+  it("does not request a continuation without an eligible replacement", () => {
+    const selection = createAccountSelection({ accounts, env });
     selection.handle({ type: "startup", snapshot: snapshot(90, 80), now: NOW });
-    selection.handle({
-      type: "provider-exhausted",
-      now: NOW + 1,
-      reportedBy: "s",
-    });
-    selection.handle({ type: "processing-settled", idle: true, now: NOW + 2 });
-    selection.handle({ type: "turn-start" });
     const outcomes = selection.handle({
       type: "provider-exhausted",
-      now: NOW + 3,
-      reportedBy: "s",
+      now: NOW + 1,
     });
+    selection.handle({ type: "turn-start" });
+    const exhausted = snapshot(0, 0);
+    exhausted.sources["opencode-go/opencode-go:one"]!.state = "exhausted";
+    exhausted.sources["opencode-go/opencode-go:two"]!.state = "exhausted";
+    selection.handle({ type: "snapshot-revision", snapshot: exhausted });
+    const unavailable = selection.handle({
+      type: "provider-exhausted",
+      now: NOW + 2,
+    });
+
     expect(
       outcomes.some((outcome) => outcome.type === "request-continuation"),
     ).toBe(true);
+    expect(
+      unavailable.some((outcome) => outcome.type === "request-continuation"),
+    ).toBe(false);
   });
 });
