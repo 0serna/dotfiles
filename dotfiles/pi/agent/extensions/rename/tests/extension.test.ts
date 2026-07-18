@@ -1,23 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { complete } = vi.hoisted(() => ({ complete: vi.fn() }));
-
-vi.mock("@earendil-works/pi-ai/compat", () => ({ complete }));
-
 import extensionFactory from "../index.ts";
 
 type CommandHandler = (args: string, ctx: unknown) => Promise<void>;
 
-function createSetup({
-  branch = [],
-  model = { provider: "opencode-go", id: "deepseek-v4-flash" },
-  auth = { ok: true, apiKey: "key", headers: {}, env: {} },
-}: {
-  branch?: unknown[];
-  model?: unknown;
-  auth?: unknown;
-} = {}) {
+function createSetup() {
   let handler: CommandHandler | undefined;
   const setSessionName = vi.fn();
   const pi = {
@@ -28,14 +16,6 @@ function createSetup({
   } as unknown as ExtensionAPI;
   const ctx = {
     hasUI: true,
-    sessionManager: {
-      getBranch: () => branch,
-      getSessionId: () => "test-session",
-    },
-    modelRegistry: {
-      find: vi.fn(() => model),
-      getApiKeyAndHeaders: vi.fn(async () => auth),
-    },
     ui: { notify: vi.fn() },
   };
 
@@ -55,64 +35,52 @@ describe("rename extension", () => {
     expect(setup.pi.registerCommand).toHaveBeenCalledWith(
       "rename",
       expect.objectContaining({
-        description: "Generate a session title from recent user messages",
+        description: "Rename the session with the given text",
       }),
     );
   });
 
-  it("uses only the fixed title model with high reasoning", async () => {
-    const setup = createSetup({
-      branch: [{ type: "message", message: { role: "user", content: "one" } }],
-    });
-    complete.mockResolvedValue({ content: [{ type: "text", text: "One" }] });
+  it("renames the session with the provided text", async () => {
+    const setup = createSetup();
 
-    await setup.handler("ignored arguments", setup.ctx);
+    await setup.handler("mi sesion bonita", setup.ctx);
 
-    expect(setup.ctx.modelRegistry.find).toHaveBeenCalledWith(
-      "opencode-go",
-      "deepseek-v4-flash",
+    expect(setup.setSessionName).toHaveBeenCalledWith("mi sesion bonita");
+    expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
+      'Session renamed: "mi sesion bonita"',
+      "info",
     );
-    expect(complete).toHaveBeenCalledWith(
-      { provider: "opencode-go", id: "deepseek-v4-flash" },
-      expect.any(Object),
-      expect.objectContaining({ reasoningEffort: "high" }),
-    );
-    expect(setup.setSessionName).toHaveBeenCalledWith("One");
   });
 
-  it("reports model responses that stop with an error", async () => {
-    const setup = createSetup({
-      branch: [{ type: "message", message: { role: "user", content: "one" } }],
-    });
-    complete.mockResolvedValue({
-      content: [],
-      stopReason: "error",
-      errorMessage: "Provider rejected the request",
-      usage: { totalTokens: 0 },
-    });
+  it("trims whitespace from the arguments", async () => {
+    const setup = createSetup();
+
+    await setup.handler("  espacios  ", setup.ctx);
+
+    expect(setup.setSessionName).toHaveBeenCalledWith("espacios");
+  });
+
+  it("shows usage when no arguments are provided", async () => {
+    const setup = createSetup();
 
     await setup.handler("", setup.ctx);
 
     expect(setup.setSessionName).not.toHaveBeenCalled();
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
-      "Title generation failed: Provider rejected the request",
-      "error",
+      "Usage: /rename <session name>",
+      "warning",
     );
   });
 
-  it("does not rename or fall back when the fixed model is unavailable", async () => {
-    const setup = createSetup({
-      branch: [{ type: "message", message: { role: "user", content: "one" } }],
-      model: null,
-    });
+  it("shows usage when only whitespace is provided", async () => {
+    const setup = createSetup();
 
-    await setup.handler("", setup.ctx);
+    await setup.handler("   ", setup.ctx);
 
-    expect(complete).not.toHaveBeenCalled();
     expect(setup.setSessionName).not.toHaveBeenCalled();
     expect(setup.ctx.ui.notify).toHaveBeenCalledWith(
-      "Title model opencode-go/deepseek-v4-flash is unavailable.",
-      "error",
+      "Usage: /rename <session name>",
+      "warning",
     );
   });
 });
