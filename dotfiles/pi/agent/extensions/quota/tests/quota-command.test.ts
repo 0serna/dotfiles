@@ -28,7 +28,7 @@ function makeRecord(
   return {
     identity: descriptor.identity,
     descriptor,
-    state: "fresh",
+    state: "current",
     observedAt: 1_000,
     lastSuccessAt: 1_000,
     ...overrides,
@@ -41,7 +41,7 @@ function makeSnapshot(sources: SourceRecord[]): QuotaSnapshot {
     map[`${source.identity.providerId}/${source.identity.sourceId}`] = source;
   }
   return {
-    version: 1,
+    version: 2,
     revision: 1,
     cycle: { cycleStartedAt: 0, lastCompletedAt: 1_000 },
     sources: map,
@@ -67,7 +67,6 @@ describe("formatQuotaDetail", () => {
           rolling: { remainingPercent: 80, resetAt: NOW_SECONDS + 3600 },
         },
         extras: {
-          credits: 100,
           bankedResets: { kind: "available", details: [{}, {}] as never },
         },
       }),
@@ -75,7 +74,6 @@ describe("formatQuotaDetail", () => {
         windows: {
           rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 7200 },
         },
-        extras: { balanceDollars: 12.34 },
       }),
     ]);
     const output = formatQuotaDetail(snapshot, {
@@ -83,14 +81,13 @@ describe("formatQuotaDetail", () => {
     });
     expect(output).toContain("Codex");
     expect(output).toContain("OpenCode 1 (active)");
-    expect(output).toContain("100"); // credits
-    expect(output).toContain("$12.34");
+    expect(output).not.toContain("State");
   });
 
-  it("marks a degraded source with state, age, and summarized failure", () => {
+  it("shows only State for a stale source", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
-        state: "degraded",
+        state: "stale",
         observedAt: Date.now() - 10 * 60 * 1000,
         lastSuccessAt: Date.now() - 10 * 60 * 1000,
         windows: {
@@ -104,14 +101,18 @@ describe("formatQuotaDetail", () => {
         },
       }),
     ]);
-    const output = formatQuotaDetail(snapshot, { activeSource: undefined });
-    expect(stripStyles(output)).toContain("degraded");
+    const output = stripStyles(
+      formatQuotaDetail(snapshot, { activeSource: undefined }),
+    );
+    expect(output).toContain("State      stale");
+    expect(output).not.toContain("network");
   });
 
-  it("shows 'expired' or 'unavailable' with detailed reason", () => {
+  it("shows only State when a source is unavailable", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
         state: "unavailable",
+        configConflict: "shared fingerprint disagrees with local",
         failure: {
           reason: "config_missing",
           at: Date.now(),
@@ -123,8 +124,10 @@ describe("formatQuotaDetail", () => {
     const output = stripStyles(
       formatQuotaDetail(snapshot, { activeSource: undefined }),
     );
-    expect(output).toContain("unavailable");
-    expect(output).toContain("missing API key");
+    expect(output).toContain("State      unavailable");
+    expect(output).not.toContain("missing API key");
+    expect(output).not.toContain("config conflict");
+    expect(output).not.toContain("fingerprint");
   });
 
   it("omits fabricated reset credits when banked resets are unavailable", () => {

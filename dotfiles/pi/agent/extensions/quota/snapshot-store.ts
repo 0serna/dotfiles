@@ -25,6 +25,7 @@ const LOCK_RETRY_DELAY_MS = 5;
 const LOCK_DEFAULT_TIMEOUT_MS = 5_000;
 const PRIVATE_PERMISSIONS = 0o700;
 const PRIVATE_FILE_PERMISSIONS = 0o600;
+const SOURCE_STATES = new Set(["current", "stale", "unavailable"]);
 
 export type SnapshotStore = {
   readonly snapshotPath: string;
@@ -71,6 +72,7 @@ function isValidSourceRecord(value: unknown): value is SourceRecord {
     typeof record.identity.providerId === "string" &&
     typeof record.identity.sourceId === "string" &&
     typeof record.state === "string" &&
+    SOURCE_STATES.has(record.state) &&
     typeof record.observedAt === "number" &&
     typeof record.lastSuccessAt === "number",
   );

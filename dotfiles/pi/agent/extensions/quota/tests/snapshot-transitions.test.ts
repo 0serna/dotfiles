@@ -43,7 +43,7 @@ function record(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {
     identity: CODEX_IDENTITY,
     descriptor: descriptor(),
-    state: "refreshing",
+    state: "unavailable",
     observedAt: 0,
     lastSuccessAt: 0,
     ...overrides,
@@ -69,19 +69,19 @@ function window(remainingPercent: number, resetAt: number): SourceWindow {
 // ---------------------------------------------------------------------------
 
 describe("ensureDescriptor", () => {
-  it("inserts a refreshing record when the source is new", () => {
+  it("inserts an unavailable record when the source is new", () => {
     const next = ensureDescriptor(
       snapshot(),
       descriptor({ configFingerprint: "fingerprint:codex:default" }),
     );
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("refreshing");
+    expect(next.sources[key]?.state).toBe("unavailable");
     expect(next.revision).toBe(2);
   });
 
   it("preserves the previous observation when the descriptor fingerprint matches", () => {
     const existing = record({
-      state: "fresh",
+      state: "current",
       lastSuccessAt: 1_000,
       observedAt: 1_000,
       windows: { rolling: window(80, 1_700_000_000) },
@@ -99,7 +99,7 @@ describe("ensureDescriptor", () => {
 
   it("invalidates the previous observation when the fingerprint changes", () => {
     const existing = record({
-      state: "fresh",
+      state: "current",
       lastSuccessAt: 1_000,
       observedAt: 1_000,
       windows: { rolling: window(80, 1_700_000_000) },
@@ -114,15 +114,15 @@ describe("ensureDescriptor", () => {
       descriptor({ configFingerprint: "fingerprint:codex:rotated" }),
     );
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("refreshing");
+    expect(next.sources[key]?.state).toBe("unavailable");
     expect(next.sources[key]?.windows).toBeUndefined();
     expect(next.revision).toBe(2);
   });
 });
 
 describe("applySourceSuccess", () => {
-  it("publishes a fresh observation with normalized windows", () => {
-    const sourceRecord = record({ state: "refreshing" });
+  it("publishes a current observation with normalized windows", () => {
+    const sourceRecord = record({ state: "unavailable" });
     const base = snapshot({
       sources: {
         [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
@@ -136,15 +136,15 @@ describe("applySourceSuccess", () => {
       windows,
     });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("fresh");
+    expect(next.sources[key]?.state).toBe("current");
     expect(next.sources[key]?.observedAt).toBe(now);
     expect(next.sources[key]?.lastSuccessAt).toBe(now);
     expect(next.sources[key]?.windows).toEqual(windows);
     expect(next.sources[key]?.failure).toBeUndefined();
   });
 
-  it("marks a source exhausted when any observed window reaches zero", () => {
-    const sourceRecord = record({ state: "refreshing" });
+  it("keeps state current when an observed window reaches zero", () => {
+    const sourceRecord = record({ state: "unavailable" });
     const base = snapshot({
       sources: {
         [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
@@ -159,14 +159,15 @@ describe("applySourceSuccess", () => {
       },
     });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("exhausted");
+    expect(next.sources[key]?.state).toBe("current");
+    expect(hasExhaustedQuotaWindow(next.sources[key]?.windows)).toBe(true);
   });
 });
 
 describe("applySourceFailure", () => {
-  it("preserves the last observation and marks the source degraded when fresh", () => {
+  it("preserves the last observation and marks the source stale", () => {
     const sourceRecord = record({
-      state: "fresh",
+      state: "current",
       observedAt: 500,
       lastSuccessAt: 500,
       windows: { rolling: window(60, 1_700_000_000) },
@@ -185,7 +186,7 @@ describe("applySourceFailure", () => {
       message: "network",
     });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("degraded");
+    expect(next.sources[key]?.state).toBe("stale");
     expect(next.sources[key]?.windows).toEqual(sourceRecord.windows);
     expect(next.sources[key]?.failure).toEqual({
       reason: "fetch_failed",
@@ -196,7 +197,7 @@ describe("applySourceFailure", () => {
   });
 
   it("marks the source unavailable when there is no prior observation", () => {
-    const sourceRecord = record({ state: "refreshing" });
+    const sourceRecord = record({ state: "unavailable" });
     const base = snapshot({
       sources: {
         [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
@@ -216,10 +217,10 @@ describe("applySourceFailure", () => {
 });
 
 describe("expireOldObservations", () => {
-  it("promotes a degraded source older than 30 minutes to expired", () => {
+  it("makes a stale source unavailable after 30 minutes", () => {
     const now = 31 * 60 * 1000 + 1_000;
     const sourceRecord = record({
-      state: "degraded",
+      state: "stale",
       observedAt: now - 1_000,
       lastSuccessAt: 0,
     });
@@ -231,13 +232,13 @@ describe("expireOldObservations", () => {
     });
     const next = expireOldObservations(base, { now });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("expired");
+    expect(next.sources[key]?.state).toBe("unavailable");
   });
 
-  it("keeps degraded observations that are still within the 30-minute window", () => {
+  it("keeps stale observations that are still within the 30-minute window", () => {
     const now = 1_000;
     const sourceRecord = record({
-      state: "degraded",
+      state: "stale",
       observedAt: now - 10 * 60 * 1000,
       lastSuccessAt: 0,
     });
@@ -249,11 +250,11 @@ describe("expireOldObservations", () => {
     });
     const next = expireOldObservations(base, { now });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("degraded");
+    expect(next.sources[key]?.state).toBe("stale");
   });
 
-  it("does not expire fresh observations", () => {
-    const sourceRecord = record({ state: "fresh", lastSuccessAt: 1_000 });
+  it("does not expire current observations", () => {
+    const sourceRecord = record({ state: "current", lastSuccessAt: 1_000 });
     const base = snapshot({
       sources: {
         [`${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`]:
@@ -262,18 +263,17 @@ describe("expireOldObservations", () => {
     });
     const next = expireOldObservations(base, { now: 10_000_000 });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("fresh");
+    expect(next.sources[key]?.state).toBe("current");
   });
 });
 
 describe("quota exhaustion", () => {
-  it("rejects expired, unavailable, and zero-window sources", () => {
-    expect(isObservationUsable(record({ state: "expired" }))).toBe(false);
+  it("rejects unavailable and zero-window sources", () => {
     expect(isObservationUsable(record({ state: "unavailable" }))).toBe(false);
     expect(
       isObservationUsable(
         record({
-          state: "fresh",
+          state: "current",
           windows: { rolling: window(0, 1_700_000_000) },
         }),
       ),
@@ -289,27 +289,16 @@ describe("quota exhaustion", () => {
     ).toBe(true);
   });
 
-  it("keeps a legacy exhausted state selectable when no window is zero", () => {
-    expect(
-      isObservationUsable(
-        record({
-          state: "exhausted",
-          windows: { rolling: window(50, 1_700_000_000) },
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("accepts fresh and degraded observations without exhausted windows", () => {
-    expect(isObservationUsable(record({ state: "fresh" }))).toBe(true);
-    expect(isObservationUsable(record({ state: "degraded" }))).toBe(true);
+  it("accepts current and stale observations without exhausted windows", () => {
+    expect(isObservationUsable(record({ state: "current" }))).toBe(true);
+    expect(isObservationUsable(record({ state: "stale" }))).toBe(true);
   });
 });
 
 describe("configuration conflict handling", () => {
   it("records a conflict without overwriting a valid observation", () => {
     const sourceRecord = record({
-      state: "fresh",
+      state: "current",
       lastSuccessAt: 1_000,
       observedAt: 1_000,
     });
@@ -323,7 +312,7 @@ describe("configuration conflict handling", () => {
       reason: "local credentials missing",
     });
     const key = `${CODEX_IDENTITY.providerId}/${CODEX_IDENTITY.sourceId}`;
-    expect(next.sources[key]?.state).toBe("fresh");
+    expect(next.sources[key]?.state).toBe("current");
     expect(next.sources[key]?.configConflict).toBe("local credentials missing");
   });
 });

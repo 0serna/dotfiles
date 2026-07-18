@@ -58,11 +58,6 @@ export type CodexUsageResponse = {
     primary_window?: CodexUsageWindow;
     secondary_window?: CodexUsageWindow;
   };
-  credits?: {
-    has_credits?: boolean;
-    unlimited?: boolean;
-    balance?: number | string;
-  };
 };
 
 export type CodexResetCredit = {
@@ -91,5 +86,4 @@ export type OpenCodeGoData = {
   rolling?: OpenCodeGoWindowData;
   weekly?: OpenCodeGoWindowData;
   monthly?: OpenCodeGoWindowData;
-  balanceDollars?: number;
 };

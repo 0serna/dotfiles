@@ -26,7 +26,7 @@ const env = { KEY_ONE: "key-one", KEY_TWO: "key-two" };
 function snapshot(
   one = 20,
   two = 80,
-  oneState: SourceState = "fresh",
+  oneState: SourceState = "current",
   oneWindows = true,
 ): QuotaSnapshot {
   const source = (
@@ -54,12 +54,12 @@ function snapshot(
       : { rolling: { remainingPercent, resetAt: NOW / 1000 + 1000 } },
   });
   return {
-    version: 1,
+    version: 2,
     revision: 1,
     cycle: { cycleStartedAt: NOW, lastCompletedAt: NOW },
     sources: {
       "opencode-go/opencode-go:one": source("one", one, oneState, oneWindows),
-      "opencode-go/opencode-go:two": source("two", two, "fresh"),
+      "opencode-go/opencode-go:two": source("two", two, "current"),
     },
   };
 }
@@ -95,13 +95,13 @@ describe("account selection interface", () => {
     expect(selection.activeAccountName()).toBeUndefined();
   });
 
-  it("accepts a degraded retained observation at startup", () => {
+  it("accepts a stale retained observation at startup", () => {
     const selection = createAccountSelection({ accounts, env });
     expect(
       activations(
         selection.handle({
           type: "startup",
-          snapshot: snapshot(90, 80, "degraded"),
+          snapshot: snapshot(90, 80, "stale"),
           now: NOW,
         }),
       ),
@@ -114,7 +114,7 @@ describe("account selection interface", () => {
       activations(
         selection.handle({
           type: "startup",
-          snapshot: snapshot(90, 80, "fresh", false),
+          snapshot: snapshot(90, 80, "current", false),
           now: NOW,
         }),
       ),
@@ -157,7 +157,7 @@ describe("account selection interface", () => {
     const selection = createAccountSelection({ accounts, env });
     selection.handle({ type: "startup", snapshot: snapshot(90, 80), now: NOW });
     const exhausted = snapshot(90, 0);
-    exhausted.sources["opencode-go/opencode-go:two"]!.state = "exhausted";
+    exhausted.sources["opencode-go/opencode-go:two"]!.state = "current";
     selection.handle({ type: "snapshot-revision", snapshot: exhausted });
 
     const outcomes = selection.handle({
@@ -179,8 +179,8 @@ describe("account selection interface", () => {
     });
     selection.handle({ type: "turn-start" });
     const exhausted = snapshot(0, 0);
-    exhausted.sources["opencode-go/opencode-go:one"]!.state = "exhausted";
-    exhausted.sources["opencode-go/opencode-go:two"]!.state = "exhausted";
+    exhausted.sources["opencode-go/opencode-go:one"]!.state = "current";
+    exhausted.sources["opencode-go/opencode-go:two"]!.state = "current";
     selection.handle({ type: "snapshot-revision", snapshot: exhausted });
     const unavailable = selection.handle({
       type: "provider-exhausted",

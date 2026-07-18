@@ -35,7 +35,7 @@ function makeRecord(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {
     identity: CODEX_IDENTITY,
     descriptor: makeDescriptor(),
-    state: "refreshing",
+    state: "unavailable",
     observedAt: 1_000,
     lastSuccessAt: 1_000,
     ...overrides,
@@ -62,14 +62,7 @@ describe("SourceWindow", () => {
 
 describe("SourceState", () => {
   it("covers every lifecycle state", () => {
-    const states: SourceState[] = [
-      "refreshing",
-      "fresh",
-      "degraded",
-      "expired",
-      "unavailable",
-      "exhausted",
-    ];
+    const states: SourceState[] = ["current", "stale", "unavailable"];
     expect(new Set(states).size).toBe(states.length);
   });
 });
@@ -89,7 +82,7 @@ describe("QuotaSnapshot shape", () => {
             displayName: "OpenCode 1",
             compactPrefix: "OpenCode",
           }),
-          state: "fresh",
+          state: "current",
           observedAt: 1_400,
           lastSuccessAt: 1_400,
         }),

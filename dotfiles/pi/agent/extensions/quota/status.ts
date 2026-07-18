@@ -27,12 +27,3 @@ export function toRemainingPercent(
   }
   return undefined;
 }
-
-export function parseCredits(
-  balance: number | string | undefined,
-  unlimited: boolean | undefined,
-): number | undefined {
-  if (unlimited) return undefined;
-  const value = typeof balance === "number" ? balance : Number(balance);
-  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : undefined;
-}

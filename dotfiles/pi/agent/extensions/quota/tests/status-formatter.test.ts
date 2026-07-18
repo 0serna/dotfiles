@@ -34,22 +34,27 @@ function makeRecord(
   return {
     identity: descriptor.identity,
     descriptor,
-    state: "fresh",
+    state: "current",
     observedAt: 1_000,
     lastSuccessAt: 1_000,
     ...overrides,
   };
 }
 
-function makeSnapshot(sources: SourceRecord[]): QuotaSnapshot {
+function makeSnapshot(
+  sources: SourceRecord[],
+  options: { refreshInProgress?: boolean } = {},
+): QuotaSnapshot {
   const map: Record<string, SourceRecord> = {};
   for (const source of sources) {
     map[`${source.identity.providerId}/${source.identity.sourceId}`] = source;
   }
   return {
-    version: 1,
+    version: 2,
     revision: 1,
-    cycle: { cycleStartedAt: 0, lastCompletedAt: 1_000 },
+    cycle: options.refreshInProgress
+      ? { cycleStartedAt: 1_000 }
+      : { cycleStartedAt: 0, lastCompletedAt: 1_000 },
     sources: map,
   };
 }
@@ -281,7 +286,7 @@ describe("formatCompactStatus", () => {
     it("shows an exhausted window regardless of the persisted source state", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
-          state: "fresh",
+          state: "current",
           windows: {
             rolling: { remainingPercent: 0, resetAt: NOW_SECONDS + 3600 },
           },
@@ -319,10 +324,10 @@ describe("formatCompactStatus", () => {
     expect(result).not.toContain("R?");
   });
 
-  it("uses ⚠ prefix for degraded observations within the 30-minute window", () => {
+  it("uses ⚠ prefix for stale observations within the 30-minute window", () => {
     const snapshot = makeSnapshot([
       makeRecord(CODEX, {
-        state: "degraded",
+        state: "stale",
         observedAt: Date.now() - 10 * 60 * 1000,
         lastSuccessAt: Date.now() - 10 * 60 * 1000,
         windows: {
@@ -335,21 +340,24 @@ describe("formatCompactStatus", () => {
   });
 
   it("uses real provider prefix instead of generic 'Provider' placeholder", () => {
-    const snapshot = makeSnapshot([
-      makeRecord(CODEX, {
-        state: "refreshing",
-        observedAt: 0,
-        lastSuccessAt: 0,
-      }),
-      makeRecord(OPENCODE, {
-        state: "fresh",
-        windows: {
-          rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
-          weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
-          monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
-        },
-      }),
-    ]);
+    const snapshot = makeSnapshot(
+      [
+        makeRecord(CODEX, {
+          state: "unavailable",
+          observedAt: 0,
+          lastSuccessAt: 0,
+        }),
+        makeRecord(OPENCODE, {
+          state: "current",
+          windows: {
+            rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
+            weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
+            monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
+          },
+        }),
+      ],
+      { refreshInProgress: true },
+    );
     const result = formatCompactStatus(snapshot, {
       activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
     });
@@ -357,14 +365,17 @@ describe("formatCompactStatus", () => {
     expect(result).toContain("OpenCode 50r");
   });
 
-  it("renders 'Quota …' when no usable observation exists", () => {
-    const snapshot = makeSnapshot([
-      makeRecord(CODEX, {
-        state: "refreshing",
-        observedAt: 0,
-        lastSuccessAt: 0,
-      }),
-    ]);
+  it("derives 'Quota …' from an in-progress cycle", () => {
+    const snapshot = makeSnapshot(
+      [
+        makeRecord(CODEX, {
+          state: "unavailable",
+          observedAt: 0,
+          lastSuccessAt: 0,
+        }),
+      ],
+      { refreshInProgress: true },
+    );
     const result = formatCompactStatus(snapshot, { activeSource: undefined });
     expect(result).toContain("Quota …");
   });
@@ -385,7 +396,6 @@ describe("formatCompactStatus", () => {
         },
         extras: {
           bankedResets: { kind: "available", details: [] },
-          credits: 100,
         },
       }),
     ]);
@@ -434,10 +444,10 @@ describe("formatCompactStatus", () => {
       expect(intents).toEqual(["dim"]);
     });
 
-    it("returns warning for degraded segments", () => {
+    it("returns warning for stale segments", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
-          state: "degraded",
+          state: "stale",
           observedAt: Date.now() - 10 * 60 * 1000,
           lastSuccessAt: Date.now() - 10 * 60 * 1000,
           windows: {
@@ -471,22 +481,25 @@ describe("formatCompactStatus", () => {
       expect(intents).toEqual(["warning"]);
     });
 
-    it("returns dim for refreshing placeholders", () => {
-      const snapshot = makeSnapshot([
-        makeRecord(CODEX, {
-          state: "refreshing",
-          observedAt: 0,
-          lastSuccessAt: 0,
-        }),
-        makeRecord(OPENCODE, {
-          state: "fresh",
-          windows: {
-            rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
-            weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
-            monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
-          },
-        }),
-      ]);
+    it("returns dim for in-progress refresh placeholders", () => {
+      const snapshot = makeSnapshot(
+        [
+          makeRecord(CODEX, {
+            state: "unavailable",
+            observedAt: 0,
+            lastSuccessAt: 0,
+          }),
+          makeRecord(OPENCODE, {
+            state: "current",
+            windows: {
+              rolling: { remainingPercent: 50, resetAt: NOW_SECONDS + 3600 },
+              weekly: { remainingPercent: 80, resetAt: NOW_SECONDS + 7200 },
+              monthly: { remainingPercent: 90, resetAt: NOW_SECONDS + 86400 },
+            },
+          }),
+        ],
+        { refreshInProgress: true },
+      );
       const intents: string[] = [];
       formatCompactStatus(snapshot, {
         activeSource: { providerId: "opencode-go", sourceId: "opencode-go:2" },
@@ -495,7 +508,7 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      // Codex refrescando → dim, OpenCode healthy → dim
+      // Codex refresh in progress → dim, OpenCode current → dim
       expect(intents).toEqual(["dim", "dim"]);
     });
 

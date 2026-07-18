@@ -108,7 +108,7 @@ export function ensureDescriptor(
   const refreshed: SourceRecord = {
     identity: descriptor.identity,
     descriptor,
-    state: "refreshing",
+    state: "unavailable",
     observedAt: 0,
     lastSuccessAt: 0,
   };
@@ -121,8 +121,7 @@ export function ensureDescriptor(
 
 /**
  * Apply a successful source observation. Always advances the revision and
- * clears the previous failure. Any observed zero window marks the source
- * exhausted; a fully positive observation restores it to fresh.
+ * clears the previous failure. Quota exhaustion remains derived from windows.
  */
 export function applySourceSuccess(
   snapshot: QuotaSnapshot,
@@ -136,7 +135,7 @@ export function applySourceSuccess(
 
   const next: SourceRecord = {
     ...existing,
-    state: hasExhaustedQuotaWindow(input.windows) ? "exhausted" : "fresh",
+    state: "current",
     observedAt: input.now,
     lastSuccessAt: input.now,
     windows: input.windows,
@@ -149,10 +148,9 @@ export function applySourceSuccess(
 }
 
 /**
- * Apply a source-level failure. Preserves the prior observation if available
- * and marks the source `degraded` until the 30-minute expiry. A retained
- * exhausted window remains exhausted; a source with no prior observation becomes
- * `unavailable`.
+ * Apply a source-level failure. Preserves the prior observation as `stale`
+ * until the 30-minute expiry. A source without a prior observation is
+ * `unavailable`. Quota exhaustion remains derived from windows.
  */
 export function applySourceFailure(
   snapshot: QuotaSnapshot,
@@ -175,11 +173,7 @@ export function applySourceFailure(
 
   const next: SourceRecord = {
     ...existing,
-    state: hasExhaustedQuotaWindow(existing.windows)
-      ? "exhausted"
-      : hadObservation
-        ? "degraded"
-        : "unavailable",
+    state: hadObservation ? "stale" : "unavailable",
     observedAt: input.now,
     failure,
   };
@@ -188,8 +182,8 @@ export function applySourceFailure(
 }
 
 /**
- * Sweep snapshot sources and promote any degraded observation older than the
- * 30-minute retention window to `expired`.
+ * Sweep snapshot sources and make stale observations older than the
+ * 30-minute retention window unavailable.
  */
 export function expireOldObservations(
   snapshot: QuotaSnapshot,
@@ -199,14 +193,14 @@ export function expireOldObservations(
   const sources: Record<string, SourceRecord> = {};
 
   for (const [key, record] of Object.entries(snapshot.sources)) {
-    if (record.state !== "degraded") {
+    if (record.state !== "stale") {
       sources[key] = record;
       continue;
     }
 
     const age = input.now - record.lastSuccessAt;
     if (age > OBSERVATION_RETENTION_MS) {
-      sources[key] = { ...record, state: "expired" };
+      sources[key] = { ...record, state: "unavailable" };
       changed = true;
     } else {
       sources[key] = record;
@@ -227,10 +221,9 @@ export function hasExhaustedQuotaWindow(
 }
 
 export function isObservationUsable(record: SourceRecord): boolean {
-  if (record.state === "expired" || record.state === "unavailable") {
-    return false;
-  }
-  return !hasExhaustedQuotaWindow(record.windows);
+  return (
+    record.state !== "unavailable" && !hasExhaustedQuotaWindow(record.windows)
+  );
 }
 
 /** Record a configuration conflict for a source without overwriting its observation. */

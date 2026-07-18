@@ -37,7 +37,7 @@ function makeRecord(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {
     identity: CODEX.identity,
     descriptor: CODEX,
-    state: "fresh",
+    state: "current",
     observedAt: 1_000,
     lastSuccessAt: 1_000,
     ...overrides,
@@ -113,5 +113,19 @@ describe("writeSnapshot + loadSnapshot", () => {
 
     const loaded = await readSnapshotFile(file);
     expect(loaded).toBeNull();
+  });
+
+  it("rejects snapshots containing a legacy source state", async () => {
+    const key = `${CODEX.identity.providerId}/${CODEX.identity.sourceId}`;
+    const snapshot = {
+      ...makeSnapshot(),
+      sources: { [key]: { ...makeRecord(), state: "fresh" } },
+    };
+    const file = join(root, "snapshot.json");
+    const { mkdir, writeFile } = await import("node:fs/promises");
+    await mkdir(root, { recursive: true });
+    await writeFile(file, JSON.stringify(snapshot));
+
+    expect(await readSnapshotFile(file)).toBeNull();
   });
 });

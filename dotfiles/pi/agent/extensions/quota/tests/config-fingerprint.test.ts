@@ -81,7 +81,7 @@ describe("reconcileSnapshot", () => {
     const sharedRecord: SourceRecord = {
       identity: local.identity,
       descriptor: local,
-      state: "fresh",
+      state: "current",
       observedAt: 1_000,
       lastSuccessAt: 1_000,
       windows: {
@@ -106,7 +106,7 @@ describe("reconcileSnapshot", () => {
       descriptor: makeDescriptor({
         configFingerprint: "fingerprint:opencode-go:1:remote",
       }),
-      state: "fresh",
+      state: "current",
       observedAt: 1_000,
       lastSuccessAt: 1_000,
       windows: {
@@ -133,7 +133,7 @@ describe("reconcileSnapshot", () => {
         displayName: "OpenCode 2",
         configFingerprint: "fingerprint:opencode-go:2",
       }),
-      state: "fresh",
+      state: "current",
       observedAt: 1_000,
       lastSuccessAt: 1_000,
     };

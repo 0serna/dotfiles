@@ -9,7 +9,7 @@ import type {
   SourceExtras,
   SourceWindow,
 } from "../snapshot.js";
-import { parseCredits, toRemainingPercent } from "../status.js";
+import { toRemainingPercent } from "../status.js";
 import type {
   CodexResetCreditsResponse,
   CodexUsageResponse,
@@ -234,7 +234,6 @@ export const codexAdapter: QuotaAdapter = {
     const weeklyWindow = classifyWindow(primary, secondary, "weekly");
 
     const extras: SourceExtras = {
-      credits: parseCredits(usage.credits?.balance, usage.credits?.unlimited),
       bankedResets: toBankedResetsState(resetResponse),
     };
 
@@ -242,7 +241,6 @@ export const codexAdapter: QuotaAdapter = {
       provider: PROVIDER_ID,
       hasRolling: rollingWindow != null,
       hasWeekly: weeklyWindow != null,
-      hasCredits: extras.credits != null,
       hasBankedResets: extras.bankedResets != null,
     });
 

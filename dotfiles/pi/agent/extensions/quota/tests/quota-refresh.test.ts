@@ -109,7 +109,7 @@ describe("quota refresh interface", () => {
     );
     let fastPublished = false;
     refresh.onSnapshot((snapshot) => {
-      if (snapshot.sources["fast/b"]?.state === "fresh") fastPublished = true;
+      if (snapshot.sources["fast/b"]?.state === "current") fastPublished = true;
     });
     await refresh.start({
       sources: [source("slow", "a"), source("fast", "b")],
@@ -153,7 +153,7 @@ describe("quota refresh interface", () => {
         refresh
           .read()
           .then(
-            (snapshot) => snapshot.sources["provider-a/a"]?.state === "fresh",
+            (snapshot) => snapshot.sources["provider-a/a"]?.state === "current",
           ),
       ),
     );

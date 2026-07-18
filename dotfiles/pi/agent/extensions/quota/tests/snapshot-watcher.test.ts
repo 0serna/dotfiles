@@ -22,7 +22,7 @@ describe("watchSnapshot", () => {
     await writeFile(
       file,
       JSON.stringify({
-        version: 1,
+        version: 2,
         revision: 1,
         cycle: { cycleStartedAt: 0 },
         sources: {},
@@ -46,7 +46,7 @@ describe("watchSnapshot", () => {
     await writeFile(
       file,
       JSON.stringify({
-        version: 1,
+        version: 2,
         revision: 5,
         cycle: { cycleStartedAt: 0 },
         sources: {},
@@ -65,10 +65,10 @@ describe("watchSnapshot", () => {
     await writeFile(
       file,
       JSON.stringify({
-        version: 1,
+        version: 2,
         revision: 5,
         cycle: { cycleStartedAt: 0 },
-        sources: { foo: { state: "fresh" } },
+        sources: { foo: { state: "current" } },
       }),
     );
     await flushAsync();
@@ -83,7 +83,7 @@ describe("watchSnapshot", () => {
     await writeFile(
       file,
       JSON.stringify({
-        version: 1,
+        version: 2,
         revision: 1,
         cycle: { cycleStartedAt: 0 },
         sources: {},

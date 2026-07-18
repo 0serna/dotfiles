@@ -31,7 +31,7 @@ function formatWindowBlock(
 
 function formatSourceDetail(
   record: SourceRecord,
-  options: { isActive: boolean; now: number },
+  options: { isActive: boolean },
 ): string {
   const title =
     record.descriptor.displayName + (options.isActive ? " (active)" : "");
@@ -48,14 +48,6 @@ function formatSourceDetail(
     lines.push(detailRow("State", record.state));
   }
 
-  if (record.extras?.credits != null) {
-    lines.push(detailValueRow("Credits", `${record.extras.credits}`));
-  }
-  if (record.extras?.balanceDollars != null) {
-    lines.push(
-      detailValueRow("Balance", `$${record.extras.balanceDollars.toFixed(2)}`),
-    );
-  }
   if (record.extras?.bankedResets?.kind === "available") {
     const details: BankedResetDetail[] = record.extras.bankedResets.details;
     lines.push(detailValueRow("Resets", `${details.length}`));
@@ -66,27 +58,8 @@ function formatSourceDetail(
     });
   }
 
-  // Lifecycle row: state, age, reason.
-  if (
-    record.state === "degraded" ||
-    record.state === "expired" ||
-    record.state === "unavailable" ||
-    record.state === "exhausted"
-  ) {
-    const age = options.now - record.lastSuccessAt;
-    const ageLabel =
-      record.lastSuccessAt > 0
-        ? `${Math.round(age / 1000)}s ago`
-        : "no observation";
+  if (record.windows && record.state !== "current") {
     lines.push(detailRow("State", record.state));
-    lines.push(detailRow("Age", ageLabel));
-    if (record.failure?.message) {
-      lines.push(detailSubRow(record.failure.message));
-    }
-  }
-
-  if (record.configConflict) {
-    lines.push(detailSubRow(`config conflict: ${record.configConflict}`));
   }
 
   lines.push(detailFooter());
@@ -99,7 +72,6 @@ function formatSourceDetail(
 
 export type FormatQuotaDetailOptions = {
   activeSource?: SourceIdentity;
-  now?: number;
 };
 
 /**
@@ -110,7 +82,6 @@ export function formatQuotaDetail(
   snapshot: QuotaSnapshot,
   options: FormatQuotaDetailOptions = {},
 ): string {
-  const now = options.now ?? Date.now();
   const records = Object.values(snapshot.sources).sort((a, b) =>
     a.descriptor.displayName.localeCompare(b.descriptor.displayName),
   );
@@ -121,7 +92,6 @@ export function formatQuotaDetail(
           options.activeSource != null &&
           options.activeSource.providerId === record.identity.providerId &&
           options.activeSource.sourceId === record.identity.sourceId,
-        now,
       }),
     )
     .join("\n\n");

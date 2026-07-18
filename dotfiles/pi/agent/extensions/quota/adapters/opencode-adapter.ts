@@ -96,10 +96,6 @@ function parseGoHydrationLiterals(html: string): OpenCodeGoData {
   data.rolling = parseGoHydrationWindow(html, "rollingUsage");
   data.weekly = parseGoHydrationWindow(html, "weeklyUsage");
   data.monthly = parseGoHydrationWindow(html, "monthlyUsage");
-  const balance = /\bbalance:(\d+)/.exec(html);
-  if (balance?.[1]) {
-    data.balanceDollars = rawBalanceToDollars(Number(balance[1]));
-  }
   return data;
 }
 
@@ -143,10 +139,6 @@ function isUsageWindow(v: unknown): v is Record<string, unknown> {
   );
 }
 
-function rawBalanceToDollars(raw: number): number {
-  return Math.round((raw / 100_000_000) * 100) / 100;
-}
-
 function extractGoData(
   obj: unknown,
   depth = 0,
@@ -167,19 +159,12 @@ function extractGoData(
         value["usagePercent"] as number,
         value["resetInSec"] as number,
       );
-    } else if (key === "balance" && typeof value === "number") {
-      result.balanceDollars = rawBalanceToDollars(value);
     } else if (typeof value === "object" && value !== null) {
       const nested = extractGoData(value, depth + 1);
       if (nested) Object.assign(result, nested);
     }
   }
-  return result.rolling ||
-    result.weekly ||
-    result.monthly ||
-    result.balanceDollars != null
-    ? result
-    : null;
+  return result.rolling || result.weekly || result.monthly ? result : null;
 }
 
 function parseGoDashboard(html: string): OpenCodeGoData | null {
@@ -192,7 +177,6 @@ function parseGoDashboard(html: string): OpenCodeGoData | null {
       "rollingUsage",
       "weeklyUsage",
       "monthlyUsage",
-      "balance",
     ]);
     for (const candidate of candidates) {
       try {
@@ -205,12 +189,7 @@ function parseGoDashboard(html: string): OpenCodeGoData | null {
     }
     if (data.rolling || data.weekly || data.monthly) break;
   }
-  return data.rolling ||
-    data.weekly ||
-    data.monthly ||
-    data.balanceDollars != null
-    ? data
-    : null;
+  return data.rolling || data.weekly || data.monthly ? data : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +248,6 @@ export const opencodeGoAdapter: QuotaAdapter = {
       hasRolling: parsed.rolling != null,
       hasWeekly: parsed.weekly != null,
       hasMonthly: parsed.monthly != null,
-      hasBalance: parsed.balanceDollars != null,
     });
 
     return {
@@ -278,9 +256,6 @@ export const opencodeGoAdapter: QuotaAdapter = {
         rolling: toWindow(parsed.rolling, now),
         weekly: toWindow(parsed.weekly, now),
         monthly: toWindow(parsed.monthly, now),
-      },
-      extras: {
-        balanceDollars: parsed.balanceDollars,
       },
     };
   },

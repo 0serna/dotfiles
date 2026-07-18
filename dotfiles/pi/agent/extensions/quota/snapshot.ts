@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 /** Current persisted snapshot schema version. Bump on incompatible changes. */
-export const SNAPSHOT_VERSION = 1;
+export const SNAPSHOT_VERSION = 2;
 
 /** Stable, non-secret identifier for a quota source. */
 export type SourceIdentity = {
@@ -34,12 +34,8 @@ export type SourceWindow = {
 
 /** Provider-confirmed exhaustions and partial-issue state for a source. */
 export type SourceExtras = {
-  /** Codex-style absolute credits. */
-  credits?: number;
   /** Codex banked-reset state. `unknown` means the reset endpoint could not be reached. */
   bankedResets?: BankedResetState;
-  /** OpenCode-style spendable balance in dollars. */
-  balanceDollars?: number;
 };
 
 /** Codex banked-reset state. */
@@ -68,13 +64,7 @@ export type SourceFailure = {
 };
 
 /** Lifecycle state for a single source. */
-export type SourceState =
-  | "refreshing"
-  | "fresh"
-  | "degraded"
-  | "expired"
-  | "unavailable"
-  | "exhausted";
+export type SourceState = "current" | "stale" | "unavailable";
 
 /** A single source record inside the aggregated snapshot. */
 export type SourceRecord = {

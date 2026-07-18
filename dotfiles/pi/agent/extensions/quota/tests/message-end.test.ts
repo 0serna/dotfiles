@@ -130,7 +130,7 @@ function quotaSnapshot(account1: number, account2: number) {
       compactPrefix: "OpenCode",
       configFingerprint: `f-${name}`,
     },
-    state: remainingPercent === 0 ? ("exhausted" as const) : ("fresh" as const),
+    state: "current" as const,
     observedAt: Date.now(),
     lastSuccessAt: Date.now(),
     windows: {
@@ -140,7 +140,7 @@ function quotaSnapshot(account1: number, account2: number) {
     },
   });
   return {
-    version: 1,
+    version: 2,
     revision: 2,
     cycle: { cycleStartedAt: Date.now(), lastCompletedAt: Date.now() },
     sources: {
@@ -215,7 +215,7 @@ describe("session start", () => {
   it("does not replace the OpenCode credential without a selectable snapshot", async () => {
     await handlers["session_shutdown"]!({}, ctx);
     await start({
-      version: 1,
+      version: 2,
       revision: 1,
       cycle: { cycleStartedAt: 0 },
       sources: {},
@@ -227,7 +227,7 @@ describe("session start", () => {
   it("does not select an account from a later refresh", async () => {
     await handlers["session_shutdown"]!({}, ctx);
     await start({
-      version: 1,
+      version: 2,
       revision: 1,
       cycle: { cycleStartedAt: 0 },
       sources: {},
@@ -273,7 +273,7 @@ describe("request authentication", () => {
   it("does not override credentials without a selected account", async () => {
     await handlers["session_shutdown"]!({}, ctx);
     await start({
-      version: 1,
+      version: 2,
       revision: 1,
       cycle: { cycleStartedAt: 0 },
       sources: {},

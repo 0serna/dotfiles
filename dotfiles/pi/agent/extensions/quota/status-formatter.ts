@@ -49,14 +49,8 @@ function isExhausted(record: SourceRecord): boolean {
 }
 
 function isUsable(record: SourceRecord, now: number): boolean {
-  if (
-    record.state === "refreshing" ||
-    record.state === "expired" ||
-    record.state === "unavailable"
-  ) {
-    return false;
-  }
-  if (record.state === "degraded") {
+  if (record.state === "unavailable") return false;
+  if (record.state === "stale") {
     return now - record.lastSuccessAt <= OBSERVATION_RETENTION_MS;
   }
   return true;
@@ -119,10 +113,6 @@ function formatSourceCompact(
 ): CompactSegment {
   const label = providerLabel(record);
 
-  if (record.state === "refreshing") {
-    return { text: `${label} …`, intent: "dim" };
-  }
-
   if (isExhausted(record)) {
     const suffix = exhaustedSuffix(record) ?? "";
     return {
@@ -142,11 +132,11 @@ function formatSourceCompact(
 
   const percent = selectPercent(record);
   const percentLabel = percent ?? "0";
-  const degraded = record.state === "degraded";
+  const stale = record.state === "stale";
 
   return {
-    text: `${degraded ? "⚠ " : ""}${label} ${percentLabel}`,
-    intent: degraded ? "warning" : "dim",
+    text: `${stale ? "⚠ " : ""}${label} ${percentLabel}`,
+    intent: stale ? "warning" : "dim",
   };
 }
 
@@ -180,10 +170,10 @@ export function formatCompactStatus(
   }
 
   const usableCount = records.filter((record) => isUsable(record, now)).length;
-  const anyRefreshing = records.some((r) => r.state === "refreshing");
+  const refreshInProgress = snapshot.cycle.lastCompletedAt == null;
 
   // Global "Quota …" when nothing is usable and the cycle is still in flight.
-  if (usableCount === 0 && anyRefreshing) {
+  if (usableCount === 0 && refreshInProgress) {
     return colorize ? colorize("dim", "Quota …") : "Quota …";
   }
 
@@ -193,8 +183,7 @@ export function formatCompactStatus(
     if (active) {
       segments.push(formatSourceCompact(active, now));
     } else {
-      const refreshing = group.find((r) => r.state === "refreshing");
-      if (refreshing && usableCount > 0) {
+      if (refreshInProgress && usableCount > 0) {
         segments.push({ text: `${groupPrefix} …`, intent: "dim" });
       } else {
         segments.push({ text: `${groupPrefix} error`, intent: "warning" });
@@ -225,10 +214,7 @@ function pickActiveSource(
   }
   // Default: pick the freshest usable record for that prefix.
   const usable = records
-    .filter(
-      (record) =>
-        record.state !== "unavailable" && record.state !== "refreshing",
-    )
+    .filter((record) => record.state !== "unavailable")
     .sort((a, b) => b.lastSuccessAt - a.lastSuccessAt);
   return usable[0];
 }

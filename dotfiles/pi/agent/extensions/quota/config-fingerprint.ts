@@ -53,7 +53,7 @@ export function buildConfigurationFingerprint(
 
 /**
  * Reconcile a snapshot against the locally declared descriptors:
- * - Insert a refreshing record for new sources.
+ * - Insert an unavailable record for new sources.
  * - Keep the shared observation when fingerprints match.
  * - Record a conflict when the local descriptor disagrees but the shared
  *   observation is still valid; never replace a valid observation with
@@ -87,7 +87,7 @@ export function reconcileSnapshot(
     if (conflict) {
       const current = next.sources[key]!;
       const hasValidObservation =
-        current.state !== "refreshing" && current.windows !== undefined;
+        current.state !== "unavailable" && current.windows !== undefined;
       if (hasValidObservation) {
         next.sources[key] = {
           ...current,

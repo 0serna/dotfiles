@@ -3,7 +3,6 @@ import {
   clampPercent,
   formatRelativeExpiry,
   formatResetTime,
-  parseCredits,
   toRemainingPercent,
 } from "../status.js";
 
@@ -30,28 +29,6 @@ describe("toRemainingPercent", () => {
   it("returns undefined when no percent is available", () => {
     expect(toRemainingPercent(undefined)).toBeUndefined();
     expect(toRemainingPercent({})).toBeUndefined();
-  });
-});
-
-describe("parseCredits", () => {
-  it("returns undefined for unlimited accounts", () => {
-    expect(parseCredits(100, true)).toBeUndefined();
-  });
-
-  it("returns floor of numeric balance", () => {
-    expect(parseCredits(42.7, false)).toBe(42);
-  });
-
-  it("returns floor of string balance", () => {
-    expect(parseCredits("42.7", false)).toBe(42);
-  });
-
-  it("returns 0 for negative balance", () => {
-    expect(parseCredits(-5, false)).toBe(0);
-  });
-
-  it("returns undefined for invalid balance", () => {
-    expect(parseCredits(undefined, false)).toBeUndefined();
   });
 });
 
