@@ -974,7 +974,7 @@ describe("session baseline and thinking preferences", () => {
     expect(setup.ctx.model).toBe(setup.openspecProposeModel);
   });
 
-  it("does not retry an immediate unusable route at message_start", async () => {
+  it("does not retry an unset route at message_start", async () => {
     const setup = setupExtension();
     await setup.handlers.get("session_start")?.({}, setup.ctx);
     setup.ctx.ui.notify.mockClear();
@@ -998,7 +998,7 @@ describe("session baseline and thinking preferences", () => {
       setup.ctx,
     );
 
-    expect(setup.ctx.ui.notify).toHaveBeenCalledTimes(1);
+    expect(setup.ctx.ui.notify).not.toHaveBeenCalled();
     expect(setup.pi.setModel).not.toHaveBeenCalled();
   });
 
@@ -1167,9 +1167,16 @@ describe("session baseline and thinking preferences", () => {
     );
   });
 
-  it("warns but continues when the routed command has no usable configuration", async () => {
+  it("warns but continues when the routed command has a broken configuration", async () => {
     const setup = setupExtension();
+    configureFiles({
+      prefs: null,
+      routes: JSON.stringify({
+        "/skill:commit": { model: "unknown/provider", thinkingLevel: "low" },
+      }),
+    });
     await setup.handlers.get("session_start")?.({}, setup.ctx);
+    setup.ctx.ui.notify.mockClear();
 
     const setModelCallsBefore = vi.mocked(setup.pi.setModel).mock.calls.length;
 

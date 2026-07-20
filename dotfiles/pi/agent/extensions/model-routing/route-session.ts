@@ -222,10 +222,13 @@ export function createModelRouteSession(
     if (!routeName || activeRouteName === routeName) return;
 
     if (!runtime.isRouteUsable(routeName)) {
-      ctx.ui.notify(
-        `Route '${routeName}' is not configured or unavailable; continuing with current model.`,
-        "error",
-      );
+      const activation = runtime.getActivation();
+      if (activation[routeName].kind !== "unset") {
+        ctx.ui.notify(
+          `Route '${routeName}' is not configured or unavailable; continuing with current model.`,
+          "error",
+        );
+      }
       return;
     }
 
