@@ -1,10 +1,8 @@
 ---
 name: pi-extensions
 description: >-
-  Build, modify, review, debug, or explain Pi agent extensions. Use when the
-  user mentions Pi extensions, dotfiles/pi/agent/extensions, ExtensionAPI,
-  pi.on hooks, registerTool, registerCommand, custom Pi UI, extension statuses,
-  or Pi extension logs.
+  Build, modify, or debug Pi agent extensions. Use when the user mentions Pi
+  extensions, dotfiles/pi/agent/extensions, or ExtensionAPI.
 ---
 
 # Pi Extensions
@@ -22,12 +20,14 @@ Work on Pi extensions using the Pi API contract and this repo's extension idioms
    - Complete when the change follows a local pattern or the deviation is intentional and stated.
 3. Keep the extension shape tight.
    - Put registration and orchestration in `index.ts`; move domain logic, schemas, rendering, persistence, and API clients to focused sibling modules.
+   - Keep the factory sync. Pi awaits async factories before `session_start`, so an async factory blocks the TUI until it resolves. Defer all I/O, process spawns, and network calls to `session_start` or later hooks.
    - Initialize session-bound state in `session_start`; clean timers, pollers, handles, and captured contexts in `session_shutdown`.
-   - Complete when no long-lived resource starts at module load and all session resources have a shutdown path.
+   - Complete when the factory is sync, no long-lived resource starts at module load, and all session resources have a shutdown path.
 4. Fit Pi interaction semantics.
    - Use `ctx.hasUI` before prompting; use status keys named after the extension; make status publishing best-effort when failure is plausible.
    - For tools, provide `name`, `label`, `description`, `promptSnippet`, `promptGuidelines`, TypeBox `parameters`, execution, and rendering when user-visible output benefits from it.
    - For blocking or mutating hooks, preserve Pi's documented return shapes and mutation guarantees.
+   - Complete when every UI interaction sits behind a `ctx.hasUI` guard, every status uses an extension-scoped key, and the chosen hook return shapes match the Pi docs.
 
 5. Debug extension logs when behavior is unclear.
    - Use the extension name to inspect `~/.local/state/pi/<extension>.log`, for example `tail -n 100 ~/.local/state/pi/context.log` or `tail -f ~/.local/state/pi/quota.log`.
@@ -46,4 +46,4 @@ Work on Pi extensions using the Pi API contract and this repo's extension idioms
 - Multi-file extensions use `dotfiles/pi/agent/extensions/<name>/index.ts` and keep tests in `dotfiles/pi/agent/extensions/<name>/tests`.
 - Persist user state under `XDG_STATE_HOME` or `~/.local/state/pi`, not in the project.
 - Log event names as short snake_case strings with structured payloads.
-- Do not stage, commit, stash, or reload Pi unless the user explicitly asks.
+- Stage, commit, stash, or reload Pi only when the user explicitly asks.
