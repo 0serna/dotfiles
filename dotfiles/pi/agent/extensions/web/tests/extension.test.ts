@@ -15,7 +15,8 @@ describe("web extension lifecycle", () => {
 
   it("probes Ketch and registers exactly four curated tools", async () => {
     const harness = createHarness();
-    await extensionFactory(harness.pi);
+    extensionFactory(harness.pi);
+    await harness.emit("session_start");
 
     expect(harness.exec).toHaveBeenCalledWith(
       "ketch",
@@ -53,7 +54,7 @@ describe("web extension lifecycle", () => {
       stderr: "not found",
       code: 1,
     }));
-    await extensionFactory(harness.pi);
+    extensionFactory(harness.pi);
     expect(harness.tools).toEqual([]);
 
     await harness.emit("session_start");
@@ -72,16 +73,19 @@ describe("web extension lifecycle", () => {
       stderr: "",
       code: available ? 0 : 1,
     }));
-    await extensionFactory(harness.pi);
+    extensionFactory(harness.pi);
+    await harness.emit("session_start");
     expect(harness.tools).toHaveLength(0);
 
     available = true;
+    // Simulate /reload: the factory is called again with a fresh ExtensionAPI.
     const reloaded = createHarness(async () => ({
       stdout: "ketch test",
       stderr: "",
       code: 0,
     }));
-    await extensionFactory(reloaded.pi);
+    extensionFactory(reloaded.pi);
+    await reloaded.emit("session_start");
     expect(reloaded.tools.map((tool) => tool.name)).toEqual(expectedNames);
   });
 
@@ -92,7 +96,7 @@ describe("web extension lifecycle", () => {
       expect(options).not.toHaveProperty("timeout");
       return { stdout: "{}", stderr: "", code: 0 };
     });
-    await extensionFactory(harness.pi);
+    extensionFactory(harness.pi);
     await harness.emit("session_start");
     const tool = harness.tools[0] as {
       execute: (...args: unknown[]) => Promise<unknown>;
