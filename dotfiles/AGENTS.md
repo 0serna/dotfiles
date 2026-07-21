@@ -17,6 +17,7 @@ Some externally-managed skills reference tools by names from other platforms. Us
 - `AskUserQuestion` → `question` (prompt the user for input or a decision)
 - `TodoWrite`, `TodoRead` → not available; track progress in-message
 - `Task` / `Agent` (subagent) → not available; execute inline
+- `Skill` → not available; read the referenced `SKILL.md` and execute it inline
 
 ### Workflow
 
