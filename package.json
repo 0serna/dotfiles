@@ -15,9 +15,10 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@earendil-works/pi-ai": "^0.80.8",
-    "@earendil-works/pi-coding-agent": "^0.80.8",
-    "@earendil-works/pi-tui": "^0.80.8",
+    "@earendil-works/pi-agent-core": "^0.81.0",
+    "@earendil-works/pi-ai": "^0.81.0",
+    "@earendil-works/pi-coding-agent": "^0.81.0",
+    "@earendil-works/pi-tui": "^0.81.0",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.5.2",
     "eslint": "^10.2.1",
@@ -27,6 +28,7 @@
     "prettier": "^3.8.3",
     "prettier-plugin-organize-imports": "^4.3.0",
     "tsx": "^4.20.6",
+    "typebox": "^1.1.38",
     "typescript": "^5",
     "typescript-eslint": "^8.59.0",
     "vitest": "^4.1.10"
