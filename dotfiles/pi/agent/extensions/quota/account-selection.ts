@@ -61,10 +61,21 @@ function sourceFor(accountName: string): SourceIdentity {
   return { providerId: PROVIDER_ID, sourceId: `${PROVIDER_ID}:${accountName}` };
 }
 
-function score(
+const SENTINEL_DAYS_THRESHOLD = 1 / 24; // 1 hour
+
+/**
+ * Compute urgency as [isSentinel, sortValue] where higher sortValue wins.
+ * - Normal:  [0, urgencyRate] where urgencyRate = remainingPercent / daysUntilReset
+ * - Sentinel: [1, -actualDaysUntilReset] so smaller daysUntilReset sorts higher
+ *
+ * Returns undefined when the account is ineligible (any window <= 0%, incomplete windows).
+ */
+function urgencyScore(
   record: NonNullable<QuotaSnapshot["sources"][string]>,
-): number[] | undefined {
+  now: number,
+): [number, number] | undefined {
   const { monthly, weekly, rolling } = record.windows ?? {};
+  // Eligibility guards: all three windows must exist and be above zero
   if (!monthly || !weekly || !rolling) return undefined;
   if (
     monthly.remainingPercent <= 0 ||
@@ -73,31 +84,34 @@ function score(
   ) {
     return undefined;
   }
-  return [
-    Math.min(
-      monthly.remainingPercent,
-      weekly.remainingPercent,
-      rolling.remainingPercent,
-    ),
-    monthly.remainingPercent,
-    weekly.remainingPercent,
-    rolling.remainingPercent,
-  ];
+
+  const monthlyWindow = record.windows?.monthly;
+  if (!monthlyWindow) return undefined;
+
+  const nowSec = now / 1000;
+  const daysUntilReset = (monthlyWindow.resetAt - nowSec) / 86400;
+
+  if (daysUntilReset < SENTINEL_DAYS_THRESHOLD) {
+    // Sentinel: max urgency, tiebreak by actual remaining time (smaller = higher)
+    return [1, -daysUntilReset];
+  }
+
+  return [0, monthlyWindow.remainingPercent / daysUntilReset];
 }
 
-function compareScore(left: number[], right: number[]): number {
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return left[index]! - right[index]!;
-  }
-  return 0;
+function compareUrgency(
+  left: [number, number],
+  right: [number, number],
+): number {
+  if (left[0] !== right[0]) return left[0] - right[0];
+  return left[1] - right[1];
 }
 
 export function createAccountSelection(
   options: AccountSelectionOptions,
 ): AccountSelection {
-  const configuredAccounts = options.accounts;
   const states = initializeAccounts(
-    configuredAccounts,
+    options.accounts,
     options.env ?? process.env,
   );
   const cooldownMs = options.cooldownMs ?? DEFAULT_COOLDOWN_MS;
@@ -139,27 +153,20 @@ export function createAccountSelection(
   ): number => {
     if (!snapshot) return -1;
     let bestIndex = -1;
-    let bestScore: number[] | undefined;
-    for (const account of configuredAccounts) {
-      const stateIndex = states.findIndex(
-        (state) => state.name === account.name,
-      );
-      const state = states[stateIndex];
-      if (
-        !state ||
-        state.cooldownUntil > now ||
-        excludedAccounts.has(state.name)
-      ) {
+    let bestUrgency: [number, number] | undefined;
+    for (let i = 0; i < states.length; i++) {
+      const state = states[i]!;
+      if (state.cooldownUntil > now || excludedAccounts.has(state.name)) {
         continue;
       }
       const record =
-        snapshot.sources[`${PROVIDER_ID}/${PROVIDER_ID}:${account.name}`];
+        snapshot.sources[`${PROVIDER_ID}/${PROVIDER_ID}:${state.name}`];
       if (!record || !isObservationUsable(record)) continue;
-      const candidateScore = score(record);
-      if (!candidateScore) continue;
-      if (!bestScore || compareScore(candidateScore, bestScore) > 0) {
-        bestIndex = stateIndex;
-        bestScore = candidateScore;
+      const candidateUrgency = urgencyScore(record, now);
+      if (!candidateUrgency) continue;
+      if (!bestUrgency || compareUrgency(candidateUrgency, bestUrgency) > 0) {
+        bestIndex = i;
+        bestUrgency = candidateUrgency;
       }
     }
     return bestIndex;

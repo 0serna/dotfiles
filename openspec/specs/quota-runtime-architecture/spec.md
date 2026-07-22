@@ -8,7 +8,7 @@ TBD - created by archiving change deepen-quota-runtime. Update Purpose after arc
 
 ### Requirement: Account selection has one runtime-local owner
 
-The quota extension SHALL place OpenCode account activation state, cooldowns, blind fallback, processing-cycle attempts, continuation gating, reactive rotation, and preventive reselection behind one account-selection module interface. Shared quota observations SHALL remain inputs to this module and SHALL NOT make its runtime-local state global.
+The quota extension SHALL place OpenCode account activation state, cooldowns, blind fallback, processing-cycle attempts, continuation gating, reactive rotation, and preventive reselection behind one account-selection module interface. Shared quota observations SHALL remain inputs to this module and SHALL NOT make its runtime-local state global. The selection algorithm SHALL rank eligible accounts by quota urgency rate as defined in the quota-urgency-scoring specification.
 
 #### Scenario: Snapshot revision changes account eligibility
 

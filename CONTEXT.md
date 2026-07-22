@@ -85,11 +85,19 @@ A Codex reset credit that can restore quota before its expiry. Compact Codex sta
 _Avoid_: reset timer, quota window
 
 **Account selection**:
-The session-start process that evaluates the latest aggregated quota snapshot and picks the eligible OpenCode Go account with the most balanced remaining quota across complete windows. A degraded retained observation remains selectable; without a selectable observation, no account is selected.
+The session-start process that evaluates the latest aggregated quota snapshot and picks the eligible OpenCode Go account with the highest quota urgency rate. A degraded retained observation remains selectable; without a selectable observation, no account is selected.
 _Avoid_: account picker, provider selection
 
+**Quota urgency**:
+The priority criterion for selecting one account over another. It is computed as the largest available quota window's `remainingPercent` divided by its days until reset, producing a rate in percent per day. Higher urgency means the account's quota expires sooner relative to what remains and should be spent first. Windows resetting in less than one hour receive a maximum sentinel value.
+_Avoid_: account score, quota ranking, preference order
+
+**Urgency rate**:
+See Quota urgency.
+_Avoid_: selection score, priority weight
+
 **Quota window**:
-A time-bound usage allowance — rolling, weekly, or monthly — with a remaining percentage and a reset time. An account is ineligible for selection if any of its windows reaches zero.
+A time-bound usage allowance — rolling, weekly, or monthly — with a remaining percentage and a reset time. An account is ineligible for selection if any of its windows reaches zero. The largest available window (monthly → weekly → rolling) is used to compute urgency.
 _Avoid_: rate limit window, usage bucket, allowance period
 
 **Quota source**:
