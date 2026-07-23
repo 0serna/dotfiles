@@ -18,4 +18,6 @@ description: Configure quality commands and a pre-commit hook that auto-formats,
 
 4. Wire the pre-commit using the approved tool/framework. The hook runs format, then auto-fix, then re-stages the changed files. The hook does not invoke the quality commands; they belong in CI or manual runs.
 
-5. Verify each individual command passes, then verify the hook with the least invasive supported method. Fix underlying failures. Finish when each command passes and the hook formats, fixes, and re-stages on a test run.
+5. Verify each individual command passes, then verify the hook with the least invasive supported method. Fix underlying failures. This step is complete when each command passes and the hook formats, fixes, and re-stages on a test run.
+
+6. Invoke the `agents-md` skill to document the verified repository structure and quality commands. Finish when `AGENTS.md` lists every configured quality command and each listed command has explicit repository evidence.

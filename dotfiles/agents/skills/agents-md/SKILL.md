@@ -1,7 +1,9 @@
 ---
 name: agents-md
-disable-model-invocation: true
-description: Create or maintain AGENTS.md repository context.
+description: >-
+  Create or maintain repository context in AGENTS.md. Use when repository
+  structure or developer commands change, or when another skill needs to
+  document verified commands.
 ---
 
 # AGENTS.md
@@ -33,4 +35,4 @@ The generated block is always first in the file:
 1. `## Repository Structure`
 2. `## Repository Commands`
 
-Find each by heading; replace from heading to next same/higher heading or EOF. Insert missing generated sections at the start. If `AGENTS.md` begins with unrelated content, move it after the generated block unchanged. When updating, detect references in preserved content that no longer apply due to structural or command changes (e.g. directory paths or script names) and correct them. Preserve all unrelated content exactly. Do not format or validate afterwards.
+Find each by heading; replace from heading to next same/higher heading or EOF. Insert missing generated sections at the start. If `AGENTS.md` begins with unrelated content, move it after the generated block unchanged. When updating, detect references in preserved content that no longer apply due to structural or command changes (e.g. directory paths or script names) and correct them. Preserve all unrelated content exactly. Verify that every listed command has explicit repository evidence.
