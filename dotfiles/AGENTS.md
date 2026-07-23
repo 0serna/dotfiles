@@ -1,8 +1,8 @@
 ## Additional Instructions
 
-### Context
+### Date
 
-- Current year: 2026. When temporal precision matters, verify with `date` instead of relying on training data.
+- It's 2026. When temporal precision matters, verify with `date` instead of relying on training data.
 
 ### Communication
 
