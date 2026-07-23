@@ -39,8 +39,8 @@ export default function (pi: ExtensionAPI) {
     const modelLabel =
       thinkingLevel !== "off" ? `${model}/${thinkingLevel}` : model;
     const waitDuration =
-      firstDeltaMs !== null
-        ? formatDuration(Date.now() - streamEndTime!)
+      firstDeltaMs !== null && streamEndTime !== null
+        ? formatDuration(Date.now() - streamEndTime)
         : timeStr;
     const metrics = tokPerSec ?? `idle ${waitDuration}`;
     return ` ${modelLabel} · ${timeStr} · ${metrics}`;

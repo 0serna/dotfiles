@@ -281,6 +281,24 @@ describe("working-stats extension throughput integration", () => {
     );
   });
 
+  it("shows total elapsed time instead of idle time before the first stream ends", () => {
+    const { pi, handlers } = createMockPi();
+    extensionFactory(pi);
+    const ctx = mockCtx();
+
+    handlers["agent_start"]!({}, ctx);
+    vi.advanceTimersByTime(2000);
+
+    // First delta arrives (sets firstDeltaMs) but no message_end yet (streamEndTime is null)
+    handlers["message_update"]!(textDelta("x".repeat(400)), ctx);
+    vi.advanceTimersByTime(1000);
+
+    // Should still show total elapsed time, not a giant idle duration from Date.now() - null
+    expect(ctx.ui.setWorkingMessage).toHaveBeenLastCalledWith(
+      "<muted> gpt-5 · 0:03 · 100 tps</muted>",
+    );
+  });
+
   it("shows the placeholder after a stream ends", () => {
     const { pi, handlers } = createMockPi();
     extensionFactory(pi);
