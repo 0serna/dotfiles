@@ -7,13 +7,21 @@ const OptionSchema = Type.Object({
   }),
 });
 
-export const QuestionParams = Type.Object({
+const QuestionSchema = Type.Object({
   question: Type.String({
     description:
       "Short one-line question. Ideally under 150 characters; put context in the assistant message before using this tool.",
   }),
   options: Type.Array(OptionSchema, {
     description:
-      "Options for the user to choose from. Use short labels only. The first option is treated as your recommendation and will be visually marked.",
+      "Options for this question. Use short labels only. The first option is treated as your recommendation and will be visually marked.",
+  }),
+});
+
+export const QuestionParams = Type.Object({
+  questions: Type.Array(QuestionSchema, {
+    description:
+      "One or more questions to ask in a single call. With more than one, each is shown as a tab and a trailing Submit tab confirms all answers.",
+    minItems: 1,
   }),
 });

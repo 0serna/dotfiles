@@ -1,51 +1,15 @@
 import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import {
-  type Editor,
   Text,
   truncateToWidth,
   wrapTextWithAnsi,
 } from "@earendil-works/pi-tui";
 
-import type { DisplayOption, QuestionDetails } from "./types.ts";
-
-function optionPrefix(
-  opt: DisplayOption,
-  index: number,
-  isSelected: boolean,
-  isCommentOpen: boolean,
-  theme: Theme,
-): string {
-  if (!isSelected) return `  ${index + 1}. ${opt.label}`;
-  if (isCommentOpen)
-    return theme.fg("accent", `> ${index + 1}. ${opt.label} ✎`);
-  return theme.fg("accent", `> ${index + 1}. ${opt.label}`);
-}
-
-function optionColor(
-  text: string,
-  opt: DisplayOption,
-  isSelected: boolean,
-  isRecommended: boolean,
-  theme: Theme,
-): string {
-  if (opt.isOther) return theme.fg("muted", text);
-  const base = isSelected ? text : theme.fg("text", text);
-  if (isRecommended) return base + theme.fg("success", " ★");
-  return base;
-}
-
-function buildOptionLine(
-  opt: DisplayOption,
-  index: number,
-  selectedIndex: number,
-  isCommentOpen: boolean,
-  theme: Theme,
-): string {
-  const isSelected = index === selectedIndex;
-  const isRecommended = !opt.isOther && index === 0;
-  const prefix = optionPrefix(opt, index, isSelected, isCommentOpen, theme);
-  return optionColor(prefix, opt, isSelected, isRecommended, theme);
-}
+import type {
+  DisplayOption,
+  MultiQuestionDetails,
+  RenderView,
+} from "./types.ts";
 
 function renderOptionLine(
   lines: string[],
@@ -53,157 +17,189 @@ function renderOptionLine(
   opt: DisplayOption,
   index: number,
   optionIndex: number,
-  isCommentOpen: boolean,
+  answeredIndex: number | null | undefined,
+  answerNote: string | undefined,
   theme: Theme,
-) {
-  const line = buildOptionLine(opt, index, optionIndex, isCommentOpen, theme);
+): void {
+  const isCursor = index === optionIndex;
+  const isAnswered = answeredIndex !== null && index === answeredIndex;
+  const isRecommended = !opt.isOther && index === 0;
+  const labelText =
+    isAnswered && opt.isOther && answerNote ? answerNote : opt.label;
+  const prefix = isCursor
+    ? theme.fg("accent", `> ${index + 1}. ${labelText}`)
+    : `  ${index + 1}. ${labelText}`;
+  let line = prefix;
+  if (isRecommended) line += theme.fg("success", " ★");
+  if (isAnswered) {
+    line += theme.fg("success", " ✓");
+    if (answerNote) line += theme.fg("muted", ` "${answerNote}"`);
+  }
   lines.push(truncateToWidth(line, width));
 }
 
-function renderAllOptions(
+function renderTabBar(
   lines: string[],
   width: number,
-  allOptions: DisplayOption[],
-  optionIndex: number,
-  isCommentMode: boolean,
+  view: RenderView,
   theme: Theme,
-) {
-  for (const [i, option] of allOptions.entries()) {
-    renderOptionLine(
-      lines,
-      width,
-      option,
-      i,
-      optionIndex,
-      isCommentMode && i === optionIndex,
-      theme,
-    );
+): void {
+  const tabs: string[] = [" ← "];
+  for (let i = 0; i < view.questions.length; i++) {
+    const isActive = i === view.currentTab;
+    const isAnswered = view.answered[i];
+    const box = isAnswered ? "■" : "□";
+    const color = isAnswered ? "success" : "muted";
+    const text = ` ${box} ${view.questions[i]?.label ?? ""} `;
+    const styled = isActive
+      ? theme.bg("selectedBg", theme.fg("text", text))
+      : theme.fg(color, text);
+    tabs.push(`${styled} `);
   }
-}
-
-function renderEditorSection(
-  lines: string[],
-  width: number,
-  editMode: "comment" | "other",
-  editor: Editor,
-  theme: Theme,
-) {
+  const isSubmitTab = view.currentTab === view.questions.length;
+  const submitText = " ✓ Submit ";
+  const submitStyled = isSubmitTab
+    ? theme.bg("selectedBg", theme.fg("text", submitText))
+    : theme.fg(view.allAnswered ? "success" : "dim", submitText);
+  tabs.push(`${submitStyled} →`);
+  lines.push(truncateToWidth(" " + tabs.join(""), width));
   lines.push("");
-  const label = editMode === "comment" ? " Comment:" : " Your answer:";
-  lines.push(truncateToWidth(theme.fg("muted", label), width));
-  for (const editorLine of editor.render(width - 2)) {
-    lines.push(truncateToWidth(` ${editorLine}`, width));
-  }
 }
 
 export function renderFrame(
   width: number,
-  allOptions: DisplayOption[],
-  optionIndex: number,
-  editMode: "comment" | "other" | false,
-  editor: Editor,
-  question: string,
+  view: RenderView,
+  editorText: string,
   theme: Theme,
 ): string[] {
   const lines: string[] = [];
   lines.push(theme.fg("accent", "─".repeat(width)));
-  const wrappedQuestion = wrapTextWithAnsi(
-    theme.fg("text", `${question}`),
-    width,
-  );
-  for (const wLine of wrappedQuestion) {
-    lines.push(wLine);
-  }
-  lines.push("");
 
-  renderAllOptions(
-    lines,
-    width,
-    allOptions,
-    optionIndex,
-    editMode === "comment",
-    theme,
-  );
-
-  if (editMode) {
-    renderEditorSection(lines, width, editMode, editor, theme);
+  if (view.isMulti) {
+    renderTabBar(lines, width, view, theme);
   }
 
+  const onSubmitTab = view.isMulti && view.currentTab === view.questions.length;
+
+  if (view.editMode) {
+    const question = view.questions[view.currentTab]?.question ?? "";
+    lines.push(...wrapTextWithAnsi(theme.fg("text", question), width));
+    lines.push("");
+    lines.push(
+      truncateToWidth(
+        theme.fg(
+          "muted",
+          view.editMode === "comment" ? " Comment:" : " Your answer:",
+        ),
+        width,
+      ),
+    );
+    for (const editorLine of editorText.split("\n")) {
+      lines.push(truncateToWidth(` ${editorLine}`, width));
+    }
+    lines.push("");
+    lines.push(
+      truncateToWidth(
+        theme.fg("dim", " Enter to submit • Esc to go back"),
+        width,
+      ),
+    );
+  } else if (onSubmitTab) {
+    lines.push(
+      ...wrapTextWithAnsi(
+        theme.fg("accent", theme.bold("Ready to submit")),
+        width,
+      ),
+    );
+    lines.push("");
+    if (view.allAnswered) {
+      for (const answer of view.reviewAnswers) {
+        lines.push(
+          ...wrapTextWithAnsi(theme.fg("muted", answer.question), width),
+        );
+        const answerBody = answer.wasCustom
+          ? `(wrote) ${answer.answer}`
+          : answer.answer;
+        const note = answer.comment
+          ? theme.fg("muted", `  —  "${answer.comment}"`)
+          : "";
+        lines.push(
+          ...wrapTextWithAnsi(theme.fg("text", answerBody) + note, width),
+        );
+      }
+      lines.push("");
+      lines.push(
+        truncateToWidth(theme.fg("success", "Press Enter to submit"), width),
+      );
+    } else {
+      const missing = view.questions
+        .filter((_, i) => !view.answered[i])
+        .map((q) => q.label)
+        .join(", ");
+      lines.push(
+        truncateToWidth(theme.fg("warning", `Unanswered: ${missing}`), width),
+      );
+    }
+  } else {
+    const question = view.questions[view.currentTab]?.question ?? "";
+    lines.push(...wrapTextWithAnsi(theme.fg("text", question), width));
+    lines.push("");
+    for (const [i, option] of view.allOptions.entries()) {
+      renderOptionLine(
+        lines,
+        width,
+        option,
+        i,
+        view.optionIndex,
+        view.answeredIndex,
+        view.answerNote,
+        theme,
+      );
+    }
+  }
+
   lines.push("");
-  lines.push(
-    truncateToWidth(
-      editMode
-        ? theme.fg("dim", " Enter to submit • Esc to go back")
-        : theme.fg(
-            "dim",
-            " ↑↓ navigate • Enter to confirm • Space to add comment • Esc to cancel",
-          ),
-      width,
-    ),
-  );
+  if (!view.editMode) {
+    const help = view.isMulti
+      ? "Tab/←→ navigate • ↑↓ select • Enter confirm • Esc cancel"
+      : "↑↓ navigate • Enter select • Esc cancel";
+    lines.push(truncateToWidth(theme.fg("dim", help), width));
+  }
   lines.push(theme.fg("accent", "─".repeat(width)));
 
   return lines;
 }
 
-function renderCancelled(theme: Theme): Text {
-  return new Text(theme.fg("warning", "Cancelled"), 0, 0);
-}
-
-function renderCustomAnswer(theme: Theme, answer: string): Text {
-  return new Text(
-    theme.fg("success", "✓ ") +
-      theme.fg("muted", "(wrote) ") +
-      theme.fg("accent", answer),
-    0,
-    0,
-  );
-}
-
-function renderWithComment(
+export function renderCall(
+  _args: { questions: { question: string }[] },
   theme: Theme,
-  answer: string,
-  comment: string,
-): Text {
-  return new Text(
-    theme.fg("success", "✓ ") +
-      theme.fg("accent", answer) +
-      theme.fg("dim", '  —  "') +
-      theme.fg("muted", comment) +
-      theme.fg("dim", '"'),
-    0,
-    0,
-  );
+) {
+  return new Text(theme.fg("toolTitle", "question"), 0, 0);
 }
 
-function renderNormalAnswer(theme: Theme, answer: string): Text {
-  return new Text(theme.fg("success", "✓ ") + theme.fg("accent", answer), 0, 0);
-}
-
-export function renderCall(args: { question: string }, theme: Theme) {
-  return new Text(
-    theme.fg("toolTitle", "question ") + theme.fg("muted", args.question),
-    0,
-    0,
-  );
-}
-
-function renderAnswered(details: QuestionDetails, theme: Theme) {
-  const answer = details.answer ?? "";
-  if (details.wasCustom) return renderCustomAnswer(theme, answer);
-  if (details.comment) return renderWithComment(theme, answer, details.comment);
-  return renderNormalAnswer(theme, answer);
-}
-
-function renderDetails(details: QuestionDetails, theme: Theme) {
-  if (details.cancelled) return renderCancelled(theme);
-  return renderAnswered(details, theme);
+function renderAnswered(details: MultiQuestionDetails, theme: Theme): Text {
+  const blocks = details.answers.map((answer) => {
+    const lines: string[] = [theme.fg("muted", answer.question)];
+    const answerBody = answer.wasCustom
+      ? theme.fg("muted", "(wrote) ") + answer.answer
+      : answer.answer;
+    const note = answer.comment
+      ? theme.fg("muted", `  —  "${answer.comment}"`)
+      : "";
+    lines.push(theme.fg("success", "✓ ") + answerBody + note);
+    return lines.join("\n");
+  });
+  return new Text(blocks.join("\n\n"), 0, 0);
 }
 
 export function renderResult(
-  result: AgentToolResult<QuestionDetails>,
+  result: AgentToolResult<MultiQuestionDetails>,
   _options: unknown,
   theme: Theme,
 ) {
-  return renderDetails(result.details, theme);
+  const details = result.details;
+  if (!details || details.cancelled) {
+    return new Text(theme.fg("warning", "Cancelled"), 0, 0);
+  }
+  return renderAnswered(details, theme);
 }

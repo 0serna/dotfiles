@@ -1,71 +1,32 @@
-import type { QuestionDetails, QuestionOption, ResultValue } from "./types.ts";
+import type { AnswerEntry, MultiQuestionDetails } from "./types.ts";
 
-function makeBaseDetails(question: string, options: QuestionOption[]) {
+type ToolResult = {
+  content: { type: "text"; text: string }[];
+  details: MultiQuestionDetails;
+};
+
+function answerLine(entry: AnswerEntry): string {
+  if (entry.wasCustom) return `${entry.question}: user wrote: ${entry.answer}`;
+  const comment = entry.comment ? `\nComment: ${entry.comment}` : "";
+  return `${entry.question}: user selected: ${entry.answer}${comment}`;
+}
+
+function resultCancelled(): ToolResult {
   return {
-    question,
-    options: options.map((o) => o.label),
+    content: [{ type: "text", text: "User cancelled the selection" }],
+    details: { answers: [], cancelled: true },
   };
 }
 
-function resultCancelled(base: ReturnType<typeof makeBaseDetails>) {
+function resultAnswers(answers: AnswerEntry[]): ToolResult {
+  const text = answers.map(answerLine).join("\n");
   return {
-    content: [{ type: "text" as const, text: "User cancelled the selection" }],
-    details: { ...base, answer: null, cancelled: true } as QuestionDetails,
+    content: [{ type: "text", text }],
+    details: { answers, cancelled: false },
   };
 }
 
-function resultCustom(
-  base: ReturnType<typeof makeBaseDetails>,
-  answer: string,
-) {
-  return {
-    content: [{ type: "text" as const, text: `User wrote: ${answer}` }],
-    details: { ...base, answer, wasCustom: true } as QuestionDetails,
-  };
-}
-
-function resultWithComment(
-  base: ReturnType<typeof makeBaseDetails>,
-  answer: string,
-  comment: string,
-) {
-  return {
-    content: [
-      {
-        type: "text" as const,
-        text: `User selected: ${answer}\nComment: ${comment}`,
-      },
-    ],
-    details: { ...base, answer, comment, wasCustom: false } as QuestionDetails,
-  };
-}
-
-function resultNormal(
-  base: ReturnType<typeof makeBaseDetails>,
-  answer: string,
-) {
-  return {
-    content: [{ type: "text" as const, text: `User selected: ${answer}` }],
-    details: { ...base, answer, wasCustom: false } as QuestionDetails,
-  };
-}
-
-function buildResultPrompted(
-  base: ReturnType<typeof makeBaseDetails>,
-  result: Extract<ResultValue, { type: "answer" }>,
-) {
-  if (result.wasCustom) return resultCustom(base, result.answer);
-  if (result.comment)
-    return resultWithComment(base, result.answer, result.comment);
-  return resultNormal(base, result.answer);
-}
-
-export function buildResult(
-  result: ResultValue | null,
-  question: string,
-  options: QuestionOption[],
-) {
-  const base = makeBaseDetails(question, options);
-  if (!result || result.type === "cancel") return resultCancelled(base);
-  return buildResultPrompted(base, result);
+export function buildResult(answers: AnswerEntry[] | null): ToolResult {
+  if (!answers) return resultCancelled();
+  return resultAnswers(answers);
 }

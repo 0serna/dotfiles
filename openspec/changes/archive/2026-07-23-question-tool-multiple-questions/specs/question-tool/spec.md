@@ -1,10 +1,4 @@
-# question-tool Specification
-
-## Purpose
-
-Define the `question` tool, which asks the user a question with customizable options (including recommendation marking) and supports comment input and a custom "Other" option. Used when the LLM needs user input to proceed.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Tool registration and parameters
 
@@ -171,7 +165,7 @@ The tool SHALL provide `renderCall` and `renderResult` for custom display in the
 
 - Normal selection: green checkmark + question + answer label
 - Selection with comment: green checkmark + question + answer + comment in quotes
-- Custom answer: green checkmark + "(wrote)" prefix + answer text
+- Custom answer: green checkmark + question + "(wrote)" prefix + answer text
 - Cancelled: warning-colored "Cancelled"
 
 #### Scenario: renderCall shows question count
