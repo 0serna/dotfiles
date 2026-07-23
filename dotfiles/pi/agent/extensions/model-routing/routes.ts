@@ -3,7 +3,6 @@ export const ROUTE_TOKENS = [
   "/skill:commit",
   "/skill:openspec-archive-change",
   "/skill:openspec-propose",
-  "/skill:review-change",
   "/skill:openspec-apply-change",
   "/skill:code-review",
   "/skill:simplify",
