@@ -31,10 +31,13 @@ vi.mock("node:os", () => ({
 }));
 
 import { compact } from "@earendil-works/pi-coding-agent";
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import registerModelRoutesExtension from "../index.ts";
+import { ROUTE_TOKENS } from "../routes.ts";
 import { createModelRoutesRuntime } from "../runtime.ts";
 import { loadConfig, saveConfig } from "../state.ts";
+import { renderRouteFrame } from "../ui.ts";
 
 const compactMock = vi.mocked(compact);
 const mkdirMock = vi.mocked(mkdir);
@@ -1368,5 +1371,55 @@ describe("session baseline and thinking preferences", () => {
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.userModel);
     expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(1, "low");
     expect(setup.pi.setThinkingLevel).toHaveBeenNthCalledWith(2, "high");
+  });
+});
+
+describe("renderRouteFrame layout", () => {
+  // Passthrough theme: visibleWidth measures the raw text, which is what
+  // the TUI width guard checks, so colors do not affect the assertion.
+  const theme = {
+    fg: (_color: string, text: string) => text,
+    bold: (text: string) => text,
+  } as unknown as Parameters<typeof renderRouteFrame>[4];
+
+  function expectFits(
+    width: number,
+    status: "valid" | "missing" | "invalid",
+  ): void {
+    const rows = ROUTE_TOKENS.map((token) => ({
+      token,
+      model: "opencode-go/deepseek-v4-pro",
+      thinking: "minimal",
+    }));
+    const lines = renderRouteFrame(width, rows, 0, status, theme);
+    for (const line of lines) {
+      expect(visibleWidth(line)).toBeLessThanOrEqual(width);
+    }
+  }
+
+  it("fits an 83-column terminal for every status without overflow", () => {
+    expectFits(83, "valid");
+    expectFits(83, "missing");
+    expectFits(83, "invalid");
+  });
+
+  it("fits very narrow terminals without overflow", () => {
+    expectFits(40, "valid");
+    expectFits(20, "valid");
+  });
+
+  it("aligns the header columns with the item columns at 83 columns", () => {
+    const rows = ROUTE_TOKENS.map((token) => ({
+      token,
+      model: "[unset]",
+      thinking: "[unset]",
+    }));
+    const lines = renderRouteFrame(83, rows, 0, "valid", theme);
+    // Header is line index 5; first item is line index 6.
+    const header = lines[5]!;
+    const firstItem = lines[6]!;
+    // The "model" label in the header must start where the model value
+    // starts in every item row.
+    expect(header.indexOf("model")).toBe(firstItem.indexOf("[unset]"));
   });
 });

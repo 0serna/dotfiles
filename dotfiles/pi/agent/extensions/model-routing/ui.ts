@@ -10,6 +10,25 @@ import { parseModelId } from "./model-ids.ts";
 import { ROUTE_TOKENS, type RouteName } from "./routes.ts";
 import type { ModelRoutesConfig, ThinkingLevel } from "./types.ts";
 
+const COLUMN_LABELS = {
+  route: "route",
+  model: "model",
+  thinking: "thinking",
+} as const;
+
+// The route and thinking columns are sized to fit both their header
+// label and their widest value; the model column flexes to absorb the
+// remaining width so the frame fits narrow terminals instead of overflowing.
+const ROUTE_COLUMN_WIDTH = Math.max(
+  COLUMN_LABELS.route.length,
+  ...ROUTE_TOKENS.map((token) => token.length),
+);
+const THINKING_COLUMN_WIDTH = Math.max(
+  COLUMN_LABELS.thinking.length,
+  "[unset]".length,
+);
+const MIN_MODEL_COLUMN_WIDTH = "[unset]".length;
+
 function renderBorder(width: number, theme: Theme): string {
   return theme.fg("accent", "─".repeat(width));
 }
@@ -23,9 +42,9 @@ function renderWrapped(
   lines.push(...wrapTextWithAnsi(theme.fg("text", text), width));
 }
 
-function renderRouteFrame(
+export function renderRouteFrame(
   width: number,
-  routeItems: string[],
+  rows: { token: RouteName; model: string; thinking: string }[],
   selected: number,
   status: "valid" | "missing" | "invalid",
   theme: Theme,
@@ -58,15 +77,47 @@ function renderRouteFrame(
   }
 
   lines.push("");
-  lines.push(
-    theme.fg(
-      "muted",
-      "  route                            model                                         thinking",
-    ),
+
+  // Columns are left-aligned. The route and thinking columns are sized
+  // to fit their header label and widest value; the model column takes
+  // the longest model in the current rows (capped so the whole line
+  // still fits). This keeps the thinking column immediately after the
+  // model instead of pushing it to the right edge.
+  const PREFIX_WIDTH = 2;
+  const GAP_WIDTH = 1;
+  const modelContentWidth = Math.max(
+    MIN_MODEL_COLUMN_WIDTH,
+    ...rows.map((row) => row.model.length),
+  );
+  const remainingWidth =
+    width -
+    PREFIX_WIDTH -
+    ROUTE_COLUMN_WIDTH -
+    GAP_WIDTH -
+    THINKING_COLUMN_WIDTH -
+    GAP_WIDTH;
+  const modelColumnWidth = Math.max(
+    MIN_MODEL_COLUMN_WIDTH,
+    Math.min(modelContentWidth, remainingWidth),
   );
 
-  for (const [i, item] of routeItems.entries()) {
+  const header =
+    " ".repeat(PREFIX_WIDTH) +
+    COLUMN_LABELS.route.padEnd(ROUTE_COLUMN_WIDTH) +
+    " ".repeat(GAP_WIDTH) +
+    COLUMN_LABELS.model.padEnd(modelColumnWidth) +
+    " ".repeat(GAP_WIDTH) +
+    COLUMN_LABELS.thinking;
+  lines.push(truncateToWidth(theme.fg("muted", header), width));
+
+  for (const [i, row] of rows.entries()) {
     const prefix = i === selected ? theme.fg("accent", "> ") : "  ";
+    const item =
+      row.token.padEnd(ROUTE_COLUMN_WIDTH) +
+      " ".repeat(GAP_WIDTH) +
+      row.model.padEnd(modelColumnWidth) +
+      " ".repeat(GAP_WIDTH) +
+      row.thinking;
     lines.push(truncateToWidth(prefix + item, width));
   }
 
@@ -103,11 +154,15 @@ export async function editRoutes(
   // `[unset]` here, represented by omission.
   const working: ModelRoutesConfig = { ...currentConfig };
 
-  function renderItem(token: RouteName): string {
+  function renderRow(token: RouteName): {
+    token: RouteName;
+    model: string;
+    thinking: string;
+  } {
     const configured = working[token];
     const model = configured?.model ?? "[unset]";
-    const think = configured?.model ? configured.thinkingLevel : "[unset]";
-    return `${token.padEnd(32)} ${model.padEnd(45)} ${think}`;
+    const thinking = configured?.model ? configured.thinkingLevel : "[unset]";
+    return { token, model, thinking };
   }
 
   async function pickModel(token: RouteName): Promise<string | null> {
@@ -146,7 +201,7 @@ export async function editRoutes(
   }
 
   while (true) {
-    const routeItems = ROUTE_TOKENS.map(renderItem);
+    const rows = ROUTE_TOKENS.map(renderRow);
 
     const editResult = await ctx.ui.custom<EditResult | null>(
       (tui, theme, _kb, done) => {
@@ -162,7 +217,7 @@ export async function editRoutes(
           render(width: number) {
             cachedLines ??= renderRouteFrame(
               width,
-              routeItems,
+              rows,
               sel,
               configStatus,
               theme,
