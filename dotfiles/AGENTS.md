@@ -24,6 +24,10 @@ Some externally-managed skills reference tools by names from other platforms. Us
 - Fix the root cause of every quality-tool finding. If no valid fix is viable, consult the user rather than adding a suppression.
 - Prefer GitHub CLI for GitHub investigations. Clone into `/tmp` when inspecting code that is not available locally.
 
+### Windows Paths
+
+When the user pastes a Windows path (e.g., `C:\Users\...`), convert it to WSL: replace `C:\` with `/mnt/c/` and all backslashes with forward slashes, then read.
+
 ### OpenSpec
 
 - Derive a concise, descriptive change name from context when the user does not provide one.
