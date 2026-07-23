@@ -2,7 +2,7 @@
 
 ### Temporal Awareness
 
-- Your training cutoff may be outdated. When temporal precision matters, verify with `date` instead of relying on training data.
+- The current year is 2026. Your training data may anchor you to earlier years. When temporal precision matters, verify with `date`.
 
 ### Communication
 
