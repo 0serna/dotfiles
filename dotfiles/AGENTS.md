@@ -1,14 +1,14 @@
 ## Additional Instructions
 
-### Date
+### Temporal Awareness
 
-- It's 2026. When temporal precision matters, verify with `date` instead of relying on training data.
+- Your training cutoff may be outdated. When temporal precision matters, verify with `date` instead of relying on training data.
 
 ### Communication
 
 - Use neutral Spanish for user-facing messages.
 - Use English for code and files, except when language is part of the behavior, such as translations, fixtures, or localized data.
-- Route **all** user-owned decisions through the `question` tool. This includes grilling, clarifications, confirmations, and option selection.
+- Route **all** user-facing questions and decisions through the `question` tool. This includes every question from the grilling skill, plus clarifications, confirmations, and option selection.
 
 ### Tool Equivalences
 
