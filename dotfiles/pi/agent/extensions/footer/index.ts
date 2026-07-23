@@ -56,7 +56,7 @@ export default function (pi: ExtensionAPI) {
             });
             const thinking = pi.getThinkingLevel();
             const modelSlug = ctx.model?.id;
-            const separator = theme.fg("dim", " · ");
+            const separator = theme.fg("muted", " · ");
             const extStatuses = footerData.getExtensionStatuses();
             const orderedKeys = new Set(EXTENSION_ORDER);
             const extensions = [
@@ -70,14 +70,14 @@ export default function (pi: ExtensionAPI) {
             const usageText = formatCurrentUsage(usage);
             const isOverLimit =
               (usage?.tokens ?? 0) > CONTEXT_USAGE_WARNING_TOKENS;
-            const usageStyle = isOverLimit ? "warning" : "dim";
+            const usageStyle = isOverLimit ? "warning" : "muted";
             const modelText = modelSlug ? `${modelSlug}/${thinking}` : thinking;
             const modelWithUsage = theme.fg(
-              "dim",
+              "muted",
               `${modelText} ${theme.fg(usageStyle, usageText)}`,
             );
 
-            const dirLine = theme.fg("dim", directory);
+            const dirLine = theme.fg("muted", directory);
             const extLine = extensions.join(separator);
 
             // Try 1 line

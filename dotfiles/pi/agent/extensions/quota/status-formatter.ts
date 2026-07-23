@@ -25,7 +25,7 @@ const REQUIRED_WINDOWS_BY_PROVIDER: Partial<
 // Types
 // ---------------------------------------------------------------------------
 
-export type ColorIntent = "dim" | "warning";
+export type ColorIntent = "muted" | "warning";
 
 export type CompactStatusOptions = {
   activeSource?: SourceIdentity;
@@ -136,7 +136,7 @@ function formatSourceCompact(
 
   return {
     text: `${stale ? "⚠ " : ""}${label} ${percentLabel}`,
-    intent: stale ? "warning" : "dim",
+    intent: stale ? "warning" : "muted",
   };
 }
 
@@ -149,7 +149,7 @@ function formatSourceCompact(
  * string suitable for the footer's `quota` status slot.
  *
  * When `colorize` is provided, each segment is individually colored according
- * to its intent (dim or warning). Without it, plain text is returned.
+ * to its intent (muted or warning). Without it, plain text is returned.
  */
 export function formatCompactStatus(
   snapshot: QuotaSnapshot,
@@ -174,7 +174,7 @@ export function formatCompactStatus(
 
   // Global "Quota …" when nothing is usable and the cycle is still in flight.
   if (usableCount === 0 && refreshInProgress) {
-    return colorize ? colorize("dim", "Quota …") : "Quota …";
+    return colorize ? colorize("muted", "Quota …") : "Quota …";
   }
 
   const segments: CompactSegment[] = [];
@@ -184,7 +184,7 @@ export function formatCompactStatus(
       segments.push(formatSourceCompact(active, now));
     } else {
       if (refreshInProgress && usableCount > 0) {
-        segments.push({ text: `${groupPrefix} …`, intent: "dim" });
+        segments.push({ text: `${groupPrefix} …`, intent: "muted" });
       } else {
         segments.push({ text: `${groupPrefix} error`, intent: "warning" });
       }
@@ -194,8 +194,8 @@ export function formatCompactStatus(
   if (colorize) {
     const colored = segments.map((seg) => colorize(seg.intent, seg.text));
     if (colored.length <= 1) return colored.join("");
-    const dimSep = colorize("dim", COMPACT_SEPARATOR);
-    return colored.join(dimSep);
+    const mutedSep = colorize("muted", COMPACT_SEPARATOR);
+    return colored.join(mutedSep);
   }
   return segments.map((seg) => seg.text).join(COMPACT_SEPARATOR);
 }

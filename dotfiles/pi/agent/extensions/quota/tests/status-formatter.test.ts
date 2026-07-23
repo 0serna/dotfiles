@@ -174,7 +174,7 @@ describe("formatCompactStatus", () => {
     });
 
     expect(result).toBe("OpenCode 90r");
-    expect(intents).toEqual(["dim"]);
+    expect(intents).toEqual(["muted"]);
   });
 
   it("warns when any observed window is exhausted", () => {
@@ -406,7 +406,7 @@ describe("formatCompactStatus", () => {
   });
 
   describe("color intents", () => {
-    it("returns dim for healthy segments above 10%", () => {
+    it("returns muted for healthy segments above 10%", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
           windows: {
@@ -422,10 +422,10 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      expect(intents).toEqual(["dim"]);
+      expect(intents).toEqual(["muted"]);
     });
 
-    it("returns dim for positive low-quota segments", () => {
+    it("returns muted for positive low-quota segments", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
           windows: {
@@ -441,7 +441,7 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      expect(intents).toEqual(["dim"]);
+      expect(intents).toEqual(["muted"]);
     });
 
     it("returns warning for stale segments", () => {
@@ -481,7 +481,7 @@ describe("formatCompactStatus", () => {
       expect(intents).toEqual(["warning"]);
     });
 
-    it("returns dim for in-progress refresh placeholders", () => {
+    it("returns muted for in-progress refresh placeholders", () => {
       const snapshot = makeSnapshot(
         [
           makeRecord(CODEX, {
@@ -508,11 +508,11 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      // Codex refresh in progress → dim, OpenCode current → dim
-      expect(intents).toEqual(["dim", "dim"]);
+      // Codex refresh in progress → muted, OpenCode current → muted
+      expect(intents).toEqual(["muted", "muted"]);
     });
 
-    it("mixes dim and warning intents across providers with dim separator", () => {
+    it("mixes muted and warning intents across providers with muted separator", () => {
       const snapshot = makeSnapshot([
         makeRecord(CODEX, {
           windows: {
@@ -535,11 +535,11 @@ describe("formatCompactStatus", () => {
           return text;
         },
       });
-      // Positive low quota remains dim; OpenCode and the separator are also dim.
+      // Positive low quota remains muted; OpenCode and the separator are also muted.
       expect(calls).toEqual([
-        { intent: "dim", text: "Codex 5r" },
-        { intent: "dim", text: "OpenCode 80r" },
-        { intent: "dim", text: " " },
+        { intent: "muted", text: "Codex 5r" },
+        { intent: "muted", text: "OpenCode 80r" },
+        { intent: "muted", text: " " },
       ]);
     });
   });
