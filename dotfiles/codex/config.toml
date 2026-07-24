@@ -12,6 +12,9 @@ trust_level = "trusted"
 [projects."/home/oscar/repositories/cv"]
 trust_level = "trusted"
 
+[projects."/home/oscar/repositories/job-filter"]
+trust_level = "trusted"
+
 [tui]
 status_line = ["current-dir", "model-with-reasoning", "context-used", "five-hour-limit", "weekly-limit"]
 status_line_use_colors = true
