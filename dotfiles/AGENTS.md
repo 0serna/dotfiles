@@ -12,11 +12,10 @@
 
 ### Tool Equivalences
 
-Some externally-managed skills reference tools by names from other platforms. Use this mapping:
-
-- `AskUserQuestion` → `question` (prompt the user for input or a decision)
-- `TodoWrite`, `TodoRead` → not available; track progress in-message or todo files
-- `Task` / `Agent` / `subagent` → not available; execute inline
+| Purpose                              | Codex                | OpenCode    | Pi                                             |
+| ------------------------------------ | -------------------- | ----------- | ---------------------------------------------- |
+| Ask the user for input or a decision | `request_user_input` | `question`  | `question`                                     |
+| Track a plan or task progress        | `update_plan`        | `todowrite` | Not available; report progress in the message. |
 
 ### Workflow
 
