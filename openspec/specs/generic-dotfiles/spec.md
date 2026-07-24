@@ -18,16 +18,6 @@ The system SHALL read a root `dotfiles.json` manifest and create symlinks for ea
 - **WHEN** the repository manifest is read after tracking global agent skills
 - **THEN** it includes an entry mapping `dotfiles/agents` to `~/.agents`
 
-#### Scenario: Track quota-toast sidecar directory
-
-- **WHEN** the manifest contains an entry with `source`: `dotfiles/opencode/opencode-quota/` and `target`: `~/.config/opencode/opencode-quota/`
-- **THEN** the installer creates a directory symlink at the resolved target path
-
-#### Scenario: Sidecar config is readable after linking
-
-- **WHEN** the installer has linked the sidecar directory
-- **THEN** the plugin config file at `quota-toast.json` is readable at the symlinked target
-
 #### Scenario: Link shared agent instructions to multiple targets
 
 - **WHEN** the manifest contains multiple entries with `source`: `dotfiles/AGENTS.md`

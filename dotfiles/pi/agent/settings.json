@@ -1,15 +1,15 @@
 {
-  "defaultModel": "mimo-v2.5-pro",
+  "defaultModel": "deepseek-v4-pro",
   "defaultProvider": "opencode-go",
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "max",
   "enableSkillCommands": true,
   "hideThinkingBlock": true,
-  "lastChangelogVersion": "0.80.7",
+  "lastChangelogVersion": "0.82.0",
   "quietStartup": true,
   "treeFilterMode": "default",
   "enabledModels": [
     "openai-codex/gpt-5.6-sol",
-    "opencode-go/mimo-v2.5-pro"
+    "opencode-go/deepseek-v4-pro"
   ],
   "theme": "dark",
   "defaultProjectTrust": "always",
@@ -26,5 +26,6 @@
   ],
   "terminal": {
     "showTerminalProgress": true
-  }
+  },
+  "collapseChangelog": true
 }

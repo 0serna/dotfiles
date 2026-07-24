@@ -12,27 +12,6 @@
     "target": "~/.config/opencode/AGENTS.md"
   },
   {
-    "source": "dotfiles/opencode/commands",
-    "target": "~/.config/opencode/commands"
-  },
-  {
-    "source": "dotfiles/opencode/agents",
-    "target": "~/.config/opencode/agents"
-  },
-  {
-    "source": "dotfiles/opencode/plugins",
-    "target": "~/.config/opencode/plugins"
-  },
-  {
-    "source": "dotfiles/opencode/tools",
-    "target": "~/.config/opencode/tools"
-  },
-
-  {
-    "source": "dotfiles/opencode/opencode-quota/",
-    "target": "~/.config/opencode/opencode-quota/"
-  },
-  {
     "source": "dotfiles/agents",
     "target": "~/.agents"
   },
@@ -54,7 +33,7 @@
   },
   {
     "source": "dotfiles/AGENTS.md",
-    "target": "~/.pi/agent/APPEND_SYSTEM.md"
+    "target": "~/.pi/agent/AGENTS.md"
   },
   {
     "source": "dotfiles/pi/agent/extensions",
