@@ -12,10 +12,10 @@
 
 ### Tool Equivalences
 
-| Purpose                              | Codex                | OpenCode    | Pi                                             |
-| ------------------------------------ | -------------------- | ----------- | ---------------------------------------------- |
-| Ask the user for input or a decision | `request_user_input` | `question`  | `question`                                     |
-| Track a plan or task progress        | `update_plan`        | `todowrite` | Not available; report progress in the message. |
+| Purpose                              | Use one available tool                                                               |
+| ------------------------------------ | ------------------------------------------------------------------------------------ |
+| Ask the user for input or a decision | `request_user_input`, `question`; if neither is available, ask in the message.       |
+| Track a plan or task progress        | `update_plan`, `todowrite`; if neither is available, report progress in the message. |
 
 ### Workflow
 
