@@ -1,2 +1,3 @@
 dotfiles/pi/agent/settings.json
 dotfiles/pi/agent/extensions/orca-*.ts
+dotfiles/agents/.skill-lock.json
