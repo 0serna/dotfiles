@@ -209,6 +209,15 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-07-28T15:24:05.839Z",
       "updatedAt": "2026-07-28T15:24:05.839Z"
+    },
+    "humanizer": {
+      "source": "blader/humanizer",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/blader/humanizer.git",
+      "skillPath": "SKILL.md",
+      "skillFolderHash": "523374dee72d67c7b2b5f858ea0094ffda49c3ac",
+      "installedAt": "2026-08-02T20:33:29.068Z",
+      "updatedAt": "2026-08-02T20:33:29.068Z"
     }
   },
   "dismissed": {
