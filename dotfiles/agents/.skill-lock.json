@@ -10,16 +10,6 @@
       "installedAt": "2026-04-23T19:55:30.474Z",
       "updatedAt": "2026-07-15T14:35:32.815Z"
     },
-    "writing-great-skills": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/writing-great-skills/SKILL.md",
-      "skillFolderHash": "81d36946d48842f90358d8af54e3cdcc141f8e01",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-06-25T14:30:33.881Z",
-      "updatedAt": "2026-07-28T15:24:05.840Z"
-    },
     "domain-modeling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -209,6 +199,26 @@
       "skillFolderHash": "523374dee72d67c7b2b5f858ea0094ffda49c3ac",
       "installedAt": "2026-08-02T20:33:29.068Z",
       "updatedAt": "2026-08-02T20:33:29.068Z"
+    },
+    "writing-for-agents": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
+      "skillFolderHash": "8c87c5b64bef2f62b1697384954643ad2c912909",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-08-05T15:17:11.223Z",
+      "updatedAt": "2026-08-05T15:17:11.223Z"
+    },
+    "wait-what": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/wait-what/SKILL.md",
+      "skillFolderHash": "6abe708f1bf253158a037ac49faea2944e2809dc",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-08-05T15:17:11.224Z",
+      "updatedAt": "2026-08-05T15:17:11.224Z"
     }
   },
   "dismissed": {
