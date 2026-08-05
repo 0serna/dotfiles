@@ -17,7 +17,9 @@ npm run link
 
 ```bash
 npm run link              # Link dotfiles into $HOME
-npm run check             # Run tests, lint, typecheck, and OpenSpec validation
+npm run test              # Run Vitest tests
+npm run lint              # Lint with ESLint
+npm run typecheck         # Check types with TypeScript
 ```
 
 ## Structure
@@ -28,6 +30,5 @@ npm run check             # Run tests, lint, typecheck, and OpenSpec validation
 ├── dotfiles/       # Configurations that are linked into $HOME
 ├── src/            # TypeScript linker implementation
 ├── scripts/        # Local automation
-├── docs/adr/       # Architecture decision records
-└── openspec/       # Specs and change proposals
+└── docs/adr/       # Architecture decision records
 ```

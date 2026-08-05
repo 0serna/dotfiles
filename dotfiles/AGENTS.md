@@ -26,9 +26,3 @@
 ### Windows Paths
 
 When the user pastes a Windows path (e.g., `C:\Users\...`), convert it to WSL: replace `C:\` with `/mnt/c/` and all backslashes with forward slashes, then read.
-
-### OpenSpec
-
-- Derive a concise, descriptive change name from context when the user does not provide one.
-- Before creating proposal, analyze whether the change is large enough to warrant creating two changes. Only do so if it is genuinely necessary.
-- After archiving a change, run `openspec validate --all`. Fix failures caused by the work; consult the user about unrelated failures.

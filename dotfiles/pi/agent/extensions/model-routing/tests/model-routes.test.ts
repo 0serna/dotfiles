@@ -110,13 +110,13 @@ function setupExtension() {
   const userModel2 = { provider: "user", id: "other" };
   const compactModel = { provider: "compact", id: "model" };
   const commitModel = { provider: "commit", id: "model" };
-  const openspecProposeModel = { provider: "openspecPropose", id: "model" };
+  const codeReviewModel = { provider: "codeReview", id: "model" };
   const allModels = [
     userModel,
     userModel2,
     compactModel,
     commitModel,
-    openspecProposeModel,
+    codeReviewModel,
   ];
   const ctx: TestContext = {
     model: userModel,
@@ -172,7 +172,7 @@ function setupExtension() {
     userModel2,
     compactModel,
     commitModel,
-    openspecProposeModel,
+    codeReviewModel,
   };
 }
 
@@ -182,13 +182,13 @@ function setupContext() {
   const userModel2 = { provider: "user", id: "other" };
   const compactModel = { provider: "compact", id: "model" };
   const commitModel = { provider: "commit", id: "model" };
-  const openspecProposeModel = { provider: "openspecPropose", id: "model" };
+  const codeReviewModel = { provider: "codeReview", id: "model" };
   const allModels = [
     userModel,
     userModel2,
     compactModel,
     commitModel,
-    openspecProposeModel,
+    codeReviewModel,
   ];
   const ctx = {
     model: userModel,
@@ -312,7 +312,7 @@ describe("runtime sanitization", () => {
       routes: JSON.stringify({
         "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
         "/skill:simplify": "not-an-object",
-        "/skill:openspec-apply-change": {
+        "/skill:code-review": {
           model: "unknown/missing",
           thinkingLevel: "high",
         },
@@ -329,7 +329,7 @@ describe("runtime sanitization", () => {
 
     expect(runtime.isRouteUsable("/skill:commit")).toBe(true);
     expect(runtime.isRouteUsable("/skill:simplify")).toBe(false);
-    expect(runtime.isRouteUsable("/skill:openspec-apply-change")).toBe(false);
+    expect(runtime.isRouteUsable("/skill:code-review")).toBe(false);
 
     expect(writeFileMock).toHaveBeenCalledWith(
       ROUTES_FILE,
@@ -934,8 +934,8 @@ describe("session baseline and thinking preferences", () => {
       prefs: null,
       routes: JSON.stringify({
         "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
-        "/skill:openspec-propose": {
-          model: "openspecPropose/model",
+        "/skill:code-review": {
+          model: "codeReview/model",
           thinkingLevel: "medium",
         },
       }),
@@ -949,7 +949,7 @@ describe("session baseline and thinking preferences", () => {
     await setup.handlers.get("input")?.(
       {
         source: "user",
-        text: "/skill:openspec-propose later",
+        text: "/skill:code-review later",
         streamingBehavior: "followUp",
       },
       setup.ctx,
@@ -965,7 +965,7 @@ describe("session baseline and thinking preferences", () => {
           content: [
             {
               type: "text",
-              text: '<skill name="openspec-propose" location="/skills/openspec-propose/SKILL.md">\nBody\n</skill>\n\nlater',
+              text: '<skill name="code-review" location="/skills/code-review/SKILL.md">\nBody\n</skill>\n\nlater',
             },
           ],
         },
@@ -974,7 +974,7 @@ describe("session baseline and thinking preferences", () => {
     );
 
     expect(setup.pi.setModel).toHaveBeenCalledTimes(2);
-    expect(setup.ctx.model).toBe(setup.openspecProposeModel);
+    expect(setup.ctx.model).toBe(setup.codeReviewModel);
   });
 
   it("does not retry an unset route at message_start", async () => {
@@ -1144,8 +1144,8 @@ describe("session baseline and thinking preferences", () => {
       prefs: null,
       routes: JSON.stringify({
         "/skill:commit": { model: "commit/model", thinkingLevel: "low" },
-        "/skill:openspec-propose": {
-          model: "openspecPropose/model",
+        "/skill:code-review": {
+          model: "codeReview/model",
           thinkingLevel: "medium",
         },
       }),
@@ -1158,16 +1158,13 @@ describe("session baseline and thinking preferences", () => {
       setup.ctx,
     );
     await setup.handlers.get("input")?.(
-      { source: "user", text: "/skill:openspec-propose two" },
+      { source: "user", text: "/skill:code-review two" },
       setup.ctx,
     );
     await setup.handlers.get("agent_settled")?.({}, setup.ctx);
 
     expect(setup.pi.setModel).toHaveBeenNthCalledWith(1, setup.commitModel);
-    expect(setup.pi.setModel).toHaveBeenNthCalledWith(
-      2,
-      setup.openspecProposeModel,
-    );
+    expect(setup.pi.setModel).toHaveBeenNthCalledWith(2, setup.codeReviewModel);
   });
 
   it("warns but continues when the routed command has a broken configuration", async () => {
