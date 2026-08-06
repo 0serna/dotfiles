@@ -5,7 +5,7 @@
 #   sh tq POST /api/search '{"code":"return await api.getDocs()"}'                # JSON body
 #   sh tq POST /api/doc/DOC/exec 'return editor.getCurrentPageShapes().length'    # raw JS body
 set -e
-sj='C:/Users/oscrs/AppData/Roaming/tldraw/server.json'
+sj='/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json'
 port=$(jq -r .port "$sj"); token=$(jq -r .token "$sj")
 url="http://localhost:$port$2"
 auth="authorization: Bearer $token"

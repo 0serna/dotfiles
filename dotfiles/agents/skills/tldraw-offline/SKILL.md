@@ -11,7 +11,7 @@ Use this skill for tasks involving open tldraw Desktop files. The desktop app ex
 
 ## Server
 
-The default server is `http://localhost:7236`. If that port is not active, read the `port` from `C:/Users/oscrs/AppData/Roaming/tldraw/server.json`.
+The default server is `http://localhost:7236`. If that port is not active, read the `port` from `/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json`.
 
 A clean quit removes `server.json`; the next launch rewrites it. It also records `pid` and `startedAt`, so if the file is present but requests to its `port` fail, treat it as stale (the app quit uncleanly) — the app is not running.
 
@@ -22,21 +22,21 @@ Every request except `GET /` and `/readme` needs the per-launch `token` from tha
 **Each Bash tool call runs in a fresh shell — exported env vars do NOT persist between calls.** A `TLDRAW_TOKEN` you `export` in one call is empty in the next, so the request sends `authorization: Bearer` with no token and 401s. "Export once and reuse" does not work here — re-establish the port and token on every call. Read them together at the top of each call (both stay fixed for the app's lifetime, so re-reading is cheap):
 
 ```bash
-PORT=$(jq -r .port 'C:/Users/oscrs/AppData/Roaming/tldraw/server.json'); TOKEN=$(jq -r .token 'C:/Users/oscrs/AppData/Roaming/tldraw/server.json')
+PORT=$(jq -r .port '/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json'); TOKEN=$(jq -r .token '/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json')
 # use as:  http://localhost:$PORT/...   -H "authorization: Bearer $TOKEN"
 ```
 
 ### Helper: `tq`
 
-A ready-made helper ships with this skill at `"$HOME/skills/tldraw-offline/tq"`. Invoke it as `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]` — it re-reads the port and token from `server.json` itself on every call, so you never handle the token or the fresh-shell env problem. A body starting with `{` is sent as JSON; anything else as raw `text/plain`:
+A ready-made helper ships with this skill at `"$HOME/.agents/skills/tldraw-offline/tq"`. Invoke it as `sh "$HOME/.agents/skills/tldraw-offline/tq" <METHOD> <path> [body]` — it re-reads the port and token from `server.json` itself on every call, so you never handle the token or the fresh-shell env problem. A body starting with `{` is sent as JSON; anything else as raw `text/plain`:
 
 ```bash
-sh "$HOME/skills/tldraw-offline/tq" POST /api/search '{"code":"return await api.getDocs()"}'
-sh "$HOME/skills/tldraw-offline/tq" POST /api/doc/DOC_ID/exec 'return editor.getCurrentPageShapes().length'
-sh "$HOME/skills/tldraw-offline/tq" GET  /api/doc/DOC_ID/script-status
+sh "$HOME/.agents/skills/tldraw-offline/tq" POST /api/search '{"code":"return await api.getDocs()"}'
+sh "$HOME/.agents/skills/tldraw-offline/tq" POST /api/doc/DOC_ID/exec 'return editor.getCurrentPageShapes().length'
+sh "$HOME/.agents/skills/tldraw-offline/tq" GET  /api/doc/DOC_ID/script-status
 ```
 
-If `tq` is missing (an older install), fall back to raw `curl` with the `PORT`/`TOKEN` reads shown above. The raw-`curl` examples below stay in explicit form so each request is visible; translate any to `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]`.
+If `tq` is missing (an older install), fall back to raw `curl` with the `PORT`/`TOKEN` reads shown above. The raw-`curl` examples below stay in explicit form so each request is visible; translate any to `sh "$HOME/.agents/skills/tldraw-offline/tq" <METHOD> <path> [body]`.
 
 ```bash
 curl -s http://localhost:7236/readme
@@ -54,11 +54,11 @@ The code-taking POST endpoints accept raw JavaScript as the request body (`conte
 
 ## Use this first
 
-Most tasks do not require searching `api.members`. Start with these calls and search the full Editor API only if a snippet fails or you truly need an unknown method. The object is `api`, not `spec`. Each block below is shown as raw `curl` so the request is visible; `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
+Most tasks do not require searching `api.members`. Start with these calls and search the full Editor API only if a snippet fails or you truly need an unknown method. The object is `api`, not `spec`. Each block below is shown as raw `curl` so the request is visible; `sh "$HOME/.agents/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
 
 ```bash
 # Fresh shell per call: re-read port + token first (or use the values already in your context).
-PORT=$(jq -r .port 'C:/Users/oscrs/AppData/Roaming/tldraw/server.json'); TOKEN=$(jq -r .token 'C:/Users/oscrs/AppData/Roaming/tldraw/server.json')
+PORT=$(jq -r .port '/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json'); TOKEN=$(jq -r .token '/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json')
 
 # Pick the target doc by focused window or filename.
 curl -s -X POST http://localhost:$PORT/api/search \
@@ -177,11 +177,11 @@ Read the worked `custom-shape`, `custom-binding`, and `custom-overlay` recipes f
 
 ## Fast path for static edits
 
-Shown as raw `curl`; `sh "$HOME/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
+Shown as raw `curl`; `sh "$HOME/.agents/skills/tldraw-offline/tq" <METHOD> <path> [body]` is the shorter equivalent that handles the port and token for you.
 
 ```bash
 # Fresh shell per call: re-read port + token (or use the values already in your context).
-PORT=$(jq -r .port 'C:/Users/oscrs/AppData/Roaming/tldraw/server.json'); TOKEN=$(jq -r .token 'C:/Users/oscrs/AppData/Roaming/tldraw/server.json')
+PORT=$(jq -r .port '/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json'); TOKEN=$(jq -r .token '/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json')
 
 # Discover docs.
 curl -s -X POST http://localhost:$PORT/api/search \

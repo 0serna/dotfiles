@@ -3,7 +3,7 @@
 # Injects the running tldraw desktop canvas server's base URL + auth token as hook
 # additionalContext. Prints nothing when the app is not running.
 event="${1:-SubagentStart}"
-server_json='C:/Users/oscrs/AppData/Roaming/tldraw/server.json'
+server_json='/mnt/c/Users/oscrs/AppData/Roaming/tldraw/server.json'
 
 command -v jq >/dev/null 2>&1 || exit 0
 [ -f "$server_json" ] || exit 0
