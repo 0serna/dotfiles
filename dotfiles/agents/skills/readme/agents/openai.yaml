@@ -1,0 +1,5 @@
+interface:
+  display_name: "README"
+  short_description: "Short clear README for a repo"
+policy:
+  allow_implicit_invocation: false
