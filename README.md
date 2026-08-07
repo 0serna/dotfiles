@@ -1,34 +1,47 @@
 # Dotfiles
 
-Personal configuration for AI coding tools and terminal workflows. This repository keeps the source files under `dotfiles/` and uses `dotfiles.json` to link them into the expected locations in `$HOME`.
+Configs and skills for Pi, OpenCode, and Codex. A TypeScript linker reads `dotfiles.json` and symlinks them into `$HOME`.
+
+## What's in here
+
+| Area                | Path                      | Role                                                             |
+| ------------------- | ------------------------- | ---------------------------------------------------------------- |
+| Linker              | `src/`, `dotfiles.json`   | Symlinks repo files to home paths from the manifest              |
+| Shared skills       | `dotfiles/agents/`        | Skills linked to `~/.agents`                                     |
+| Shared instructions | `dotfiles/AGENTS.md`      | Agent rules linked into OpenCode, Codex, and Pi                  |
+| OpenCode            | `dotfiles/opencode/`      | Config and TUI settings (`~/.config/opencode`)                   |
+| Codex               | `dotfiles/codex/`         | Config (`~/.codex`)                                              |
+| Pi                  | `dotfiles/pi/`            | Settings, keybindings, and TypeScript extensions (`~/.pi/agent`) |
+| Domain docs         | `CONTEXT.md`, `docs/adr/` | Vocabulary and ADRs, mostly for Pi extensions                    |
+
+Most of the custom TypeScript is in Pi extensions: quota, auto-continue, model routing, TUI footer, web tools, and related pieces. OpenCode and Codex get the same shared skills and `AGENTS.md` through that linker.
+
+## Layout
+
+```text
+dotfiles.json     # link manifest
+dotfiles/
+  agents/         # shared skills → ~/.agents
+  AGENTS.md       # shared instructions (OpenCode, Codex, Pi)
+  opencode/       # → ~/.config/opencode
+  codex/          # → ~/.codex
+  pi/             # → ~/.pi/agent
+src/              # TypeScript linker
+docs/adr/         # architecture decisions
+CONTEXT.md        # domain vocabulary
+```
 
 ## Setup
 
-Requires Node.js `>=22.12.0`.
+Node.js `>=22.12.0`.
 
 ```bash
 npm install
 npm run link
 ```
 
-`npm run link` reads `dotfiles.json` and creates or updates the configured links, for example `~/.config/opencode`, `~/.codex`, `~/.pi/agent`, and `~/.agents`.
-
-## Commands
-
 ```bash
-npm run link              # Link dotfiles into $HOME
-npm run test              # Run Vitest tests
-npm run lint              # Lint with ESLint
-npm run typecheck         # Check types with TypeScript
-```
-
-## Structure
-
-```text
-.
-├── dotfiles.json   # Link manifest: source files and target locations
-├── dotfiles/       # Configurations that are linked into $HOME
-├── src/            # TypeScript linker implementation
-├── scripts/        # Local automation
-└── docs/adr/       # Architecture decision records
+npm test
+npm run lint
+npm run typecheck
 ```
