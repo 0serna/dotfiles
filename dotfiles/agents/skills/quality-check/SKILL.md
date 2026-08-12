@@ -6,15 +6,22 @@ description: Establish a practical quality baseline, quality commands, and a pre
 
 ## Workflow
 
-1. Audit the repository's effective quality boundary. Inspect the stack, existing runner, CI, formatters, auto-fixers, quality tools, and pre-commit framework. For each tool, account for:
+1. **Audit via parallel crews**
+   Discover which of these **surfaces** exist, then one explore **crew** (subagent) per present surface — in parallel:
+   - **Runner** — package/task manifests, scripts, and local quality commands (format, lint, typecheck, test, build).
+   - **CI** — workflow configs and how they invoke those commands.
+   - **Analyzers** — formatter, linter, typechecker, and test-tool configs; suppressions; ignored paths.
+   - **Hooks** — pre-commit / staged-file frameworks and what they run today.
+
+   Each crew accounts for, on its surface:
    - maintained production, test, script, and configuration files
    - justified exclusions such as generated artifacts
-   - disabled or downgraded rules, inline and file-wide suppressions, and ignored paths
-   - whether the command verifies the tree or mutates it
+   - disabled or downgraded rules, suppressions, and ignored paths
+   - whether each command verifies the tree or mutates it
 
-   Exercise the normal commands and, where supported, inspect excluded maintained files without treating generated artifacts as debt. The audit is complete when every maintained file class is either checked or has an explicit rationale, and every mechanism that can hide findings is accounted for.
+   Crews run cheap checks on their surface and return a structured brief (no proposal, no edits). You aggregate. Done when every maintained file class is checked or rationalized across the briefs, and every hiding mechanism is accounted for.
 
-2. Propose a **practical baseline** before changing files. Configure individual format, lint, typecheck, test, and build commands—whichever apply—in the existing runner for manual use and CI. Make these decisions explicit:
+2. **Propose a practical baseline** before changing files (you). Configure individual format, lint, typecheck, test, and build commands—whichever apply—in the existing runner for manual use and CI. Make these decisions explicit:
    - which findings block and which represent accepted debt
    - whether verification and auto-fix are separate commands
    - production and test policies, with narrow overrides where test doubles need them
