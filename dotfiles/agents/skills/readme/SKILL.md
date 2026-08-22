@@ -40,7 +40,7 @@ Rewrite or create `README.md` so a technical reader can see what this repository
 
 4. Slop pass via sub-agent.
    - Write the balanced draft to `README.md` first (the sub-agent edits that file; it does not see this conversation).
-   - Spawn one sub-agent whose only job is the `no-ai-slop` skill in edit mode on `README.md`. Include in its prompt: the absolute path to `README.md`, that the audience is a technical reader of this repo, and that it must apply `no-ai-slop` edit mode and write the result back to that path.
+   - Spawn one sub-agent whose only job is the `unslop` skill on `README.md`. Include in its prompt: the absolute path to `README.md`, that the audience is a technical reader of this repo, and that it must apply `unslop` and write the result back to that path.
    - Do not run the slop pass yourself — keep drafting context out of the edit.
    - Complete when the sub-agent has updated `README.md` and returned a short What changed list.
 
