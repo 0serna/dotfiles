@@ -11,7 +11,6 @@ export default [
       "node_modules",
       ".git",
       "dotfiles/pi/agent/settings.json",
-      "dotfiles/pi/agent/extensions/orca-*.ts",
       ".agents/skills/**",
       "dotfiles/agents/skills/**",
     ],

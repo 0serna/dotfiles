@@ -75,11 +75,11 @@ describe("formatDirectorySegment", () => {
   it("uses the common repository name for a linked worktree", () => {
     expect(
       formatDirectorySegment({
-        cwd: "/home/oscar/orca/workspaces/dotfiles/tautog",
+        cwd: "/home/oscar/workspaces/dotfiles/tautog",
         home: "/home/oscar",
         branch: "0serna/tautog",
         git: {
-          topLevel: "/home/oscar/orca/workspaces/dotfiles/tautog",
+          topLevel: "/home/oscar/workspaces/dotfiles/tautog",
           gitDir: "/home/oscar/repositories/dotfiles/.git/worktrees/tautog",
           commonDir: "/home/oscar/repositories/dotfiles/.git",
         },
