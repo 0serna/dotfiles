@@ -22,7 +22,3 @@
 - Run every quality gate affected by the change before declaring work complete. If a failure is pre-existing and unrelated, ask the user.
 - Fix the root cause of every quality-tool finding. If no valid fix is viable, consult the user rather than adding a suppression.
 - Prefer GitHub CLI for GitHub investigations. Clone into `/tmp` when inspecting code that is not available locally.
-
-### Windows Paths
-
-When the user pastes a Windows path (e.g., `C:\Users\...`), convert it to WSL: replace `C:\` with `/mnt/c/` and all backslashes with forward slashes, then read.
