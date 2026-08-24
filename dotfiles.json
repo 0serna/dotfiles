@@ -8,16 +8,8 @@
     "target": "~/.config/opencode/tui.jsonc"
   },
   {
-    "source": "dotfiles/AGENTS.md",
-    "target": "~/.config/opencode/AGENTS.md"
-  },
-  {
     "source": "dotfiles/agents",
     "target": "~/.agents"
-  },
-  {
-    "source": "dotfiles/AGENTS.md",
-    "target": "~/.codex/AGENTS.md"
   },
   {
     "source": "dotfiles/codex/config.toml",
@@ -30,10 +22,6 @@
   {
     "source": "dotfiles/pi/agent/keybindings.json",
     "target": "~/.pi/agent/keybindings.json"
-  },
-  {
-    "source": "dotfiles/AGENTS.md",
-    "target": "~/.pi/agent/AGENTS.md"
   },
   {
     "source": "dotfiles/pi/agent/extensions",

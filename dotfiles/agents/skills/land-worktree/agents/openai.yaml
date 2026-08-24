@@ -1,0 +1,5 @@
+interface:
+  display_name: "Land Worktree"
+  short_description: "Push, merge PR, sync main, and teardown a worktree"
+policy:
+  allow_implicit_invocation: false

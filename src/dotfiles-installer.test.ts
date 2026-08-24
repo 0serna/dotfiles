@@ -365,15 +365,15 @@ describe("DotfilesInstaller", () => {
 
   it("links the same source file to multiple targets", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/AGENTS.md": "shared instructions" },
+      { "dotfiles/shared/rules.md": "shared instructions" },
       [
         {
-          source: "dotfiles/AGENTS.md",
-          target: "~/.config/opencode/AGENTS.md",
+          source: "dotfiles/shared/rules.md",
+          target: "~/.config/opencode/rules.md",
         },
         {
-          source: "dotfiles/AGENTS.md",
-          target: "~/.pi/agent/AGENTS.md",
+          source: "dotfiles/shared/rules.md",
+          target: "~/.pi/agent/rules.md",
         },
       ],
     );
@@ -381,43 +381,31 @@ describe("DotfilesInstaller", () => {
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    await expectSymlink(path.join(homeDir, ".config", "opencode", "AGENTS.md"));
-    await expectSymlink(path.join(homeDir, ".pi", "agent", "AGENTS.md"));
+    await expectSymlink(path.join(homeDir, ".config", "opencode", "rules.md"));
+    await expectSymlink(path.join(homeDir, ".pi", "agent", "rules.md"));
     expect(
       await fs.readFile(
-        path.join(homeDir, ".config", "opencode", "AGENTS.md"),
+        path.join(homeDir, ".config", "opencode", "rules.md"),
         "utf-8",
       ),
     ).toBe("shared instructions");
     expect(
       await fs.readFile(
-        path.join(homeDir, ".pi", "agent", "AGENTS.md"),
+        path.join(homeDir, ".pi", "agent", "rules.md"),
         "utf-8",
       ),
     ).toBe("shared instructions");
   });
 
-  it("uses shared agent instructions in the default manifest", async () => {
+  it("links pi targets from dotfiles/pi in the default manifest", async () => {
     const manifest = await readManifest(process.cwd());
-    const sharedInstructionEntries = manifest.filter(
-      (entry) =>
-        entry.source === "dotfiles/AGENTS.md" &&
-        ["~/.config/opencode/AGENTS.md", "~/.pi/agent/AGENTS.md"].includes(
-          entry.target,
-        ),
-    );
     const piEntries = manifest.filter((entry) =>
       entry.target.startsWith("~/.pi/"),
     );
-    const nonSharedPiEntries = piEntries.filter(
-      (entry) => entry.target !== "~/.pi/agent/AGENTS.md",
-    );
 
-    expect(sharedInstructionEntries).toHaveLength(2);
+    expect(piEntries.length).toBeGreaterThan(0);
     expect(
-      nonSharedPiEntries.every((entry) =>
-        entry.source.startsWith("dotfiles/pi/"),
-      ),
+      piEntries.every((entry) => entry.source.startsWith("dotfiles/pi/")),
     ).toBe(true);
   });
 
