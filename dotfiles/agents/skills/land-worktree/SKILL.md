@@ -34,9 +34,11 @@ Invoking this skill is the request and authorization to **land** the current lin
    - Complete when `HEAD` matches `origin/<default-branch>`.
 
 6. **Teardown.**
-   - When a compose file exists in the worktree, run `docker compose down`.
-   - Record failures and continue — teardown is best-effort.
-   - Complete when compose is absent, down succeeds, or the failure is recorded.
+   - From the worktree path, detect a Compose project: `compose.yaml`, `compose.yml`, `docker-compose.yaml`, or `docker-compose.yml` at the root.
+   - When none is present, set Teardown to `SKIPPED` and continue.
+   - When present, run `docker compose down` in the worktree (stop containers and networks; leave volumes).
+   - On non-zero exit, set Teardown to `FAILED` with the error and continue — teardown is best-effort.
+   - Complete when Teardown is `OK`, `SKIPPED`, or `FAILED` in the landing report.
 
 7. **Report.**
    - Print the landing report from Output.
