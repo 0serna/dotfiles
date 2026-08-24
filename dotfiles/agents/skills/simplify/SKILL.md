@@ -54,7 +54,7 @@ Stop at the first rung that yields a high-confidence, behavior-preserving edit:
    - Complete when cross-cluster duplicates are merged or explicitly deferred in the report.
 
 5. **Verify**
-   - Run the project's quality gate when one exists.
+   - Run each quality command from the repository quality baseline when one is configured (see `AGENTS.md` / runner scripts).
    - Otherwise run the tests, typecheck, or lint that cover the touched code.
    - If verification fails, fix the regression before reporting; the simplification is not done until it passes.
 

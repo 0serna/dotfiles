@@ -37,7 +37,7 @@ Work on Pi extensions using the Pi API contract and this repo's extension idioms
    - Complete when the suspected failure has a log-backed cause or logging is confirmed absent/insufficient.
 6. Verify.
    - Add or update focused Vitest coverage for pure logic, lifecycle state, schemas, rendering, and error/fallback paths touched by the change.
-   - Run the repository quality gate, preferably `npm run check`; use narrower tests only when the user explicitly scopes verification.
+   - Run each quality command from the repository quality baseline (see `AGENTS.md`); use narrower tests only when the user explicitly scopes verification.
    - Complete when checks pass or any blocker is reported with the exact command and failure.
 
 ## Local standards

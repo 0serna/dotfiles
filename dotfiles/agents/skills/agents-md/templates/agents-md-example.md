@@ -13,5 +13,6 @@
 ## Repository Commands
 
 - `npm test`: run tests.
+- `npm run lint`: lint the repository.
+- `npm run typecheck`: typecheck the repository.
 - `npm run format`: format repository files.
-- `npm run check`: run the full quality gate.
