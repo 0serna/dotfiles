@@ -4,9 +4,9 @@ This context covers the local automation and Pi agent extensions managed by this
 
 ## Language
 
-**Check output contract**:
-The machine-readable format used by quality check scripts. Uses `---CHECK:<tool>---` delimiters for failed tool output and `---CHECK:SUMMARY---` for the final status report. Each tool appears as `tool: PASS` or `tool: FAIL`.
-_Avoid_: verbose output, extra delimiters
+**Quality baseline**:
+The agreed set of checks that must pass for the maintained tree to be considered in good standing, including which findings block, accepted debt, and file scope.
+_Avoid_: quality gate
 
 **Web research surface**:
 One of the read-only external research capabilities available to the agent: discovering web sources, reading a known URL, finding public source-code usage, or consulting library documentation. Each surface represents a distinct research intent rather than a provider.
