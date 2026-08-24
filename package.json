@@ -8,6 +8,7 @@
     "sync-pi-deps": "bash scripts/sync-pi-deps.sh",
     "sync-pi-settings": "bash scripts/publish-pi-settings.sh",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

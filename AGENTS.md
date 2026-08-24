@@ -20,5 +20,6 @@
 - `npm run lint`: lint with ESLint.
 - `npm run typecheck`: check types with TypeScript.
 - `npm run format`: format with Prettier.
+- `npm run format:check`: verify Prettier formatting without writing.
 - `npm run sync-pi-deps`: synchronize Pi package versions with the system installation.
 - `npm run sync-pi-settings`: publish local Pi agent settings into the repository.
