@@ -409,6 +409,31 @@ describe("DotfilesInstaller", () => {
     ).toBe(true);
   });
 
+  it("links agent-sudo into ~/.local/bin", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      {
+        "dotfiles/bin/agent-sudo": "#!/usr/bin/env bash\necho agent-sudo\n",
+      },
+      [
+        {
+          source: "dotfiles/bin/agent-sudo",
+          target: "~/.local/bin/agent-sudo",
+        },
+      ],
+    );
+
+    const success = await install(repoDir, homeDir);
+
+    expect(success).toBe(true);
+    await expectSymlink(path.join(homeDir, ".local", "bin", "agent-sudo"));
+    expect(
+      await fs.readFile(
+        path.join(homeDir, ".local", "bin", "agent-sudo"),
+        "utf-8",
+      ),
+    ).toContain("agent-sudo");
+  });
+
   it("replaces existing targets", async () => {
     const { repoDir, homeDir } = await createRepo(
       { "dotfiles/opencode/opencode.jsonc": "new" },

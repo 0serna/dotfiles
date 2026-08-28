@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REASON="${1:?Missing reason. Usage: agent-sudo \"reason\" command...}"
+shift
+
+PASSWORD=$(zenity --password \
+  --title="Sudo approval" \
+  --width=420 \
+  --text="${REASON}" \
+  --ok-label="Authorize" \
+  --cancel-label="Cancel") || exit 1
+
+printf '%s\n' "$PASSWORD" | sudo -S "$@"
