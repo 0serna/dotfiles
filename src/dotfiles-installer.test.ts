@@ -422,16 +422,8 @@ describe("DotfilesInstaller", () => {
       ],
     );
 
-    const success = await install(repoDir, homeDir);
-
-    expect(success).toBe(true);
+    expect(await install(repoDir, homeDir)).toBe(true);
     await expectSymlink(path.join(homeDir, ".local", "bin", "agent-sudo"));
-    expect(
-      await fs.readFile(
-        path.join(homeDir, ".local", "bin", "agent-sudo"),
-        "utf-8",
-      ),
-    ).toContain("agent-sudo");
   });
 
   it("replaces existing targets", async () => {

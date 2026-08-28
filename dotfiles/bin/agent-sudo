@@ -8,7 +8,6 @@ PASSWORD=$(zenity --password \
   --title="Sudo approval" \
   --width=420 \
   --text="${REASON}" \
-  --ok-label="Authorize" \
-  --cancel-label="Cancel") || exit 1
+  --ok-label="Authorize") || exit 1
 
 printf '%s\n' "$PASSWORD" | sudo -S "$@"
