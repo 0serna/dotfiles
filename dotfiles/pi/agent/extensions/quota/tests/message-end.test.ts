@@ -4,8 +4,8 @@ import {
   describe,
   expect,
   it,
-  vi,
   type MockInstance,
+  vi,
 } from "vitest";
 import type { QuotaSnapshot } from "../snapshot.js";
 
@@ -181,7 +181,7 @@ async function start(snapshot: QuotaSnapshot = quotaSnapshot(90, 80)) {
   registerProvider = mock.pi.registerProvider as unknown as MockInstance;
   unregisterProvider = mock.pi.unregisterProvider as unknown as MockInstance;
   notify = bound.notify;
-  await handlers["session_start"]!({}, ctx);
+  await handlers.session_start?.({}, ctx);
 }
 
 beforeEach(async () => {
@@ -213,7 +213,7 @@ describe("session start", () => {
   });
 
   it("does not replace the OpenCode credential without a selectable snapshot", async () => {
-    await handlers["session_shutdown"]!({}, ctx);
+    await handlers.session_shutdown?.({}, ctx);
     await start({
       version: 2,
       revision: 1,
@@ -225,14 +225,14 @@ describe("session start", () => {
   });
 
   it("does not select an account from a later refresh", async () => {
-    await handlers["session_shutdown"]!({}, ctx);
+    await handlers.session_shutdown?.({}, ctx);
     await start({
       version: 2,
       revision: 1,
       cycle: { cycleStartedAt: 0 },
       sources: {},
     });
-    const onSnapshot = vi.mocked(refresh.onSnapshot).mock.calls[0]![0];
+    const onSnapshot = vi.mocked(refresh.onSnapshot).mock.calls[0]?.[0];
 
     onSnapshot(quotaSnapshot(20, 80));
 
@@ -247,7 +247,7 @@ describe("request authentication", () => {
       "x-opencode-client": "pi",
     };
 
-    await handlers["before_provider_headers"]!({ headers }, ctx);
+    await handlers.before_provider_headers?.({ headers }, ctx);
 
     expect(headers).toEqual({
       Authorization: "Bearer key-1",
@@ -265,13 +265,13 @@ describe("request authentication", () => {
     };
     const otherCtx = { ...ctx, model: { provider: "anthropic", id: "claude" } };
 
-    await handlers["before_provider_headers"]!({ headers }, otherCtx);
+    await handlers.before_provider_headers?.({ headers }, otherCtx);
 
     expect(headers.Authorization).toBe("Bearer other-key");
   });
 
   it("does not override credentials without a selected account", async () => {
-    await handlers["session_shutdown"]!({}, ctx);
+    await handlers.session_shutdown?.({}, ctx);
     await start({
       version: 2,
       revision: 1,
@@ -282,7 +282,7 @@ describe("request authentication", () => {
       Authorization: "Bearer stored-key",
     };
 
-    await handlers["before_provider_headers"]!({ headers }, ctx);
+    await handlers.before_provider_headers?.({ headers }, ctx);
 
     expect(headers.Authorization).toBe("Bearer stored-key");
   });
@@ -290,7 +290,7 @@ describe("request authentication", () => {
 
 describe("runtime rotation", () => {
   it("rotates to the best eligible account and requests continuation", async () => {
-    await handlers["message_end"]!(quotaError(), ctx);
+    await handlers.message_end?.(quotaError(), ctx);
 
     expect(registerProvider).toHaveBeenLastCalledWith("opencode-go", {
       apiKey: "key-2",
@@ -298,7 +298,7 @@ describe("runtime rotation", () => {
     const headers: Record<string, string | null> = {
       Authorization: "Bearer stored-key",
     };
-    await handlers["before_provider_headers"]!({ headers }, ctx);
+    await handlers.before_provider_headers?.({ headers }, ctx);
     expect(headers.Authorization).toBe("Bearer key-2");
     expect(emit).toHaveBeenCalledWith("auto-continue:request", {
       reason: "quota-rotation",
@@ -314,16 +314,16 @@ describe("runtime rotation", () => {
   });
 
   it("does not mutate the shared quota snapshot after a runtime rejection", async () => {
-    await handlers["message_end"]!(quotaError(), ctx);
+    await handlers.message_end?.(quotaError(), ctx);
 
     expect(refresh).not.toHaveProperty("recordExhaustion");
   });
 
   it("skips known exhausted accounts and does not continue without a candidate", async () => {
-    const onSnapshot = vi.mocked(refresh.onSnapshot).mock.calls[0]![0];
+    const onSnapshot = vi.mocked(refresh.onSnapshot).mock.calls[0]?.[0];
     onSnapshot(quotaSnapshot(90, 0));
 
-    await handlers["message_end"]!(quotaError(), ctx);
+    await handlers.message_end?.(quotaError(), ctx);
 
     expect(emit).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalledWith(
@@ -334,13 +334,13 @@ describe("runtime rotation", () => {
 
   it("ignores runtime errors from other providers", async () => {
     const otherCtx = { ...ctx, model: { provider: "anthropic" } };
-    await handlers["message_end"]!(quotaError("anthropic"), otherCtx);
+    await handlers.message_end?.(quotaError("anthropic"), otherCtx);
 
     expect(emit).not.toHaveBeenCalled();
   });
 
   it("clears the provider override on shutdown", async () => {
-    await handlers["session_shutdown"]!({}, ctx);
+    await handlers.session_shutdown?.({}, ctx);
 
     expect(unregisterProvider).toHaveBeenCalledWith("opencode-go");
   });

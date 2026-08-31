@@ -2,8 +2,8 @@ import type { FSWatcher } from "node:fs";
 import { watch as fsWatch } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { readSnapshotFile } from "./snapshot-store.js";
 import type { QuotaSnapshot } from "./snapshot.js";
+import { readSnapshotFile } from "./snapshot-store.js";
 
 // ---------------------------------------------------------------------------
 // Types

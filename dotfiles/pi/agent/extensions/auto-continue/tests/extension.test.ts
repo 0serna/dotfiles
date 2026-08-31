@@ -84,8 +84,8 @@ describe("auto-continue lifecycle", () => {
 
   it("waits for agent_settled and a one-second quiet period across event contexts", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(
       transientError,
       harness.createEventContext(),
     );
@@ -93,7 +93,7 @@ describe("auto-continue lifecycle", () => {
     await vi.advanceTimersByTimeAsync(2_000);
     expect(harness.sendUserMessage).not.toHaveBeenCalled();
 
-    await harness.handlers.agent_settled!({}, harness.createEventContext());
+    await harness.handlers.agent_settled?.({}, harness.createEventContext());
     await vi.advanceTimersByTimeAsync(999);
     expect(harness.sendUserMessage).not.toHaveBeenCalled();
 
@@ -106,9 +106,9 @@ describe("auto-continue lifecycle", () => {
 
   it("uses the response configuration active at dispatch", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
 
     harness.ctx.model = {
       provider: "anthropic",
@@ -129,11 +129,11 @@ describe("auto-continue lifecycle", () => {
 
   it("cancels recovery when user activity starts", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
 
-    await harness.handlers.input!(
+    await harness.handlers.input?.(
       { text: "new work", source: "interactive" },
       harness.ctx,
     );
@@ -144,9 +144,9 @@ describe("auto-continue lifecycle", () => {
 
   it("cancels recovery when a pending message exists at expiry", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
     harness.hasPendingMessages.mockReturnValue(true);
 
     await vi.advanceTimersByTimeAsync(1_000);
@@ -160,9 +160,9 @@ describe("auto-continue lifecycle", () => {
 
   it("cancels recovery when the agent is busy at expiry", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
     harness.isIdle.mockReturnValue(false);
 
     await vi.advanceTimersByTimeAsync(1_000);
@@ -176,11 +176,11 @@ describe("auto-continue lifecycle", () => {
 
   it("cleans up a pending timer during session shutdown", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
 
-    await harness.handlers.session_shutdown!({}, harness.ctx);
+    await harness.handlers.session_shutdown?.({}, harness.ctx);
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(harness.sendUserMessage).not.toHaveBeenCalled();
@@ -188,9 +188,9 @@ describe("auto-continue lifecycle", () => {
 
   it("dispatches a typed quota request immediately", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
 
-    harness.eventHandlers["auto-continue:request"]!({
+    harness.eventHandlers["auto-continue:request"]?.({
       reason: "quota-rotation",
       origin: { provider: "opencode-go", model: "go-model" },
     });
@@ -202,9 +202,9 @@ describe("auto-continue lifecycle", () => {
 
   it("suppresses unsupported request payloads", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
 
-    harness.eventHandlers["auto-continue:request"]!({
+    harness.eventHandlers["auto-continue:request"]?.({
       reason: "caller-defined",
       delayMs: 50,
     });
@@ -214,22 +214,22 @@ describe("auto-continue lifecycle", () => {
 
   it("coalesces concurrent quota requests", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
     const request = { reason: "quota-rotation" };
 
-    harness.eventHandlers["auto-continue:request"]!(request);
-    harness.eventHandlers["auto-continue:request"]!(request);
+    harness.eventHandlers["auto-continue:request"]?.(request);
+    harness.eventHandlers["auto-continue:request"]?.(request);
 
     expect(harness.sendUserMessage).toHaveBeenCalledTimes(1);
   });
 
   it("lets quota precedence cancel a pending transient timer", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
 
-    harness.eventHandlers["auto-continue:request"]!({
+    harness.eventHandlers["auto-continue:request"]?.({
       reason: "quota-rotation",
     });
     expect(harness.sendUserMessage).toHaveBeenCalledTimes(1);
@@ -240,17 +240,17 @@ describe("auto-continue lifecycle", () => {
 
   it("logs decisions without complete provider errors or recovery notifications", async () => {
     const harness = createHarness();
-    await harness.handlers.session_start!({}, harness.ctx);
-    await harness.handlers.message_end!(transientError, harness.ctx);
-    await harness.handlers.agent_settled!({}, harness.ctx);
-    await harness.handlers.input!(
+    await harness.handlers.session_start?.({}, harness.ctx);
+    await harness.handlers.message_end?.(transientError, harness.ctx);
+    await harness.handlers.agent_settled?.({}, harness.ctx);
+    await harness.handlers.input?.(
       { text: "new work", source: "interactive" },
       harness.ctx,
     );
-    harness.eventHandlers["auto-continue:request"]!({
+    harness.eventHandlers["auto-continue:request"]?.({
       reason: "quota-rotation",
     });
-    harness.eventHandlers["auto-continue:request"]!({ reason: "invalid" });
+    harness.eventHandlers["auto-continue:request"]?.({ reason: "invalid" });
 
     expect(logEvents.map((entry) => entry.event)).toEqual(
       expect.arrayContaining([

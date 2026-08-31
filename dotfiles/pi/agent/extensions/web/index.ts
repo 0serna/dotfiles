@@ -1,5 +1,5 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { homedir } from "node:os";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import {
   createExtensionLogger,

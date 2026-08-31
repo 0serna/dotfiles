@@ -30,9 +30,9 @@ vi.mock("node:os", () => ({
   homedir: () => "/home/test",
 }));
 
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { compact } from "@earendil-works/pi-coding-agent";
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import registerModelRoutesExtension from "../index.ts";
 import { ROUTE_TOKENS } from "../routes.ts";
 import { createModelRoutesRuntime } from "../runtime.ts";

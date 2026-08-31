@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  createAccountSelection,
   type AccountSelectionOutcome,
+  createAccountSelection,
 } from "../account-selection.js";
 import type { QuotaSnapshot, SourceState } from "../snapshot.js";
 import type { AccountConfig } from "../types.js";
@@ -228,8 +228,12 @@ describe("account selection interface", () => {
       monthly: 2 * 86400, // 2 days for "one"
     });
     // Override "two" monthly offset to 15 days
-    snap.sources["opencode-go/opencode-go:two"]!.windows!.monthly!.resetAt =
-      NOW / 1000 + 15 * 86400;
+    const twoMonthly =
+      snap.sources["opencode-go/opencode-go:two"]?.windows?.monthly;
+    if (!twoMonthly) {
+      throw new Error("expected monthly window for account two");
+    }
+    twoMonthly.resetAt = NOW / 1000 + 15 * 86400;
     const outcomes = selection.handle({
       type: "startup",
       snapshot: snap,
@@ -248,8 +252,12 @@ describe("account selection interface", () => {
       monthly: 30 * 60, // 30 minutes for both initially
     });
     // Override "two" to reset in 3 days
-    snap.sources["opencode-go/opencode-go:two"]!.windows!.monthly!.resetAt =
-      NOW / 1000 + 3 * 86400;
+    const twoMonthlyReset =
+      snap.sources["opencode-go/opencode-go:two"]?.windows?.monthly;
+    if (!twoMonthlyReset) {
+      throw new Error("expected monthly window for account two");
+    }
+    twoMonthlyReset.resetAt = NOW / 1000 + 3 * 86400;
     const outcomes = selection.handle({
       type: "startup",
       snapshot: snap,
@@ -266,8 +274,12 @@ describe("account selection interface", () => {
     const snap = snapshot(50, 50, "current", true, {
       monthly: 10 * 60, // 10 minutes for "one"
     });
-    snap.sources["opencode-go/opencode-go:two"]!.windows!.monthly!.resetAt =
-      NOW / 1000 + 45 * 60;
+    const twoMonthlyWindow =
+      snap.sources["opencode-go/opencode-go:two"]?.windows?.monthly;
+    if (!twoMonthlyWindow) {
+      throw new Error("expected monthly window for account two");
+    }
+    twoMonthlyWindow.resetAt = NOW / 1000 + 45 * 60;
     const outcomes = selection.handle({
       type: "startup",
       snapshot: snap,
@@ -289,9 +301,14 @@ describe("account selection interface", () => {
       weekly: 1 * 86400,
     });
     // "two": monthly sooner, weekly later
-    const two = snap.sources["opencode-go/opencode-go:two"]!;
-    two.windows!.monthly!.resetAt = NOW / 1000 + 7 * 86400;
-    two.windows!.weekly!.resetAt = NOW / 1000 + 14 * 86400;
+    const two = snap.sources["opencode-go/opencode-go:two"];
+    const twoMonthly = two?.windows?.monthly;
+    const twoWeekly = two?.windows?.weekly;
+    if (!twoMonthly || !twoWeekly) {
+      throw new Error("expected monthly and weekly windows for account two");
+    }
+    twoMonthly.resetAt = NOW / 1000 + 7 * 86400;
+    twoWeekly.resetAt = NOW / 1000 + 14 * 86400;
     const outcomes = selection.handle({
       type: "startup",
       snapshot: snap,
@@ -312,9 +329,12 @@ describe("account selection interface", () => {
       rolling: 7 * 86400,
     });
     // Set "one" rolling to 0%
-    snap.sources[
-      "opencode-go/opencode-go:one"
-    ]!.windows!.rolling!.remainingPercent = 0;
+    const oneRolling =
+      snap.sources["opencode-go/opencode-go:one"]?.windows?.rolling;
+    if (!oneRolling) {
+      throw new Error("expected rolling window for account one");
+    }
+    oneRolling.remainingPercent = 0;
     const outcomes = selection.handle({
       type: "startup",
       snapshot: snap,

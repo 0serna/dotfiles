@@ -15,6 +15,6 @@
     "model_cycle_favorite": "tab",
     "agent_cycle": "none",
     "terminal_suspend": "none",
-    "model_cycle_recent": "none",
-  },
+    "model_cycle_recent": "none"
+  }
 }

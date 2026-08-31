@@ -1,13 +1,13 @@
 import { clampPercent } from "./formatting.js";
+import type {
+  QuotaSnapshot,
+  SourceIdentity,
+  SourceRecord,
+} from "./snapshot.js";
 import {
   hasExhaustedQuotaWindow,
   OBSERVATION_RETENTION_MS,
 } from "./snapshot-transitions.js";
-import {
-  type QuotaSnapshot,
-  type SourceIdentity,
-  type SourceRecord,
-} from "./snapshot.js";
 
 // ---------------------------------------------------------------------------
 // Constants

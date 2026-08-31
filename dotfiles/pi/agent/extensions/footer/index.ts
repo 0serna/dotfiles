@@ -45,7 +45,9 @@ export default function (pi: ExtensionAPI) {
 
         return {
           dispose: unsubscribe,
-          invalidate() {},
+          invalidate() {
+            /* no-op */
+          },
           render(width: number): string[] {
             const branch = footerData.getGitBranch();
             const directory = formatDirectorySegment({

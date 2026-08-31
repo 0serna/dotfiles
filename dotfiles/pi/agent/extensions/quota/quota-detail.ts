@@ -9,12 +9,12 @@ import {
   formatResetTime,
   formatWindowRow,
 } from "./formatting.js";
-import {
-  type BankedResetDetail,
-  type QuotaSnapshot,
-  type SourceIdentity,
-  type SourceRecord,
-  type SourceWindow,
+import type {
+  BankedResetDetail,
+  QuotaSnapshot,
+  SourceIdentity,
+  SourceRecord,
+  SourceWindow,
 } from "./snapshot.js";
 
 function formatWindowBlock(

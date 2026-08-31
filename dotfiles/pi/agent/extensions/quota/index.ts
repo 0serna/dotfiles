@@ -1,6 +1,6 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
   AUTO_CONTINUE_REQUEST_EVENT,
   type AutoContinueRequest,
@@ -10,17 +10,17 @@ import {
   type ExtensionLogger,
 } from "../shared/logger.js";
 import {
-  createAccountSelection,
   type AccountSelection,
   type AccountSelectionOutcome,
+  createAccountSelection,
 } from "./account-selection.js";
 import {
-  codexAdapter,
   type CodexAdapterCredentials,
+  codexAdapter,
 } from "./adapters/codex-adapter.js";
 import {
-  opencodeGoAdapter,
   type OpenCodeAdapterCredentials,
+  opencodeGoAdapter,
 } from "./adapters/opencode-adapter.js";
 import { buildConfigurationFingerprint } from "./config-fingerprint.js";
 import { formatQuotaDetail } from "./quota-detail.js";

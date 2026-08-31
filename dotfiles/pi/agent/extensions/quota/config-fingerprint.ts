@@ -1,15 +1,15 @@
 import { createHash } from "node:crypto";
 import {
-  detectConfigConflict,
-  ensureDescriptor,
-} from "./snapshot-transitions.js";
-import {
   type QuotaSnapshot,
   SNAPSHOT_VERSION,
   type SourceDescriptor,
   type SourceRecord,
   sourceKey,
 } from "./snapshot.js";
+import {
+  detectConfigConflict,
+  ensureDescriptor,
+} from "./snapshot-transitions.js";
 
 // ---------------------------------------------------------------------------
 // Types

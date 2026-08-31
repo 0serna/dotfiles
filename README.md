@@ -40,6 +40,6 @@ npm run link
 
 ```bash
 npm test
-npm run lint
+npm run check
 npm run typecheck
 ```

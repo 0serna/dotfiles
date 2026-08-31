@@ -3,7 +3,9 @@ import type { ExtensionContext } from "../types.js";
 export function makeContext(): ExtensionContext {
   return {
     ui: {
-      setStatus: () => {},
+      setStatus: () => {
+        /* no-op */
+      },
       theme: {
         fg: (style: string, text: string) => `<${style}>${text}</${style}>`,
       },

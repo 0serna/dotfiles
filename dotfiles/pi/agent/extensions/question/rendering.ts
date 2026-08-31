@@ -62,7 +62,7 @@ function renderTabBar(
     ? theme.bg("selectedBg", theme.fg("text", submitText))
     : theme.fg(view.allAnswered ? "success" : "dim", submitText);
   tabs.push(`${submitStyled} →`);
-  lines.push(truncateToWidth(" " + tabs.join(""), width));
+  lines.push(truncateToWidth(` ${tabs.join("")}`, width));
   lines.push("");
 }
 

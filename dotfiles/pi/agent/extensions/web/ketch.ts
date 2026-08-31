@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import type {
   AgentToolResult,
   ExtensionContext,
@@ -8,7 +9,6 @@ import {
   formatSize,
   truncateHead,
 } from "@earendil-works/pi-coding-agent";
-import { homedir } from "node:os";
 
 import type { ExtensionLogger } from "../shared/logger.js";
 import { writeTempOutput } from "../shared/temp-output.js";

@@ -8,6 +8,11 @@ import type {
 } from "./adapter-registry.js";
 import { reconcileSnapshot } from "./config-fingerprint.js";
 import { createRefreshLeaseStore } from "./refresh-lease.js";
+import type {
+  QuotaSnapshot,
+  SourceDescriptor,
+  SourceIdentity,
+} from "./snapshot.js";
 import {
   createSnapshotStore,
   emptySnapshot,
@@ -19,13 +24,8 @@ import {
   expireOldObservations,
   recordConfigConflict,
 } from "./snapshot-transitions.js";
-import { watchSnapshot, type WatcherSubscription } from "./snapshot-watcher.js";
-import type {
-  QuotaSnapshot,
-  SourceDescriptor,
-  SourceIdentity,
-} from "./snapshot.js";
-import { formatCompactStatus, type ColorIntent } from "./status-formatter.js";
+import { type WatcherSubscription, watchSnapshot } from "./snapshot-watcher.js";
+import { type ColorIntent, formatCompactStatus } from "./status-formatter.js";
 
 const DEFAULT_FRESHNESS_MS = 5 * 60 * 1000;
 const LEASE_TTL_MS = 60_000;

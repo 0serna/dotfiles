@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { silentLogger } from "../adapter-test-utils.js";
 import {
-  codexAdapter,
   type CodexAdapterCredentials,
+  codexAdapter,
 } from "../adapters/codex-adapter.js";
 import { opencodeGoAdapter } from "../adapters/opencode-adapter.js";
 

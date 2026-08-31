@@ -7,7 +7,7 @@ import {
   type ExtensionLogger,
 } from "../shared/logger.js";
 import { formatDuration } from "./format.ts";
-import { ThroughputTracker, isOutputDeltaEvent } from "./throughput.ts";
+import { isOutputDeltaEvent, ThroughputTracker } from "./throughput.ts";
 
 export default function (pi: ExtensionAPI) {
   let startTime: number | null = null;

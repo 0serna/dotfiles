@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatQuotaDetail } from "../quota-detail.js";
-import {
-  type QuotaSnapshot,
-  type SourceDescriptor,
-  type SourceRecord,
+import type {
+  QuotaSnapshot,
+  SourceDescriptor,
+  SourceRecord,
 } from "../snapshot.js";
 import { stripStyles } from "./helpers.js";
 

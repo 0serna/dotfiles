@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  type QuotaSnapshot,
+  SNAPSHOT_VERSION,
+  type SourceDescriptor,
+  type SourceIdentity,
+  type SourceRecord,
+  type SourceWindow,
+} from "../snapshot.js";
+import {
   applySourceFailure,
   applySourceSuccess,
   detectConfigConflict,
@@ -9,14 +17,6 @@ import {
   isObservationUsable,
   recordConfigConflict,
 } from "../snapshot-transitions.js";
-import {
-  SNAPSHOT_VERSION,
-  type QuotaSnapshot,
-  type SourceDescriptor,
-  type SourceIdentity,
-  type SourceRecord,
-  type SourceWindow,
-} from "../snapshot.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
