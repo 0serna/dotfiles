@@ -1,9 +1,9 @@
+import { homedir } from "node:os";
 import type {
   ExtensionContext,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
-import { homedir } from "node:os";
-import { Type, type Static, type TSchema } from "typebox";
+import { type Static, type TSchema, Type } from "typebox";
 
 import type { KetchRunner, WebDetails, WebSurface } from "./ketch.js";
 import { renderCall, renderResult } from "./rendering.js";

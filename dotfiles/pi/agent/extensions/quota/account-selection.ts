@@ -1,5 +1,5 @@
-import { isObservationUsable } from "./snapshot-transitions.js";
 import type { QuotaSnapshot, SourceIdentity } from "./snapshot.js";
+import { isObservationUsable } from "./snapshot-transitions.js";
 import type { AccountConfig, AccountState } from "./types.js";
 
 const PROVIDER_ID = "opencode-go";

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  SNAPSHOT_VERSION,
   type QuotaSnapshot,
+  SNAPSHOT_VERSION,
   type SourceDescriptor,
   type SourceIdentity,
   type SourceRecord,

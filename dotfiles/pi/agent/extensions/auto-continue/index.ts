@@ -8,8 +8,8 @@ import {
 } from "../shared/logger.js";
 import {
   AUTO_CONTINUE_REQUEST_EVENT,
-  isAutoContinueRequest,
   type ContinuationReason,
+  isAutoContinueRequest,
 } from "./contract.js";
 import { RecoveryState } from "./recovery-state.js";
 

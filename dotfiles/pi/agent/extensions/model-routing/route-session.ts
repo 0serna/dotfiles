@@ -1,23 +1,23 @@
 import {
-  parseSkillBlock,
   type ExtensionAPI,
   type ExtensionContext,
+  parseSkillBlock,
 } from "@earendil-works/pi-coding-agent";
 import {
+  type BaselineSelection,
   emptyThinkingPreferences,
   loadThinkingPreferences,
   saveThinkingPreferences,
-  withRememberedSelection,
-  type BaselineSelection,
   type ThinkingPreferences,
+  withRememberedSelection,
 } from "./manual-preferences.ts";
 import { formatModelId, parseModelId } from "./model-ids.ts";
 import { activateRoute, getRouteName } from "./routing.ts";
 import type { ModelRoutesRuntime } from "./runtime.ts";
 import {
   createTransitionState,
-  reduceTransition,
   type ModelSelectionSource,
+  reduceTransition,
   type TransitionEffect,
   type TransitionState,
   type TransitionView,

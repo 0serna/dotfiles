@@ -1,7 +1,6 @@
+import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
-
-import type { AgentToolResult, Theme } from "@earendil-works/pi-coding-agent";
 import { allAnswered, execute } from "../interaction.js";
 import { renderCall, renderFrame, renderResult } from "../rendering.js";
 import { buildResult } from "../results.js";

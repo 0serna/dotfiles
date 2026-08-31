@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  createAccountSelection,
   type AccountSelectionOutcome,
+  createAccountSelection,
 } from "../account-selection.js";
 import type { QuotaSnapshot, SourceState } from "../snapshot.js";
 import type { AccountConfig } from "../types.js";
@@ -312,9 +312,8 @@ describe("account selection interface", () => {
       rolling: 7 * 86400,
     });
     // Set "one" rolling to 0%
-    snap.sources[
-      "opencode-go/opencode-go:one"
-    ]!.windows!.rolling!.remainingPercent = 0;
+    snap.sources["opencode-go/opencode-go:one"]!.windows!
+      .rolling!.remainingPercent = 0;
     const outcomes = selection.handle({
       type: "startup",
       snapshot: snap,

@@ -17,7 +17,7 @@ cd "$(git rev-parse --show-toplevel)"
 # Remove skip-worktree flag (no-op if not set)
 git update-index --no-skip-worktree "$FILE"
 
-prettier --write --ignore-unknown "$FILE"
+# settings.json is excluded from Biome; commit the file as-is.
 git add "$FILE"
 
 # Exit cleanly if there are no actual changes

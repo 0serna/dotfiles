@@ -11,8 +11,8 @@ import {
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
-  SNAPSHOT_VERSION,
   type QuotaSnapshot,
+  SNAPSHOT_VERSION,
   type SourceRecord,
 } from "./snapshot.js";
 
@@ -69,12 +69,12 @@ function isValidSourceRecord(value: unknown): value is SourceRecord {
   const record = value as Partial<SourceRecord>;
   return Boolean(
     record.identity &&
-    typeof record.identity.providerId === "string" &&
-    typeof record.identity.sourceId === "string" &&
-    typeof record.state === "string" &&
-    SOURCE_STATES.has(record.state) &&
-    typeof record.observedAt === "number" &&
-    typeof record.lastSuccessAt === "number",
+      typeof record.identity.providerId === "string" &&
+      typeof record.identity.sourceId === "string" &&
+      typeof record.state === "string" &&
+      SOURCE_STATES.has(record.state) &&
+      typeof record.observedAt === "number" &&
+      typeof record.lastSuccessAt === "number",
   );
 }
 
@@ -83,12 +83,12 @@ function isValidShape(value: unknown): value is QuotaSnapshot {
   const snapshot = value as Partial<QuotaSnapshot>;
   return Boolean(
     snapshot.version === SNAPSHOT_VERSION &&
-    typeof snapshot.revision === "number" &&
-    snapshot.revision >= 0 &&
-    snapshot.cycle &&
-    typeof snapshot.cycle.cycleStartedAt === "number" &&
-    snapshot.sources &&
-    Object.values(snapshot.sources).every(isValidSourceRecord),
+      typeof snapshot.revision === "number" &&
+      snapshot.revision >= 0 &&
+      snapshot.cycle &&
+      typeof snapshot.cycle.cycleStartedAt === "number" &&
+      snapshot.sources &&
+      Object.values(snapshot.sources).every(isValidSourceRecord),
   );
 }
 

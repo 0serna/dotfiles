@@ -1,7 +1,7 @@
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { parseModelId } from "./model-ids.ts";
-import { ROUTE_TOKENS, isRouteName, type RouteName } from "./routes.ts";
+import { isRouteName, ROUTE_TOKENS, type RouteName } from "./routes.ts";
 import { isValidModelRoute, loadConfig, saveConfig } from "./state.ts";
 import type { ModelRoute, ModelRoutesConfig } from "./types.ts";
 

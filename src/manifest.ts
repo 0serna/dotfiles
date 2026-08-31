@@ -12,15 +12,17 @@ export async function readManifest(repoDir: string): Promise<DotfileEntry[]> {
   let manifestContent: string;
   try {
     manifestContent = await fs.readFile(manifestPath, "utf-8");
-  } catch {
-    throw new Error(`Manifest not found: ${manifestPath}`);
+  } catch (error) {
+    throw new Error(`Manifest not found: ${manifestPath}`, { cause: error });
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(manifestContent) as unknown;
-  } catch {
-    throw new Error(`Invalid JSON in manifest: ${manifestPath}`);
+  } catch (error) {
+    throw new Error(`Invalid JSON in manifest: ${manifestPath}`, {
+      cause: error,
+    });
   }
 
   if (!Array.isArray(parsed)) {

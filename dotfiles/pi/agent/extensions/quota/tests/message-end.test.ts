@@ -4,8 +4,8 @@ import {
   describe,
   expect,
   it,
-  vi,
   type MockInstance,
+  vi,
 } from "vitest";
 import type { QuotaSnapshot } from "../snapshot.js";
 

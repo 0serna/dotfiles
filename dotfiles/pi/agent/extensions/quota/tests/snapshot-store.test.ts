@@ -3,17 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  type QuotaSnapshot,
+  SNAPSHOT_VERSION,
+  type SourceDescriptor,
+  type SourceRecord,
+} from "../snapshot.js";
+import {
   createSnapshotStore,
   emptySnapshot,
   quotaStateDir,
   readSnapshotFile,
 } from "../snapshot-store.js";
-import {
-  SNAPSHOT_VERSION,
-  type QuotaSnapshot,
-  type SourceDescriptor,
-  type SourceRecord,
-} from "../snapshot.js";
 
 const CODEX: SourceDescriptor = {
   identity: { providerId: "openai-codex", sourceId: "codex-login" },

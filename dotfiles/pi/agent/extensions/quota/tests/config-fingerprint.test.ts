@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  type ConfigurationFingerprint,
   buildConfigurationFingerprint,
+  type ConfigurationFingerprint,
   reconcileSnapshot,
 } from "../config-fingerprint.js";
-import { emptySnapshot } from "../snapshot-store.js";
 import {
   type QuotaSnapshot,
+  SNAPSHOT_VERSION,
   type SourceDescriptor,
   type SourceRecord,
-  SNAPSHOT_VERSION,
 } from "../snapshot.js";
+import { emptySnapshot } from "../snapshot-store.js";
 
 function makeDescriptor(
   overrides: Partial<SourceDescriptor> = {},
