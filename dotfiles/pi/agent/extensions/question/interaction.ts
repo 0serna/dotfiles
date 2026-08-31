@@ -126,7 +126,7 @@ export async function execute(
             out.push({
               question: question.question,
               options: question.options.map((o) => o.label),
-              answer: question.options[s.selectedIndex]!.label,
+              answer: question.options[s.selectedIndex]?.label ?? "",
               wasCustom: false,
               comment: s.comment,
             });
@@ -163,7 +163,7 @@ export async function execute(
 
       function openOther(): void {
         state.editMode = "other";
-        editor.setText(questionStates[state.currentTab]!.customText ?? "");
+        editor.setText(questionStates[state.currentTab]?.customText ?? "");
         refresh();
       }
 

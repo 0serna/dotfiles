@@ -6,9 +6,9 @@ import {
   rmSync,
   statSync,
   writeFileSync,
-} from "fs";
-import { homedir } from "os";
-import { join } from "path";
+} from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -60,10 +60,10 @@ function formatEntry(
   };
 
   try {
-    return JSON.stringify(entry) + "\n";
+    return `${JSON.stringify(entry)}\n`;
   } catch {
     entry.data = {};
-    return JSON.stringify(entry) + "\n";
+    return `${JSON.stringify(entry)}\n`;
   }
 }
 
@@ -84,7 +84,7 @@ function truncateFile(filePath: string): void {
       firstNewline === -1 ? Buffer.alloc(0) : tail.subarray(firstNewline + 1);
   }
 
-  const tmpPath = filePath + ".tmp";
+  const tmpPath = `${filePath}.tmp`;
   rmSync(tmpPath, { force: true });
   writeFileSync(tmpPath, truncated);
   renameSync(tmpPath, filePath);

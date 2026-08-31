@@ -247,7 +247,7 @@ export function createAccountSelection(
             {
               type: "notify",
               level: "info",
-              message: `Rotated OpenCode Go: ${previousName} → ${active()!.name}`,
+              message: `Rotated OpenCode Go: ${previousName} → ${active()?.name}`,
             },
             { type: "request-continuation", reason: "quota-rotation" },
           );

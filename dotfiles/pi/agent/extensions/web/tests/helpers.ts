@@ -37,7 +37,9 @@ export function createHarness(
   const pi = {
     exec,
     on(event: string, handler: Handler) {
-      (handlers[event] ??= []).push(handler);
+      const list = handlers[event] ?? [];
+      list.push(handler);
+      handlers[event] = list;
     },
     registerTool,
   } as unknown as ExtensionAPI;

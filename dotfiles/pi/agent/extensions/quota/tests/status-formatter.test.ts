@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  type QuotaSnapshot,
-  type SourceDescriptor,
-  type SourceRecord,
+import type {
+  QuotaSnapshot,
+  SourceDescriptor,
+  SourceRecord,
 } from "../snapshot.js";
 import { formatCompactStatus } from "../status-formatter.js";
 

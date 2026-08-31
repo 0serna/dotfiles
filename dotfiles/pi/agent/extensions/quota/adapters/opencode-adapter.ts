@@ -134,8 +134,8 @@ function isUsageWindow(v: unknown): v is Record<string, unknown> {
   return (
     typeof v === "object" &&
     v !== null &&
-    typeof (v as Record<string, unknown>)["usagePercent"] === "number" &&
-    typeof (v as Record<string, unknown>)["resetInSec"] === "number"
+    typeof (v as Record<string, unknown>).usagePercent === "number" &&
+    typeof (v as Record<string, unknown>).resetInSec === "number"
   );
 }
 
@@ -156,8 +156,8 @@ function extractGoData(
             : null;
     if (usageKey && isUsageWindow(value)) {
       result[usageKey] = toWindowData(
-        value["usagePercent"] as number,
-        value["resetInSec"] as number,
+        value.usagePercent as number,
+        value.resetInSec as number,
       );
     } else if (typeof value === "object" && value !== null) {
       const nested = extractGoData(value, depth + 1);
@@ -170,8 +170,8 @@ function extractGoData(
 function parseGoDashboard(html: string): OpenCodeGoData | null {
   const data = parseGoHydrationLiterals(html);
   const scriptRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi;
-  let scriptMatch: RegExpExecArray | null;
-  while ((scriptMatch = scriptRegex.exec(html)) !== null) {
+  let scriptMatch = scriptRegex.exec(html);
+  while (scriptMatch !== null) {
     const content = scriptMatch[1]!;
     const candidates = findJsonContainingKeys(content, [
       "rollingUsage",
@@ -188,6 +188,7 @@ function parseGoDashboard(html: string): OpenCodeGoData | null {
       }
     }
     if (data.rolling || data.weekly || data.monthly) break;
+    scriptMatch = scriptRegex.exec(html);
   }
   return data.rolling || data.weekly || data.monthly ? data : null;
 }

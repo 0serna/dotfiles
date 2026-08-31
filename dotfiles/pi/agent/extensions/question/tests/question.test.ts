@@ -66,17 +66,17 @@ describe("buildResult", () => {
     const r = buildResult([answer()]);
     expect(r.details.cancelled).toBe(false);
     expect(r.details.answers).toHaveLength(1);
-    expect(r.content[0]!.text).toContain("Scope?: user selected: Backend");
+    expect(r.content[0]?.text).toContain("Scope?: user selected: Backend");
   });
 
   it("builds a custom (Other) answer", () => {
     const r = buildResult([answer({ answer: "Edge", wasCustom: true })]);
-    expect(r.content[0]!.text).toContain("user wrote: Edge");
+    expect(r.content[0]?.text).toContain("user wrote: Edge");
   });
 
   it("builds an answer with comment", () => {
     const r = buildResult([answer({ comment: "fast" })]);
-    expect(r.content[0]!.text).toContain("Comment: fast");
+    expect(r.content[0]?.text).toContain("Comment: fast");
   });
 
   it("builds a cancelled result", () => {
@@ -265,6 +265,6 @@ describe("execute non-UI mode", () => {
       content: { type: "text"; text: string }[];
       details: MultiQuestionDetails;
     };
-    expect(result.content[0]!.text).toContain("UI not available");
+    expect(result.content[0]?.text).toContain("UI not available");
   });
 });

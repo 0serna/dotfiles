@@ -1,8 +1,8 @@
 import { clampPercent } from "./formatting.js";
-import {
-  type QuotaSnapshot,
-  type SourceIdentity,
-  type SourceRecord,
+import type {
+  QuotaSnapshot,
+  SourceIdentity,
+  SourceRecord,
 } from "./snapshot.js";
 import {
   hasExhaustedQuotaWindow,
