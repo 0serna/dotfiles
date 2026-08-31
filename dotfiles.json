@@ -30,5 +30,13 @@
   {
     "source": "dotfiles/bin/agent-sudo",
     "target": "~/.local/bin/agent-sudo"
+  },
+  {
+    "source": "dotfiles/systemd/user/set-default-volume.sh",
+    "target": "~/.config/systemd/user/set-default-volume.sh"
+  },
+  {
+    "source": "dotfiles/systemd/user/set-default-volume.service",
+    "target": "~/.config/systemd/user/set-default-volume.service"
   }
 ]

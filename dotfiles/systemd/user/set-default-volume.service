@@ -1,0 +1,12 @@
+[Unit]
+Description=Set default audio output volume to 50%
+After=pipewire.service pipewire-pulse.service wireplumber.service
+Wants=pipewire.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/systemd/user/set-default-volume.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
