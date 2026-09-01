@@ -4,7 +4,8 @@ set -euo pipefail
 REASON="${1:?Missing reason. Usage: agent-sudo \"reason\" command...}"
 shift
 
-PASSWORD=$(zenity --password \
+PASSWORD=$(zenity --entry \
+  --hide-text \
   --title="Sudo approval" \
   --width=420 \
   --text="${REASON}" \

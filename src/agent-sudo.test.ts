@@ -19,11 +19,13 @@ const agentSudoPath = join(
 function createMockBin(dialogExit = 0) {
   const binDir = mkdtempSync(join(tmpdir(), "agent-sudo-mock-"));
   const sudoLog = join(binDir, "sudo.log");
+  const zenityLog = join(binDir, "zenity.log");
 
   writeFileSync(
     join(binDir, "zenity"),
     `#!/usr/bin/env bash
-[[ " $* " == *" --password "* ]] || exit 1
+printf '%s\\n' "$*" > "${zenityLog}"
+[[ " $* " == *" --hide-text "* ]] || exit 1
 if [[ ${dialogExit} -ne 0 ]]; then exit ${dialogExit}; fi
 printf '%s\\n' secret
 `,
@@ -43,7 +45,7 @@ password=$(head -n1)
   chmodSync(join(binDir, "zenity"), 0o755);
   chmodSync(join(binDir, "sudo"), 0o755);
 
-  return { binDir, sudoLog };
+  return { binDir, sudoLog, zenityLog };
 }
 
 function runAgentSudo(args: string[], binDir: string) {
@@ -68,6 +70,15 @@ describe("agent-sudo", () => {
 
     expect(result.status).toBe(1);
     expect(existsSync(sudoLog)).toBe(false);
+  });
+
+  it("shows the reason as the dialog text", () => {
+    const { binDir, zenityLog } = createMockBin();
+    runAgentSudo(["install jq for JSON parsing", "true"], binDir);
+
+    expect(readFileSync(zenityLog, "utf-8")).toContain(
+      "--text=install jq for JSON parsing",
+    );
   });
 
   it("passes the password to sudo -S in a single dialog step", () => {
