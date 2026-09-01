@@ -19,17 +19,23 @@ const agentSudoPath = join(
 function createMockBin({
   dialogExit = 0,
   cached = false,
+  sudoersPresent = true,
 }: {
   dialogExit?: number;
   cached?: boolean;
+  sudoersPresent?: boolean;
 } = {}) {
   const binDir = mkdtempSync(join(tmpdir(), "agent-sudo-mock-"));
   const sudoLog = join(binDir, "sudo.log");
   const zenityLog = join(binDir, "zenity.log");
   const cacheFile = join(binDir, "sudo.cache");
+  const sudoersFile = join(binDir, "sudoers");
 
   if (cached) {
     writeFileSync(cacheFile, "");
+  }
+  if (sudoersPresent) {
+    writeFileSync(sudoersFile, "Defaults timestamp_type=global\n");
   }
 
   writeFileSync(
@@ -68,36 +74,42 @@ fi
   chmodSync(join(binDir, "zenity"), 0o755);
   chmodSync(join(binDir, "sudo"), 0o755);
 
-  return { binDir, sudoLog, zenityLog };
+  return { binDir, sudoLog, zenityLog, sudoersFile };
 }
 
-function runAgentSudo(args: string[], binDir: string) {
+function runAgentSudo(args: string[], binDir: string, sudoersFile: string) {
   return spawnSync(agentSudoPath, args, {
     encoding: "utf-8",
-    env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ""}` },
+    env: {
+      ...process.env,
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+      AGENT_SUDO_SUDOERS: sudoersFile,
+    },
   });
 }
 
 describe("agent-sudo", () => {
   it("fails with a clear usage error when no reason is provided", () => {
-    const { binDir } = createMockBin();
-    const result = runAgentSudo([], binDir);
+    const { binDir, sudoersFile } = createMockBin();
+    const result = runAgentSudo([], binDir, sudoersFile);
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Missing reason");
   });
 
   it("does not call sudo when the dialog is cancelled", () => {
-    const { binDir, sudoLog } = createMockBin({ dialogExit: 1 });
-    const result = runAgentSudo(["install jq", "true"], binDir);
+    const { binDir, sudoLog, sudoersFile } = createMockBin({
+      dialogExit: 1,
+    });
+    const result = runAgentSudo(["install jq", "true"], binDir, sudoersFile);
 
     expect(result.status).toBe(1);
     expect(existsSync(sudoLog)).toBe(false);
   });
 
   it("shows the reason as the dialog text", () => {
-    const { binDir, zenityLog } = createMockBin();
-    runAgentSudo(["install jq for JSON parsing", "true"], binDir);
+    const { binDir, zenityLog, sudoersFile } = createMockBin();
+    runAgentSudo(["install jq for JSON parsing", "true"], binDir, sudoersFile);
 
     expect(readFileSync(zenityLog, "utf-8")).toContain(
       "--text=install jq for JSON parsing",
@@ -105,8 +117,8 @@ describe("agent-sudo", () => {
   });
 
   it("passes the password to sudo -S in a single dialog step", () => {
-    const { binDir, sudoLog } = createMockBin();
-    const result = runAgentSudo(["install jq", "true"], binDir);
+    const { binDir, sudoLog, sudoersFile } = createMockBin();
+    const result = runAgentSudo(["install jq", "true"], binDir, sudoersFile);
 
     expect(result.status).toBe(0);
     const log = readFileSync(sudoLog, "utf-8");
@@ -115,11 +127,26 @@ describe("agent-sudo", () => {
   });
 
   it("skips the dialog when sudo is already authorized", () => {
-    const { binDir, sudoLog, zenityLog } = createMockBin({ cached: true });
-    const result = runAgentSudo(["install jq", "true"], binDir);
+    const { binDir, sudoLog, zenityLog, sudoersFile } = createMockBin({
+      cached: true,
+    });
+    const result = runAgentSudo(["install jq", "true"], binDir, sudoersFile);
 
     expect(result.status).toBe(0);
     expect(existsSync(zenityLog)).toBe(false);
     expect(readFileSync(sudoLog, "utf-8")).toContain("args:true");
+  });
+
+  it("installs shared timestamps before the command when missing", () => {
+    const { binDir, sudoLog, sudoersFile } = createMockBin({
+      sudoersPresent: false,
+    });
+    const result = runAgentSudo(["install jq", "true"], binDir, sudoersFile);
+
+    expect(result.status).toBe(0);
+    const log = readFileSync(sudoLog, "utf-8");
+    expect(log).toContain("install -m 440");
+    expect(log).toContain(sudoersFile);
+    expect(log).toContain("args:-S true");
   });
 });

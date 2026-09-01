@@ -4,6 +4,8 @@ set -euo pipefail
 REASON="${1:?Missing reason. Usage: agent-sudo \"reason\" command...}"
 shift
 
+SUDOERS_PATH="${AGENT_SUDO_SUDOERS:-/etc/sudoers.d/agent-sudo-timestamp}"
+
 if sudo -n true >/dev/null 2>&1; then
   exec sudo "$@"
 fi
@@ -14,5 +16,10 @@ PASSWORD=$(zenity --entry \
   --width=420 \
   --text="${REASON}" \
   --ok-label="Authorize") || exit 1
+
+if [[ ! -f "$SUDOERS_PATH" ]]; then
+  snippet="$(dirname "$(readlink -f "$0")")/agent-sudo-timestamp"
+  printf '%s\n' "$PASSWORD" | sudo -S install -m 440 "$snippet" "$SUDOERS_PATH"
+fi
 
 printf '%s\n' "$PASSWORD" | sudo -S "$@"

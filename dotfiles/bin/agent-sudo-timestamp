@@ -1,0 +1,4 @@
+# Share sudo timestamps across processes of the same user.
+# Agent shells have no tty, so sudo would otherwise ticket per parent PID
+# and prompt on every agent-sudo invocation.
+Defaults timestamp_type=global
