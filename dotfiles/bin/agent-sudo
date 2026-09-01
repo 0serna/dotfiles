@@ -4,6 +4,10 @@ set -euo pipefail
 REASON="${1:?Missing reason. Usage: agent-sudo \"reason\" command...}"
 shift
 
+if sudo -n true >/dev/null 2>&1; then
+  exec sudo "$@"
+fi
+
 PASSWORD=$(zenity --entry \
   --hide-text \
   --title="Sudo approval" \

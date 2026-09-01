@@ -16,10 +16,21 @@ const agentSudoPath = join(
   "dotfiles/bin/agent-sudo",
 );
 
-function createMockBin(dialogExit = 0) {
+function createMockBin({
+  dialogExit = 0,
+  cached = false,
+}: {
+  dialogExit?: number;
+  cached?: boolean;
+} = {}) {
   const binDir = mkdtempSync(join(tmpdir(), "agent-sudo-mock-"));
   const sudoLog = join(binDir, "sudo.log");
   const zenityLog = join(binDir, "zenity.log");
+  const cacheFile = join(binDir, "sudo.cache");
+
+  if (cached) {
+    writeFileSync(cacheFile, "");
+  }
 
   writeFileSync(
     join(binDir, "zenity"),
@@ -34,10 +45,22 @@ printf '%s\\n' secret
   writeFileSync(
     join(binDir, "sudo"),
     `#!/usr/bin/env bash
-password=$(head -n1)
+if [[ "\${1:-}" == "-n" ]]; then
+  [[ -f "${cacheFile}" ]] && exit 0
+  exit 1
+fi
+if [[ "\${1:-}" == "-S" ]]; then
+  password=$(head -n1)
+  touch "${cacheFile}"
+  {
+    echo "args:$*"
+    echo "password:$password"
+  } >> "${sudoLog}"
+  exit 0
+fi
 {
   echo "args:$*"
-  echo "password:$password"
+  echo "password:"
 } >> "${sudoLog}"
 `,
   );
@@ -65,7 +88,7 @@ describe("agent-sudo", () => {
   });
 
   it("does not call sudo when the dialog is cancelled", () => {
-    const { binDir, sudoLog } = createMockBin(1);
+    const { binDir, sudoLog } = createMockBin({ dialogExit: 1 });
     const result = runAgentSudo(["install jq", "true"], binDir);
 
     expect(result.status).toBe(1);
@@ -89,5 +112,14 @@ describe("agent-sudo", () => {
     const log = readFileSync(sudoLog, "utf-8");
     expect(log).toContain("args:-S true");
     expect(log).toContain("password:secret");
+  });
+
+  it("skips the dialog when sudo is already authorized", () => {
+    const { binDir, sudoLog, zenityLog } = createMockBin({ cached: true });
+    const result = runAgentSudo(["install jq", "true"], binDir);
+
+    expect(result.status).toBe(0);
+    expect(existsSync(zenityLog)).toBe(false);
+    expect(readFileSync(sudoLog, "utf-8")).toContain("args:true");
   });
 });
