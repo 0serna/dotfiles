@@ -7,6 +7,7 @@ Wants=pipewire.service wireplumber.service
 Type=oneshot
 ExecStart=%h/.config/systemd/user/set-default-volume.sh
 RemainAfterExit=yes
+TimeoutStartSec=45
 
 [Install]
 WantedBy=default.target
