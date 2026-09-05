@@ -1,10 +1,12 @@
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "medium"
 model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 [features]
 apps = false
+memories = false
+chronicle = false
 
 [projects."/home/oscar/repositories/dotfiles"]
 trust_level = "trusted"
@@ -13,6 +15,30 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/home/oscar/repositories/job-filter"]
+trust_level = "trusted"
+
+[projects."/home/oserna/repositories/yt-utils"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-05/pi"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-05/new-chat"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-05/model"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-05/que"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-05/usa-x20"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-05/dam"]
+trust_level = "trusted"
+
+[projects."/home/oserna/repositories/dotfiles"]
 trust_level = "trusted"
 
 [tui]
@@ -27,3 +53,80 @@ hide_full_access_warning = true
 
 [notice.model_migrations]
 "gpt-5.4" = "gpt-5.5"
+
+[desktop]
+followUpQueueMode = "steer"
+conversationDetailMode = "STEPS_COMMANDS"
+ambient-suggestions-enabled = false
+enabled-reasoning-efforts = ["low", "medium", "high", "xhigh", "ultra", "persistent", "max"]
+keepRemoteControlAwakeWhilePluggedIn = true
+git-pull-request-merge-method = "squash"
+worktree-upstream-refresh-mode = "best-effort"
+show-context-window-usage = true
+open-link-in-target-preference = "external-browser"
+open-local-url-in-target-preference = "external-browser"
+
+[marketplaces.openai-bundled]
+source_type = "local"
+source = "/home/oserna/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+source_type = "local"
+source = "/home/oserna/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[plugins."codex-app-tools@openai-bundled"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."unified-computer-use@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."sites@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
+enabled = true
+
+[mcp_servers.node_repl]
+args = []
+command = "/usr/lib/chatgpt/resources/cua_node/bin/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = "/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/usr/lib/chatgpt/resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/home/oserna/.codex:/usr/lib/chatgpt/resources/cua_node/lib/node_modules"
+CODEX_HOME = "/home/oserna/.codex"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+BROWSER_USE_TINYSKY_ENABLED = "1"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.901.41600"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/oserna/.codex/plugins/cache/openai-bundled/browser/26.901.41600/scripts/browser-service.mjs"}'
+CODEX_CLI_PATH = "/usr/lib/chatgpt/resources/codex"
+
+[memories]
+generate_memories = false
+use_memories = false
