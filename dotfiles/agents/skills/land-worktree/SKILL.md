@@ -16,8 +16,8 @@ Invoking this skill is the request and authorization to **land** the current lin
    - Complete when all three are identified.
 
 2. **Push pending work.**
-   - When the working tree is dirty, invoke the `commit` skill.
-   - When the branch has unpushed commits only, run `git push`.
+   - When the working tree is dirty, inspect `git status --short` and the diff. Stage the changes that belong to the branch, write a concise commit message that describes them, and run `git commit`.
+   - Push the branch to its upstream. If it has no upstream yet, set it with `git push -u origin <branch>`.
    - Complete when the branch is on the remote.
 
 3. **Resolve the PR.**
