@@ -1,5 +1,5 @@
-model = "gpt-5.6-sol"
-model_reasoning_effort = "medium"
+model = "gpt-5.6-terra"
+model_reasoning_effort = "low"
 model_verbosity = "low"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
@@ -39,6 +39,12 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/home/oserna/repositories/dotfiles"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-06/de-x20"]
+trust_level = "trusted"
+
+[projects."/home/oserna/Documents/Codex/2026-09-06/en-x20"]
 trust_level = "trusted"
 
 [tui]
@@ -83,27 +89,6 @@ enabled = true
 [plugins."unified-computer-use@openai-bundled"]
 enabled = true
 
-[plugins."visualize@openai-bundled"]
-enabled = true
-
-[plugins."sites@openai-bundled"]
-enabled = true
-
-[plugins."documents@openai-primary-runtime"]
-enabled = true
-
-[plugins."pdf@openai-primary-runtime"]
-enabled = true
-
-[plugins."spreadsheets@openai-primary-runtime"]
-enabled = true
-
-[plugins."presentations@openai-primary-runtime"]
-enabled = true
-
-[plugins."template-creator@openai-primary-runtime"]
-enabled = true
-
 [plugins."chrome@openai-bundled"]
 enabled = true
 
@@ -123,8 +108,8 @@ BROWSER_USE_TINYSKY_ENABLED = "1"
 NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = ""
 NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = ""
 BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
-BROWSER_USE_CODEX_APP_VERSION = "26.901.41600"
-NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/oserna/.codex/plugins/cache/openai-bundled/browser/26.901.41600/scripts/browser-service.mjs"}'
+BROWSER_USE_CODEX_APP_VERSION = "26.901.51231"
+NODE_REPL_TRUSTED_SERVICES = '{"browser":"/home/oserna/.codex/plugins/cache/openai-bundled/browser/26.901.51231/scripts/browser-service.mjs"}'
 CODEX_CLI_PATH = "/usr/lib/chatgpt/resources/codex"
 
 [memories]

@@ -64,15 +64,6 @@
       "installedAt": "2026-07-23T18:52:48.589Z",
       "updatedAt": "2026-08-23T02:27:31.551Z"
     },
-    "code-review": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/engineering/code-review/SKILL.md",
-      "skillFolderHash": "d8e341cee7980127dddda05159bedf25dc853615",
-      "installedAt": "2026-07-28T15:24:05.827Z",
-      "updatedAt": "2026-08-23T02:27:35.249Z"
-    },
     "handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",
