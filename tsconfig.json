@@ -19,6 +19,6 @@
     "noPropertyAccessFromIndexSignature": false,
     "rootDir": "."
   },
-  "include": ["src/**/*.ts", "dotfiles/pi/agent/extensions/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

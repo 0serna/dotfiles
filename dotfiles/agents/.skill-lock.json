@@ -118,13 +118,11 @@
     "antigravity",
     "antigravity-cli",
     "cline",
-    "codex",
     "cursor",
     "deepagents",
     "gemini-cli",
     "github-copilot",
     "kimi-code-cli",
-    "opencode",
     "warp",
     "zed"
   ]

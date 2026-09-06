@@ -1,31 +1,7 @@
 [
   {
-    "source": "dotfiles/opencode/opencode.jsonc",
-    "target": "~/.config/opencode/opencode.jsonc"
-  },
-  {
-    "source": "dotfiles/opencode/tui.jsonc",
-    "target": "~/.config/opencode/tui.jsonc"
-  },
-  {
     "source": "dotfiles/agents",
     "target": "~/.agents"
-  },
-  {
-    "source": "dotfiles/codex/config.toml",
-    "target": "~/.codex/config.toml"
-  },
-  {
-    "source": "dotfiles/pi/agent/settings.json",
-    "target": "~/.pi/agent/settings.json"
-  },
-  {
-    "source": "dotfiles/pi/agent/keybindings.json",
-    "target": "~/.pi/agent/keybindings.json"
-  },
-  {
-    "source": "dotfiles/pi/agent/extensions",
-    "target": "~/.pi/agent/extensions"
   },
   {
     "source": "dotfiles/bin/agent-sudo",

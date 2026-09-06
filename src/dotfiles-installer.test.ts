@@ -37,12 +37,12 @@ async function expectDirectory(filePath: string) {
   expect((await fs.lstat(filePath)).isDirectory()).toBe(true);
 }
 
-async function writeOpenCodeConfig(repoDir: string) {
+async function writeConfigFile(repoDir: string) {
   const configPath = path.join(
     repoDir,
     "dotfiles",
-    "opencode",
-    "opencode.jsonc",
+    "example-config",
+    "config.jsonc",
   );
 
   await fs.mkdir(path.dirname(configPath), { recursive: true });
@@ -72,16 +72,16 @@ describe("DotfilesInstaller", () => {
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
-  it("links the declared OpenCode directory", async () => {
+  it("links the declared Config directory", async () => {
     const { repoDir, homeDir } = await createRepo(
       {
-        "dotfiles/opencode/opencode.jsonc": "config",
-        "dotfiles/opencode/commands/example.md": "content",
+        "dotfiles/example-config/config.jsonc": "config",
+        "dotfiles/example-config/commands/example.md": "content",
       },
       [
         {
-          source: "dotfiles/opencode",
-          target: "~/.config/opencode",
+          source: "dotfiles/example-config",
+          target: "~/.config/example-config",
         },
       ],
     );
@@ -89,16 +89,22 @@ describe("DotfilesInstaller", () => {
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    await expectSymlink(path.join(homeDir, ".config", "opencode"));
+    await expectSymlink(path.join(homeDir, ".config", "example-config"));
     expect(
       await fs.readFile(
-        path.join(homeDir, ".config", "opencode", "opencode.jsonc"),
+        path.join(homeDir, ".config", "example-config", "config.jsonc"),
         "utf-8",
       ),
     ).toBe("config");
     expect(
       await fs.readFile(
-        path.join(homeDir, ".config", "opencode", "commands", "example.md"),
+        path.join(
+          homeDir,
+          ".config",
+          "example-config",
+          "commands",
+          "example.md",
+        ),
         "utf-8",
       ),
     ).toBe("content");
@@ -107,72 +113,79 @@ describe("DotfilesInstaller", () => {
   it("replaces an existing parent symlink before linking granular entries", async () => {
     const { repoDir, homeDir } = await createRepo(
       {
-        "dotfiles/opencode/opencode.jsonc": "config",
-        "dotfiles/opencode/commands/example.md": "command",
+        "dotfiles/example-config/config.jsonc": "config",
+        "dotfiles/example-config/commands/example.md": "command",
       },
       [
         {
-          source: "dotfiles/opencode/opencode.jsonc",
-          target: "~/.config/opencode/opencode.jsonc",
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
         },
         {
-          source: "dotfiles/opencode/commands",
-          target: "~/.config/opencode/commands",
+          source: "dotfiles/example-config/commands",
+          target: "~/.config/example-config/commands",
         },
       ],
     );
-    const opencodeTarget = path.join(homeDir, ".config", "opencode");
-    const opencodeSource = path.join(repoDir, "dotfiles", "opencode");
-    await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
-    await fs.symlink(opencodeSource, opencodeTarget, "dir");
+    const exampleConfigTarget = path.join(homeDir, ".config", "example-config");
+    const exampleConfigSource = path.join(
+      repoDir,
+      "dotfiles",
+      "example-config",
+    );
+    await fs.mkdir(path.dirname(exampleConfigTarget), { recursive: true });
+    await fs.symlink(exampleConfigSource, exampleConfigTarget, "dir");
 
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    await expectDirectory(opencodeTarget);
-    await expectSymlink(path.join(opencodeTarget, "opencode.jsonc"));
-    await expectSymlink(path.join(opencodeTarget, "commands"));
+    await expectDirectory(exampleConfigTarget);
+    await expectSymlink(path.join(exampleConfigTarget, "config.jsonc"));
+    await expectSymlink(path.join(exampleConfigTarget, "commands"));
     expect(
-      await fs.readFile(path.join(opencodeTarget, "opencode.jsonc"), "utf-8"),
+      await fs.readFile(
+        path.join(exampleConfigTarget, "config.jsonc"),
+        "utf-8",
+      ),
     ).toBe("config");
   });
 
   it("migrates a repo-backed parent symlink when the checkout path is symlinked", async () => {
     const { repoDir, homeDir } = await createRepo(
       {
-        "dotfiles/opencode/opencode.jsonc": "config",
+        "dotfiles/example-config/config.jsonc": "config",
       },
       [
         {
-          source: "dotfiles/opencode/opencode.jsonc",
-          target: "~/.config/opencode/opencode.jsonc",
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
         },
       ],
     );
     const linkedRepoDir = path.join(tmpDir, "repo-link");
-    const opencodeTarget = path.join(homeDir, ".config", "opencode");
+    const exampleConfigTarget = path.join(homeDir, ".config", "example-config");
     await fs.symlink(repoDir, linkedRepoDir, "dir");
-    await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
+    await fs.mkdir(path.dirname(exampleConfigTarget), { recursive: true });
     await fs.symlink(
-      path.join(repoDir, "dotfiles", "opencode"),
-      opencodeTarget,
+      path.join(repoDir, "dotfiles", "example-config"),
+      exampleConfigTarget,
       "dir",
     );
 
     const success = await install(linkedRepoDir, homeDir);
 
     expect(success).toBe(true);
-    await expectDirectory(opencodeTarget);
-    await expectSymlink(path.join(opencodeTarget, "opencode.jsonc"));
+    await expectDirectory(exampleConfigTarget);
+    await expectSymlink(path.join(exampleConfigTarget, "config.jsonc"));
   });
 
   it("preserves a symlinked ancestor while linking granular entries", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/opencode.jsonc": "config" },
+      { "dotfiles/example-config/config.jsonc": "config" },
       [
         {
-          source: "dotfiles/opencode/opencode.jsonc",
-          target: "~/.config/opencode/opencode.jsonc",
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
         },
       ],
     );
@@ -185,10 +198,12 @@ describe("DotfilesInstaller", () => {
 
     expect(success).toBe(true);
     await expectSymlink(configTarget);
-    await expectSymlink(path.join(configSource, "opencode", "opencode.jsonc"));
+    await expectSymlink(
+      path.join(configSource, "example-config", "config.jsonc"),
+    );
     expect(
       await fs.readFile(
-        path.join(configTarget, "opencode", "opencode.jsonc"),
+        path.join(configTarget, "example-config", "config.jsonc"),
         "utf-8",
       ),
     ).toBe("config");
@@ -196,54 +211,54 @@ describe("DotfilesInstaller", () => {
 
   it("rejects an immediate parent symlink outside the repository", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/opencode.jsonc": "config" },
+      { "dotfiles/example-config/config.jsonc": "config" },
       [
         {
-          source: "dotfiles/opencode/opencode.jsonc",
-          target: "~/.config/opencode/opencode.jsonc",
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
         },
       ],
     );
-    const externalOpencode = path.join(tmpDir, "external-opencode");
-    const opencodeTarget = path.join(homeDir, ".config", "opencode");
-    await fs.mkdir(externalOpencode, { recursive: true });
-    await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
-    await fs.symlink(externalOpencode, opencodeTarget, "dir");
+    const externalExampleConfig = path.join(tmpDir, "external-example-config");
+    const exampleConfigTarget = path.join(homeDir, ".config", "example-config");
+    await fs.mkdir(externalExampleConfig, { recursive: true });
+    await fs.mkdir(path.dirname(exampleConfigTarget), { recursive: true });
+    await fs.symlink(externalExampleConfig, exampleConfigTarget, "dir");
 
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
-    await expectSymlink(opencodeTarget);
+    await expectSymlink(exampleConfigTarget);
   });
 
   it("rejects a broken immediate parent symlink without replacing it", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/opencode.jsonc": "config" },
+      { "dotfiles/example-config/config.jsonc": "config" },
       [
         {
-          source: "dotfiles/opencode/opencode.jsonc",
-          target: "~/.config/opencode/opencode.jsonc",
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
         },
       ],
     );
-    const missingTarget = path.join(tmpDir, "missing-opencode");
-    const opencodeTarget = path.join(homeDir, ".config", "opencode");
-    await fs.mkdir(path.dirname(opencodeTarget), { recursive: true });
-    await fs.symlink(missingTarget, opencodeTarget, "dir");
+    const missingTarget = path.join(tmpDir, "missing-example-config");
+    const exampleConfigTarget = path.join(homeDir, ".config", "example-config");
+    await fs.mkdir(path.dirname(exampleConfigTarget), { recursive: true });
+    await fs.symlink(missingTarget, exampleConfigTarget, "dir");
 
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(false);
-    await expectSymlink(opencodeTarget);
+    await expectSymlink(exampleConfigTarget);
   });
 
   it("rejects sources that escape the repository", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/opencode.jsonc": "config" },
+      { "dotfiles/example-config/config.jsonc": "config" },
       [
         {
           source: "../secret.txt",
-          target: "~/.config/opencode/secret.txt",
+          target: "~/.config/example-config/secret.txt",
         },
       ],
     );
@@ -255,8 +270,8 @@ describe("DotfilesInstaller", () => {
 
   it.each(["~", "~/"])("rejects home root target %s", async (target) => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/opencode.jsonc": "config" },
-      [{ source: "dotfiles/opencode/opencode.jsonc", target }],
+      { "dotfiles/example-config/config.jsonc": "config" },
+      [{ source: "dotfiles/example-config/config.jsonc", target }],
     );
 
     await fs.writeFile(path.join(homeDir, "keep.txt"), "keep");
@@ -271,11 +286,11 @@ describe("DotfilesInstaller", () => {
 
   it("creates parent directories and expands home targets", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/tui.jsonc": "theme" },
+      { "dotfiles/example-config/tui.jsonc": "theme" },
       [
         {
-          source: "dotfiles/opencode/tui.jsonc",
-          target: "~/.config/opencode/nested/tui.jsonc",
+          source: "dotfiles/example-config/tui.jsonc",
+          target: "~/.config/example-config/nested/tui.jsonc",
         },
       ],
     );
@@ -284,11 +299,11 @@ describe("DotfilesInstaller", () => {
 
     expect(success).toBe(true);
     await expectSymlink(
-      path.join(homeDir, ".config", "opencode", "nested", "tui.jsonc"),
+      path.join(homeDir, ".config", "example-config", "nested", "tui.jsonc"),
     );
     expect(
       await fs.readFile(
-        path.join(homeDir, ".config", "opencode", "nested", "tui.jsonc"),
+        path.join(homeDir, ".config", "example-config", "nested", "tui.jsonc"),
         "utf-8",
       ),
     ).toBe("theme");
@@ -297,11 +312,11 @@ describe("DotfilesInstaller", () => {
   it("rejects targets inside the repository", async () => {
     const { repoDir, homeDir } = await createWorkspace();
 
-    await writeOpenCodeConfig(repoDir);
+    await writeConfigFile(repoDir);
 
     await writeManifest(repoDir, [
       {
-        source: "dotfiles/opencode/opencode.jsonc",
+        source: "dotfiles/example-config/config.jsonc",
         target: path.join(repoDir, "repo-target", "config.jsonc"),
       },
     ]);
@@ -326,7 +341,7 @@ describe("DotfilesInstaller", () => {
   it("rejects literal dot-prefixed segments inside the repository", async () => {
     const { repoDir, homeDir } = await createWorkspace();
 
-    await writeOpenCodeConfig(repoDir);
+    await writeConfigFile(repoDir);
 
     const targetPath = path.join(repoDir, "..foo", "config.jsonc");
     await fs.mkdir(path.dirname(targetPath), { recursive: true });
@@ -334,7 +349,7 @@ describe("DotfilesInstaller", () => {
 
     await writeManifest(repoDir, [
       {
-        source: "dotfiles/opencode/opencode.jsonc",
+        source: "dotfiles/example-config/config.jsonc",
         target: targetPath,
       },
     ]);
@@ -347,12 +362,12 @@ describe("DotfilesInstaller", () => {
 
   it("allows absolute targets in sibling directories with the repository path prefix", async () => {
     const { repoDir, homeDir } = await createWorkspace();
-    const targetPath = path.join(`${repoDir}-target`, "opencode.jsonc");
+    const targetPath = path.join(`${repoDir}-target`, "config.jsonc");
 
-    await writeOpenCodeConfig(repoDir);
+    await writeConfigFile(repoDir);
     await writeManifest(repoDir, [
       {
-        source: "dotfiles/opencode/opencode.jsonc",
+        source: "dotfiles/example-config/config.jsonc",
         target: targetPath,
       },
     ]);
@@ -369,11 +384,11 @@ describe("DotfilesInstaller", () => {
       [
         {
           source: "dotfiles/shared/rules.md",
-          target: "~/.config/opencode/rules.md",
+          target: "~/.config/example-config/rules.md",
         },
         {
           source: "dotfiles/shared/rules.md",
-          target: "~/.pi/agent/rules.md",
+          target: "~/.local/share/agent/rules.md",
         },
       ],
     );
@@ -381,32 +396,37 @@ describe("DotfilesInstaller", () => {
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    await expectSymlink(path.join(homeDir, ".config", "opencode", "rules.md"));
-    await expectSymlink(path.join(homeDir, ".pi", "agent", "rules.md"));
+    await expectSymlink(
+      path.join(homeDir, ".config", "example-config", "rules.md"),
+    );
+    await expectSymlink(
+      path.join(homeDir, ".local", "share", "agent", "rules.md"),
+    );
     expect(
       await fs.readFile(
-        path.join(homeDir, ".config", "opencode", "rules.md"),
+        path.join(homeDir, ".config", "example-config", "rules.md"),
         "utf-8",
       ),
     ).toBe("shared instructions");
     expect(
       await fs.readFile(
-        path.join(homeDir, ".pi", "agent", "rules.md"),
+        path.join(homeDir, ".local", "share", "agent", "rules.md"),
         "utf-8",
       ),
     ).toBe("shared instructions");
   });
 
-  it("links pi targets from dotfiles/pi in the default manifest", async () => {
+  it("does not include removed agent configuration targets in the default manifest", async () => {
     const manifest = await readManifest(process.cwd());
-    const piEntries = manifest.filter((entry) =>
-      entry.target.startsWith("~/.pi/"),
-    );
 
-    expect(piEntries.length).toBeGreaterThan(0);
     expect(
-      piEntries.every((entry) => entry.source.startsWith("dotfiles/pi/")),
-    ).toBe(true);
+      manifest.some(
+        (entry) =>
+          entry.source.startsWith("dotfiles/legacy-agent/") ||
+          entry.source.startsWith("dotfiles/legacy-tool/") ||
+          entry.source.startsWith("dotfiles/legacy-config/"),
+      ),
+    ).toBe(false);
   });
 
   it("links agent-sudo into ~/.local/bin", async () => {
@@ -428,25 +448,25 @@ describe("DotfilesInstaller", () => {
 
   it("replaces existing targets", async () => {
     const { repoDir, homeDir } = await createRepo(
-      { "dotfiles/opencode/opencode.jsonc": "new" },
+      { "dotfiles/example-config/config.jsonc": "new" },
       [
         {
-          source: "dotfiles/opencode/opencode.jsonc",
-          target: "~/.config/opencode/opencode.jsonc",
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
         },
       ],
     );
 
-    const targetPath = path.join(homeDir, ".config", "opencode");
+    const targetPath = path.join(homeDir, ".config", "example-config");
     await fs.mkdir(targetPath, { recursive: true });
-    await fs.writeFile(path.join(targetPath, "opencode.jsonc"), "old");
+    await fs.writeFile(path.join(targetPath, "config.jsonc"), "old");
 
     const success = await install(repoDir, homeDir);
 
     expect(success).toBe(true);
-    await expectSymlink(path.join(targetPath, "opencode.jsonc"));
+    await expectSymlink(path.join(targetPath, "config.jsonc"));
     expect(
-      await fs.readFile(path.join(targetPath, "opencode.jsonc"), "utf-8"),
+      await fs.readFile(path.join(targetPath, "config.jsonc"), "utf-8"),
     ).toBe("new");
   });
 

@@ -1,12 +1,10 @@
 {
-  "name": "opencode-config",
+  "name": "dotfiles",
   "version": "1.0.0",
   "type": "module",
   "private": true,
   "scripts": {
     "link": "tsx src/dotfiles-installer.ts",
-    "sync-pi-deps": "bash scripts/sync-pi-deps.sh",
-    "sync-pi-settings": "bash scripts/publish-pi-settings.sh",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
@@ -15,15 +13,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
-    "@earendil-works/pi-agent-core": "^0.82.1",
-    "@earendil-works/pi-ai": "^0.82.1",
-    "@earendil-works/pi-coding-agent": "^0.82.1",
-    "@earendil-works/pi-tui": "^0.82.1",
     "@types/node": "^24.5.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "tsx": "^4.23.1",
-    "typebox": "^1.1.38",
     "typescript": "^5",
     "vitest": "^4.1.10"
   },

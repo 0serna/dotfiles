@@ -1,6 +1,6 @@
 # Dotfiles
 
-Configs and skills for Pi, OpenCode, and Codex. A TypeScript linker reads `dotfiles.json` and symlinks them into `$HOME`.
+Shared agent skills and local system configuration. A TypeScript linker reads `dotfiles.json` and symlinks them into `$HOME`.
 
 ## What's in here
 
@@ -8,12 +8,11 @@ Configs and skills for Pi, OpenCode, and Codex. A TypeScript linker reads `dotfi
 | ------------- | ------------------------- | ---------------------------------------------------------------- |
 | Linker        | `src/`, `dotfiles.json`   | Symlinks repo files to home paths from the manifest              |
 | Shared skills | `dotfiles/agents/`        | Skills linked to `~/.agents`                                     |
-| OpenCode      | `dotfiles/opencode/`      | Config and TUI settings (`~/.config/opencode`)                   |
-| Codex         | `dotfiles/codex/`         | Config (`~/.codex`)                                              |
-| Pi            | `dotfiles/pi/`            | Settings, keybindings, and TypeScript extensions (`~/.pi/agent`) |
-| Domain docs   | `CONTEXT.md`, `docs/adr/` | Vocabulary and ADRs, mostly for Pi extensions                    |
+| Local helpers | `dotfiles/bin/`           | Locally linked command-line helpers                              |
+| Systemd       | `dotfiles/systemd/`       | User-level systemd configuration                                 |
+| Domain docs   | `CONTEXT.md`, `docs/adr/` | Project vocabulary and architecture decisions                    |
 
-Most of the custom TypeScript is in Pi extensions: quota, auto-continue, model routing, TUI footer, web tools, and related pieces. OpenCode and Codex get the same shared skills through that linker.
+The TypeScript code implements the dotfile linker; shared agent skills are linked through the same manifest.
 
 ## Layout
 
@@ -21,9 +20,8 @@ Most of the custom TypeScript is in Pi extensions: quota, auto-continue, model r
 dotfiles.json     # link manifest
 dotfiles/
   agents/         # shared skills → ~/.agents
-  opencode/       # → ~/.config/opencode
-  codex/          # → ~/.codex
-  pi/             # → ~/.pi/agent
+  bin/            # → ~/.local/bin
+  systemd/        # → ~/.config/systemd/user
 src/              # TypeScript linker
 docs/adr/         # architecture decisions
 CONTEXT.md        # domain vocabulary

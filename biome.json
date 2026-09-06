@@ -8,7 +8,6 @@
   "files": {
     "includes": [
       "**",
-      "!dotfiles/pi/agent/settings.json",
       "!dotfiles/agents/.skill-lock.json",
       "!.agents/skills",
       "!dotfiles/agents/skills"
