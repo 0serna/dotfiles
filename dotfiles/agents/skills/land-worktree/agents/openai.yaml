@@ -1,5 +1,5 @@
 interface:
   display_name: "Land Worktree"
-  short_description: "Push, merge PR, sync main, and teardown a worktree"
+  short_description: "Push a branch, merge its green PR, and sync the primary clone"
 policy:
   allow_implicit_invocation: false
