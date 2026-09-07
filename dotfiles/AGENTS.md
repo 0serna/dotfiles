@@ -3,3 +3,4 @@
 - Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitarme aprobación cuando lo requieras
 - Mantén el código modular y las responsabilidades claramente separadas.
 - Tu no debes usar playwriter, en su lugar debes usar el in-app browser
+- Siempre que uses grill-with-docs debes complementarlo con request_user_input para hacer las preguntas
