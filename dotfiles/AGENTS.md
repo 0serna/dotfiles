@@ -1,6 +1,6 @@
-- Usa español neutro y un lenguaje claro en los mensajes dirigidos a mi (usuario)
-- Usa inglés para código, archivos, etc. excepto cuando el idioma forme parte del comportamiento o traducciones
-- Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitarme aprobación cuando lo requieras
+- Usa español neutro y un lenguaje claro en los mensajes dirigidos al usuario
+- Usa inglés para código, archivos, y demás. Excepto cuando el idioma forme parte del comportamiento o traducciones
+- Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitar aprobación cuando lo requieras
 - Mantén el código modular y las responsabilidades claramente separadas.
-- Tu no debes usar playwriter, en su lugar debes usar el in-app browser
-- Siempre que uses grill-with-docs debes complementarlo con request_user_input para hacer las preguntas
+- No debes usar playwriter, en su lugar debes usar el in-app browser (no brave)
+- Para grilling siempre se deben hacer las preguntas con request_user_input

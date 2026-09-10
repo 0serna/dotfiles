@@ -19,3 +19,7 @@
 - `npm run check`: format, lint, and organize imports with Biome.
 - `npm run check:fix`: apply Biome fixes and formatting.
 - `npm run typecheck`: check types with TypeScript.
+
+## Skill Updates
+
+- `npx -y skills update -g -y`: update globally managed skills.
