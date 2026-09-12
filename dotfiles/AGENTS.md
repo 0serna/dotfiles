@@ -12,7 +12,7 @@
 ## Uso de subagentes
 
 - Al delegar, especifica siempre `model` y `thinking` con sus identificadores literales.
-- Para explorar archivos o proyectos, delega a un subagente con `model: "gpt-5.6-luna"` y `thinking: "high"`.
+- Para exploraciones extensas, delega a un subagente con `model: "gpt-5.6-luna"` y `thinking: "high"`.
 - Para investigar en la web, delega a un subagente con `model: "gpt-5.6-luna"` y `thinking: "high"`.
 - Para consultas de asesoría cuando exista un bloqueo o un problema complejo, delega a un subagente con `model: "gpt-6-astra"` y `thinking: "low"`.
 - Cada subagente debe iniciar con contexto fresco. Evita `fork_thread` o cualquier mecanismo que herede el historial de otra tarea.
