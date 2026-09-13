@@ -1,15 +1,6 @@
 {
   "version": 3,
   "skills": {
-    "playwriter": {
-      "source": "remorses/playwriter",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/remorses/playwriter.git",
-      "skillPath": "skills/playwriter/SKILL.md",
-      "skillFolderHash": "e07f981a95b1764f5f0d7efe59a134d5c24fa151",
-      "installedAt": "2026-04-23T19:55:30.474Z",
-      "updatedAt": "2026-07-15T14:35:32.815Z"
-    },
     "domain-modeling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -36,15 +27,6 @@
       "skillFolderHash": "2242e8f05424b8c2ae94194a90d97b88d16108ec",
       "installedAt": "2026-07-28T15:24:05.832Z",
       "updatedAt": "2026-08-23T02:27:38.404Z"
-    },
-    "tdd": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/engineering/tdd/SKILL.md",
-      "skillFolderHash": "79288be15c67b849f22b6572056601090fd20913",
-      "installedAt": "2026-07-28T15:24:05.836Z",
-      "updatedAt": "2026-08-23T02:27:45.389Z"
     },
     "writing-for-agents": {
       "source": "mattpocock/skills",
