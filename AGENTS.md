@@ -2,7 +2,10 @@
 
 ```text
 .
-├── src/                  # TypeScript installer and link logic
+├── src/                  # TypeScript source and tests
+│   ├── agent-sudo/       # Tests for the agent-sudo helper
+│   ├── installer/        # Dotfile installer and link logic
+│   └── skills/           # Skill metadata updater
 ├── dotfiles/             # Files linked into user config locations
 │   ├── agents/           # Shared agent skills
 │   ├── bin/              # Local command-line helpers

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const agentSudoPath = join(
-  fileURLToPath(new URL("..", import.meta.url)),
+  fileURLToPath(new URL("../..", import.meta.url)),
   "dotfiles/bin/agent-sudo",
 );
 
