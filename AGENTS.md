@@ -15,11 +15,8 @@
 ## Repository Commands
 
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
+- `npm run skills:update`: update globally managed skills and align their OpenAI metadata.
 - `npm run test`: run Vitest tests.
 - `npm run check`: format, lint, and organize imports with Biome.
 - `npm run check:fix`: apply Biome fixes and formatting.
 - `npm run typecheck`: check types with TypeScript.
-
-## Skill Updates
-
-- `npx -y skills update -g -y`: update globally managed skills.

@@ -1,0 +1,46 @@
+import { promises as fs } from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { normalizeSkills } from "./skills-update.ts";
+
+let tmpDir: string;
+
+async function addSkill(name: string, openAiYaml?: string) {
+  const skillDir = path.join(tmpDir, name);
+  await fs.mkdir(skillDir, { recursive: true });
+  await fs.writeFile(
+    path.join(skillDir, "SKILL.md"),
+    `---\nname: ${name}\ndescription: Test\ndisable-model-invocation: true\n---\n`,
+  );
+  if (openAiYaml !== undefined) {
+    await fs.mkdir(path.join(skillDir, "agents"));
+    await fs.writeFile(
+      path.join(skillDir, "agents", "openai.yaml"),
+      openAiYaml,
+    );
+  }
+}
+
+describe("normalizeSkills", () => {
+  afterEach(async () => fs.rm(tmpDir, { recursive: true, force: true }));
+
+  it("aligns explicit-only skills and preserves existing metadata", async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
+    await addSkill("missing");
+    await addSkill("metadata", 'interface:\n  display_name: "Test"\n');
+    await addSkill("conflict", "policy:\n  allow_implicit_invocation: true\n");
+
+    expect(await normalizeSkills(tmpDir)).toBe(3);
+    expect(await normalizeSkills(tmpDir)).toBe(0);
+    expect(
+      await fs.readFile(
+        path.join(tmpDir, "metadata", "agents", "openai.yaml"),
+        "utf8",
+      ),
+    ).toBe(
+      'interface:\n  display_name: "Test"\npolicy:\n  allow_implicit_invocation: false\n',
+    );
+  });
+});
