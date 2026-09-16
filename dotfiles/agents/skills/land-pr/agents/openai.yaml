@@ -1,0 +1,5 @@
+interface:
+  display_name: "Land PR"
+  short_description: "Merge a green PR and sync the primary clone"
+policy:
+  allow_implicit_invocation: false
