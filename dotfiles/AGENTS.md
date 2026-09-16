@@ -7,10 +7,9 @@
 
 - Mantén el código modular y las responsabilidades claramente separadas.
 - Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitar aprobación cuando lo requieras.
-- Siempre debes usar por defecto el in-app browser. Debes evitar usar el navegador externo. El usuario es quien decide cuándo puedes usarlo.
+- Siempre debes usar por defecto el in-app browser. El usuario es quien decide cuándo usar el navegador externo.
 
 ## Uso de subagentes
 
-- Actúa como orquestador del trabajo. Decide qué tareas realizar directamente y cuáles delegar a subagentes cuando resulte útil.
-- Al delegar, usa siempre `model: "gpt-5.6-luna"` y `thinking: "high"`.
-- Da a cada subagente un encargo autocontenido y contexto fresco. Evita `fork_thread` y cualquier mecanismo que herede el historial de otra tarea.
+- Al delegar, prefiere `model: "gpt-5.6-luna"` y `thinking: "max"`.
+- Da a cada subagente un encargo autocontenido y contexto fresco (evita `fork_thread`).
