@@ -11,4 +11,8 @@
 
 ## Consultoría
 
-- Ante un bloqueo o una tarea muy difícil, pide asesoría a un agente con `model: "gpt-5.6-sol"` y `thinking: "medium"`.
+- Ante un bloqueo o una tarea difícil, pide asesoría a un agente con `model: "gpt-5.6-sol"` y `thinking: "medium"`.
+
+## OpenSpec
+
+- Cuando el usuario pida archivar un cambio de OpenSpec, sincroniza siempre sus deltas con las especificaciones principales y después archiva el cambio. Ejecuta ambas acciones automáticamente, sin preguntar si desea sincronizar; solo detente si la sincronización falla o existe un bloqueo real.
