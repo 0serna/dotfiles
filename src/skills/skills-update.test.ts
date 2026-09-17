@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { normalizeSkills } from "./skills-update.ts";
+import { normalizeSkills, syncSkillDirectories } from "./skills-update.ts";
 
 let tmpDir: string;
 
@@ -42,5 +42,39 @@ describe("normalizeSkills", () => {
     ).toBe(
       'interface:\n  display_name: "Test"\npolicy:\n  allow_implicit_invocation: false\n',
     );
+  });
+});
+
+describe("syncSkillDirectories", () => {
+  afterEach(async () => fs.rm(tmpDir, { recursive: true, force: true }));
+
+  it("replaces OpenSpec skills and preserves unrelated skills", async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
+    const generated = path.join(tmpDir, "generated");
+    const installed = path.join(tmpDir, "installed");
+
+    await fs.mkdir(path.join(generated, "openspec-propose"), {
+      recursive: true,
+    });
+    await fs.writeFile(
+      path.join(generated, "openspec-propose", "SKILL.md"),
+      "new",
+    );
+    await fs.mkdir(path.join(installed, "openspec-old"), { recursive: true });
+    await fs.mkdir(path.join(installed, "custom"), { recursive: true });
+
+    expect(await syncSkillDirectories(generated, installed)).toBe(1);
+    expect(
+      await fs.readFile(
+        path.join(installed, "openspec-propose", "SKILL.md"),
+        "utf8",
+      ),
+    ).toBe("new");
+    await expect(
+      fs.access(path.join(installed, "custom")),
+    ).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(installed, "openspec-old")),
+    ).rejects.toThrow();
   });
 });

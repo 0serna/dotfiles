@@ -9,7 +9,6 @@
 - Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitar aprobación cuando lo requieras.
 - Siempre debes usar por defecto el in-app browser. El usuario es quien decide cuándo usar el navegador externo.
 
-## Uso de subagentes
+## Consultoría
 
-- Al delegar, prefiere `model: "gpt-5.6-luna"` y `thinking: "max"`.
-- Da a cada subagente un encargo autocontenido y contexto fresco (evita `fork_thread`).
+- Ante un bloqueo o una tarea muy difícil, pide asesoría a un agente con `model: "gpt-5.6-sol"` y `thinking: "medium"`.
