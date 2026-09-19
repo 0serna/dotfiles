@@ -1,7 +1,7 @@
 ## Comunicación y formato
 
 - Usa español neutro y un lenguaje claro en los mensajes dirigidos al usuario.
-- Usa inglés para código, archivos y demás, excepto cuando el idioma forme parte del comportamiento o traducciones.
+- Usa inglés para código, archivos, PRs y demás, excepto cuando el idioma forme parte del comportamiento o traducciones.
 
 ## Código y herramientas
 

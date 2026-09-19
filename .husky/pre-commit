@@ -1,2 +1,1 @@
-npm run sync-pi-deps
 npx lint-staged
