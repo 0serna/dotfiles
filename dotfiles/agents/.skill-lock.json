@@ -63,6 +63,15 @@
       "skillFolderHash": "678c375b883794bf4292715a43acbba5c84681aa",
       "installedAt": "2026-09-20T13:30:07.939Z",
       "updatedAt": "2026-09-20T13:30:07.939Z"
+    },
+    "find-docs": {
+      "source": "upstash/context7",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/upstash/context7.git",
+      "skillPath": "skills/find-docs/SKILL.md",
+      "skillFolderHash": "b635cd66f1414befd36d18646561398de2ddab54",
+      "installedAt": "2026-09-21T20:26:45.460Z",
+      "updatedAt": "2026-09-21T20:26:45.460Z"
     }
   },
   "dismissed": {
