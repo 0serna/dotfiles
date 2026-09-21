@@ -1,5 +1,13 @@
 [
   {
+    "source": "dotfiles/AGENTS.md",
+    "target": "~/.config/opencode/AGENTS.md"
+  },
+  {
+    "source": "dotfiles/AGENTS.md",
+    "target": "~/.codex/AGENTS.md"
+  },
+  {
     "source": "dotfiles/agents",
     "target": "~/.agents"
   },
