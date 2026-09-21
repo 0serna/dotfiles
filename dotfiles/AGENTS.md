@@ -7,7 +7,7 @@
 
 - Mantén el código modular y las responsabilidades claramente separadas.
 - Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitar aprobación cuando lo requieras.
-- Siempre debes usar por defecto el in-app browser. El usuario es quien decide cuándo usar el navegador externo.
+- Siempre debes usar por defecto la busqueda web y el navegador integrado. El usuario decide cuándo usar el navegador externo.
 
 ## Consultoría
 
@@ -15,4 +15,5 @@
 
 ## OpenSpec
 
-- Cuando el usuario pida archivar un cambio de OpenSpec, sincroniza siempre sus deltas con las especificaciones principales y después archiva el cambio. Ejecuta ambas acciones automáticamente, sin preguntar si desea sincronizar; solo detente si la sincronización falla o existe un bloqueo real.
+- Antes de proceder con un Propose, se debe crear los ADR o actualizar el glosario si es necesario.
+- Al archivar un cambio de OpenSpec, sincroniza siempre sus deltas con las especificaciones principales y después archiva el cambio. Ejecuta ambas acciones automáticamente, sin preguntar si desea sincronizar; solo detente si la sincronización falla o existe un bloqueo real.
