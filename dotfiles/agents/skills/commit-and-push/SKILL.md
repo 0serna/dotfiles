@@ -2,6 +2,9 @@
 name: commit-and-push
 disable-model-invocation: true
 description: Commit and push all pending changes in the current local workspace.
+metadata:
+  opencode/autoinvoke: false
+
 ---
 
 # Commit and push

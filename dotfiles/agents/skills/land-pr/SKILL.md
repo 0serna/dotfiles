@@ -2,6 +2,9 @@
 name: land-pr
 disable-model-invocation: true
 description: Publish the current branch, merge its green pull request, and sync the primary clone.
+metadata:
+  opencode/autoinvoke: false
+
 ---
 
 # Land pull request

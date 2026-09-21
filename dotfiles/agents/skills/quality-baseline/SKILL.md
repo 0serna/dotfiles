@@ -2,6 +2,9 @@
 name: quality-baseline
 disable-model-invocation: true
 description: Establish a quality baseline — runner targets, pre-commit auto-fix, and GitHub Actions CI.
+metadata:
+  opencode/autoinvoke: false
+
 ---
 
 ## Workflow
