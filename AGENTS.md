@@ -9,6 +9,7 @@
 ├── dotfiles/             # Files linked into user config locations
 │   ├── agents/           # Shared agent skills
 │   ├── bin/              # Local command-line helpers
+│   ├── opencode/         # Global opencode.jsonc + cli.json
 │   └── systemd/          # User-level systemd configuration
 ├── docs/                 # Architecture decision records
 │   └── adr/

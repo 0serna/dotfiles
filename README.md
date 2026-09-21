@@ -9,6 +9,7 @@ Shared agent skills and local system configuration. A TypeScript linker reads `d
 | Linker        | `src/`, `dotfiles.json`   | Symlinks repo files to home paths from the manifest              |
 | Shared skills | `dotfiles/agents/`        | Skills linked to `~/.agents`                                     |
 | Local helpers | `dotfiles/bin/`           | Locally linked command-line helpers                              |
+| OpenCode      | `dotfiles/opencode/`      | Global `opencode.jsonc` + `cli.json` → `~/.config/opencode/`     |
 | Systemd       | `dotfiles/systemd/`       | User-level systemd configuration                                 |
 | Domain docs   | `CONTEXT.md`, `docs/adr/` | Project vocabulary and architecture decisions                    |
 
@@ -21,6 +22,7 @@ dotfiles.json     # link manifest
 dotfiles/
   agents/         # shared skills → ~/.agents
   bin/            # → ~/.local/bin
+  opencode/       # opencode.jsonc + cli.json → ~/.config/opencode/
   systemd/        # → ~/.config/systemd/user
 src/              # TypeScript linker
 docs/adr/         # architecture decisions

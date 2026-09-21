@@ -4,6 +4,14 @@
     "target": "~/.config/opencode/AGENTS.md"
   },
   {
+    "source": "dotfiles/opencode/opencode.jsonc",
+    "target": "~/.config/opencode/opencode.jsonc"
+  },
+  {
+    "source": "dotfiles/opencode/cli.json",
+    "target": "~/.config/opencode/cli.json"
+  },
+  {
     "source": "dotfiles/AGENTS.md",
     "target": "~/.codex/AGENTS.md"
   },
