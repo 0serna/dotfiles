@@ -12,6 +12,10 @@
     "target": "~/.config/opencode/cli.json"
   },
   {
+    "source": "dotfiles/opencode/plugins",
+    "target": "~/.config/opencode/plugins"
+  },
+  {
     "source": "dotfiles/AGENTS.md",
     "target": "~/.codex/AGENTS.md"
   },

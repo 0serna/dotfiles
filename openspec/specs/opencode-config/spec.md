@@ -56,3 +56,17 @@ Both managed files SHALL be valid JSONC parseable by OpenCode, SHALL include the
 
 - **WHEN** reading the linked `opencode.jsonc`
 - **THEN** it defines at least `$schema`, a default `model` in `provider/model` format, and `formatter` enabled, and `cli.json` defines at least `$schema` plus TUI appearance/session defaults
+
+### Requirement: Global plugins directory is versioned via manifest
+
+The system SHALL manage `dotfiles/opencode/plugins/` as the single source for `~/.config/opencode/plugins/` through `dotfiles.json` using a directory-level link, and SHALL still never link `~/.config/opencode/` itself.
+
+#### Scenario: Fresh link creates plugins symlink
+
+- **WHEN** the user runs `npm run link` with the manifest entry present and no target exists
+- **THEN** `~/.config/opencode/plugins` is a symlink resolving into `dotfiles/opencode/plugins`
+
+#### Scenario: Unmanaged siblings survive linking
+
+- **WHEN** `~/.config/opencode/auth.json` exists before `npm run link`
+- **THEN** after linking, `auth.json` still exists as a real file with unchanged content
