@@ -1,0 +1,8 @@
+{
+  "name": "local-copy-last",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tui": "./tui.tsx"
+  }
+}

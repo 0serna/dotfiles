@@ -19,6 +19,6 @@
     "noPropertyAccessFromIndexSignature": false,
     "rootDir": "."
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*", "dotfiles/opencode/plugins/**/*"],
   "exclude": ["node_modules", "dist"]
 }

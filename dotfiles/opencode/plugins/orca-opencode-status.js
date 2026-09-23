@@ -80,21 +80,13 @@ function resolveHookCoords() {
     port: fileEnv.ORCA_AGENT_HOOK_PORT || process.env.ORCA_AGENT_HOOK_PORT,
     token: fileEnv.ORCA_AGENT_HOOK_TOKEN || process.env.ORCA_AGENT_HOOK_TOKEN,
     env: fileEnv.ORCA_AGENT_HOOK_ENV || process.env.ORCA_AGENT_HOOK_ENV || "",
-    version:
-      fileEnv.ORCA_AGENT_HOOK_VERSION ||
-      process.env.ORCA_AGENT_HOOK_VERSION ||
-      "",
+    version: fileEnv.ORCA_AGENT_HOOK_VERSION || process.env.ORCA_AGENT_HOOK_VERSION || "",
   };
 }
 
 function hookEndpointKey() {
   const coords = resolveHookCoords();
-  return [
-    coords.port || "",
-    coords.token || "",
-    coords.env,
-    coords.version,
-  ].join("\u0000");
+  return [coords.port || "", coords.token || "", coords.env, coords.version].join("\u0000");
 }
 
 function getStatusType(event) {
@@ -156,9 +148,7 @@ let deliveredMessagePartFactoryID = null;
 let lastAssistantPartPostAt = 0;
 
 function capMessagePartText(text) {
-  return text.length > MESSAGE_PART_MAX_CHARS
-    ? text.slice(0, MESSAGE_PART_MAX_CHARS)
-    : text;
+  return text.length > MESSAGE_PART_MAX_CHARS ? text.slice(0, MESSAGE_PART_MAX_CHARS) : text;
 }
 
 async function postMessagePart(properties, factoryID) {
@@ -187,19 +177,15 @@ async function flushPendingAssistantPart(force = false) {
   if (
     !activeFactoryIDs.has(pending.factoryID) ||
     disposingFactoryIDs.has(pending.factoryID)
-  )
-    return;
+  ) return;
   if (!force && pending.authorityRevision !== stateArrivalRevision) return;
   lastAssistantPartPostAt = Date.now();
-  await postMessagePart(
-    {
-      role: pending.role,
-      text: capMessagePartText(pending.text),
-      messageID: pending.messageID,
-      sessionID: pending.sessionID,
-    },
-    pending.factoryID,
-  );
+  await postMessagePart({
+    role: pending.role,
+    text: capMessagePartText(pending.text),
+    messageID: pending.messageID,
+    sessionID: pending.sessionID,
+  }, pending.factoryID);
 }
 
 function queueAssistantPart(part) {
@@ -243,8 +229,7 @@ async function resolveRootSessionID(client, sessionID) {
   if (!sessionID) return null;
   if (rootSessionById.has(sessionID)) return rootSessionById.get(sessionID);
   if (!client?.session?.get && !client?.session?.list) return null;
-  if (rootSessionLookupById.has(sessionID))
-    return rootSessionLookupById.get(sessionID);
+  if (rootSessionLookupById.has(sessionID)) return rootSessionLookupById.get(sessionID);
   const lookup = lookupRootSessionID(client, sessionID);
   rootSessionLookupById.set(sessionID, lookup);
   try {
@@ -323,10 +308,12 @@ async function lookupSessionList(client, sessionID, signal) {
   // current SDKs put AbortSignal in a second options argument, while legacy
   // generated clients accept one request-options object.
   if (client?.session?.get) {
-    const calls =
-      client.session.get.length >= 2
-        ? [[{ sessionID }, { signal }], [{ path: { id: sessionID }, signal }]]
-        : [[{ path: { id: sessionID }, signal }]];
+    const calls = client.session.get.length >= 2
+      ? [
+          [{ sessionID }, { signal }],
+          [{ path: { id: sessionID }, signal }],
+        ]
+      : [[{ path: { id: sessionID }, signal }]];
     for (const args of calls) {
       try {
         const result = await client.session.get(...args);
@@ -410,11 +397,10 @@ function scheduleStatusRetry(revision) {
     revision !== statusRevision ||
     !statusDeliveryDirty ||
     !activeFactoryIDs.has(desiredFactoryID)
-  )
-    return;
+  ) return;
   const delay = Math.min(
-    STATUS_RETRY_BASE_MS * 2 ** Math.min(statusRetryAttempt, 6),
-    STATUS_RETRY_MAX_MS,
+    STATUS_RETRY_BASE_MS * Math.pow(2, Math.min(statusRetryAttempt, 6)),
+    STATUS_RETRY_MAX_MS
   );
   statusRetryAttempt = Math.min(statusRetryAttempt + 1, 7);
   statusRetryTimer = setTimeout(() => {
@@ -424,8 +410,7 @@ function scheduleStatusRetry(revision) {
         revision !== statusRevision ||
         !statusDeliveryDirty ||
         !activeFactoryIDs.has(desiredFactoryID)
-      )
-        return;
+      ) return;
       await publishDesiredStatus(revision);
     });
   }, delay);
@@ -441,8 +426,7 @@ async function publishDesiredStatus(revision) {
     deliveredStatusKey === desiredStatusKey &&
     deliveredEndpointKey === endpointKey &&
     deliveredMessagePartFactoryID === null
-  )
-    return;
+  ) return;
   const delivered = await post(desiredHookEventName, desiredStatusProperties);
   if (revision !== statusRevision) return;
   if (!delivered) {
@@ -463,7 +447,7 @@ async function setDeliveryTarget(
   nextKey,
   hookEventName,
   extraProperties,
-  factoryID,
+  factoryID
 ) {
   const endpointChanged = deliveredEndpointKey !== hookEndpointKey();
   if (
@@ -473,10 +457,8 @@ async function setDeliveryTarget(
     !statusDeliveryDirty &&
     !endpointChanged &&
     deliveredMessagePartFactoryID === null
-  )
-    return;
-  const targetChanged =
-    nextKey !== desiredStatusKey || desiredFactoryID !== factoryID;
+  ) return;
+  const targetChanged = nextKey !== desiredStatusKey || desiredFactoryID !== factoryID;
   clearStatusRetry();
   if (targetChanged) {
     statusRetryAttempt = 0;
@@ -500,56 +482,37 @@ async function setDeliveryTarget(
 async function setStatus(next, extraProperties, factoryID) {
   const nextKey = next + ":" + (extraProperties?.sessionID || "");
   const hookEventName = next === "busy" ? "SessionBusy" : "SessionIdle";
-  await setDeliveryTarget(
-    next,
-    nextKey,
-    hookEventName,
-    extraProperties,
-    factoryID,
-  );
+  await setDeliveryTarget(next, nextKey, hookEventName, extraProperties, factoryID);
 }
 
-async function setAttention(
-  hookEventName,
-  properties,
-  factoryID,
-  sourceSessionID,
-) {
+async function setAttention(hookEventName, properties, factoryID, sourceSessionID) {
   const requestID = properties?.id || properties?.sessionID || "";
-  const requestKey = attentionKey(
-    factoryID,
-    hookEventName,
-    requestID,
-    sourceSessionID,
-  );
+  const requestKey = attentionKey(factoryID, hookEventName, requestID, sourceSessionID);
   await flushPendingAssistantPart(true);
   await setDeliveryTarget(
     "waiting",
     "waiting:" + requestKey,
     hookEventName,
     properties,
-    factoryID,
+    factoryID
   );
 }
 
 function recoverBusyFromDelta(client, sessionID, factoryID) {
   if (busyRecoveryQueued) return lifecycleQueue;
-  if (busyRecoveryUsed && busyRecoveryEndpointKey === hookEndpointKey())
-    return lifecycleQueue;
+  if (
+    busyRecoveryUsed &&
+    busyRecoveryEndpointKey === hookEndpointKey()
+  ) return lifecycleQueue;
   busyRecoveryQueued = true;
   return enqueueLifecycle(async () => {
     try {
       if (!activeFactoryIDs.has(factoryID)) return;
-      if (sessionID && (await isChildSession(client, sessionID)) === true)
-        return;
+      if (sessionID && (await isChildSession(client, sessionID)) === true) return;
       if (!activeFactoryIDs.has(factoryID)) return;
       const endpointKey = hookEndpointKey();
       const endpointChanged = deliveredEndpointKey !== endpointKey;
-      if (
-        desiredStatus !== "busy" ||
-        (!statusDeliveryDirty && !endpointChanged)
-      )
-        return;
+      if (desiredStatus !== "busy" || (!statusDeliveryDirty && !endpointChanged)) return;
       if (busyRecoveryUsed && !endpointChanged) return;
       busyRecoveryUsed = true;
       busyRecoveryEndpointKey = endpointKey;
@@ -575,21 +538,13 @@ function currentAttention() {
 function attentionKey(factoryID, hookEventName, requestID, sourceSessionID) {
   // Why: custom plugins may reuse request IDs across sessions or factories;
   // JSON tuple identity prevents one owner from hiding another blocker.
-  return JSON.stringify([
-    factoryID,
-    hookEventName,
-    requestID,
-    sourceSessionID || "",
-  ]);
+  return JSON.stringify([factoryID, hookEventName, requestID, sourceSessionID || ""]);
 }
 
 function clearAttentionForSession(sessionID, factoryID) {
   let rootSessionID = null;
   for (const [key, attention] of pendingAttentionByKey) {
-    if (
-      attention.sourceSessionID === sessionID &&
-      attention.factoryID === factoryID
-    ) {
+    if (attention.sourceSessionID === sessionID && attention.factoryID === factoryID) {
       pendingAttentionByKey.delete(key);
       rootSessionID = attention.properties?.sessionID || sessionID;
     }
@@ -602,8 +557,7 @@ function clearQuestionForToolPart(part, sessionID, factoryID) {
     part?.type !== "tool" ||
     part.tool !== "question" ||
     (part.state?.status !== "completed" && part.state?.status !== "error")
-  )
-    return null;
+  ) return null;
   let rootSessionID = null;
   for (const [key, attention] of pendingAttentionByKey) {
     const tool = attention.properties?.tool;
@@ -623,9 +577,7 @@ function clearQuestionForToolPart(part, sessionID, factoryID) {
 
 function clearAttentionForResolution(event, sessionID, factoryID) {
   const hookEventName =
-    event.type === "permission.replied"
-      ? "PermissionRequest"
-      : "AskUserQuestion";
+    event.type === "permission.replied" ? "PermissionRequest" : "AskUserQuestion";
   const requestID = event.properties?.requestID || "";
   const key = attentionKey(factoryID, hookEventName, requestID, sessionID);
   const attention = pendingAttentionByKey.get(key);
@@ -697,17 +649,13 @@ async function publishAggregateStatus(fallbackFactoryID, preferredSessionID) {
       attention.hookEventName,
       attention.properties,
       attention.factoryID,
-      attention.sourceSessionID,
+      attention.sourceSessionID
     );
     return;
   }
   const busyOwner = latestBusyOwner();
   if (busyOwner) {
-    await setStatus(
-      "busy",
-      { sessionID: busyOwner.sessionID },
-      busyOwner.factoryID,
-    );
+    await setStatus("busy", { sessionID: busyOwner.sessionID }, busyOwner.factoryID);
     return;
   }
   await setStatus("idle", { sessionID: preferredSessionID }, fallbackFactoryID);
@@ -731,26 +679,20 @@ async function handleLifecycleEvent(client, event, factoryID) {
   if (isResolutionEvent) {
     // Why: the stored owner already identifies the root, so replies clear
     // immediately even when OpenCode session lookup is slow or unavailable.
-    const rootSessionID = clearAttentionForResolution(
-      event,
-      sessionID,
-      factoryID,
-    );
+    const rootSessionID = clearAttentionForResolution(event, sessionID, factoryID);
     if (rootSessionID) await publishOwnershipChange(factoryID, rootSessionID);
     return;
   }
   const isAttentionEvent =
-    event.type === "permission.asked" || event.type === "question.asked";
+    event.type === "permission.asked" ||
+    event.type === "question.asked";
   // Why: attention without OpenCode's required sessionID cannot be
   // correlated to a later reply/Idle, so it must not become UI authority.
   if (isAttentionEvent && !sessionID) return;
   const canFailOpen =
     statusType === "busy" || statusType === "retry" || isAttentionEvent;
-  const rootSessionID = sessionID
-    ? await resolveRootSessionID(client, sessionID)
-    : null;
-  const childState =
-    rootSessionID === null ? null : rootSessionID !== sessionID;
+  const rootSessionID = sessionID ? await resolveRootSessionID(client, sessionID) : null;
+  const childState = rootSessionID === null ? null : rootSessionID !== sessionID;
   const isIdleEvent = event.type === "session.idle" || statusType === "idle";
   const resolvedProvisionalBusy =
     childState === false || (childState === true && isIdleEvent)
@@ -772,10 +714,7 @@ async function handleLifecycleEvent(client, event, factoryID) {
       childBusyChanged = rememberBusyChild(sessionID, rootSessionID, factoryID);
     }
     if (resolvedProvisionalBusy || attentionRootSessionID || childBusyChanged) {
-      await publishOwnershipChange(
-        factoryID,
-        attentionRootSessionID || rootSessionID,
-      );
+      await publishOwnershipChange(factoryID, attentionRootSessionID || rootSessionID);
     }
     return;
   }
@@ -783,10 +722,7 @@ async function handleLifecycleEvent(client, event, factoryID) {
     if (isIdleEvent) {
       // Why: recorded ownership can safely retire a blocker during an SDK
       // outage without granting unknown child Idle authority over root state.
-      const attentionRootSessionID = clearAttentionForSession(
-        sessionID,
-        factoryID,
-      );
+      const attentionRootSessionID = clearAttentionForSession(sessionID, factoryID);
       const clearedProvisionalBusy = clearProvisionalBusy(sessionID, factoryID);
       const clearedKnownBusyRoot = clearKnownBusyRoot(sessionID, factoryID);
       // Why: exact-session cleanup, so a child whose finishing Idle lands
@@ -798,18 +734,12 @@ async function handleLifecycleEvent(client, event, factoryID) {
         clearedKnownBusyRoot ||
         clearedBusyChild
       ) {
-        await publishOwnershipChange(
-          factoryID,
-          attentionRootSessionID || sessionID,
-        );
+        await publishOwnershipChange(factoryID, attentionRootSessionID || sessionID);
       }
     }
     return;
   }
-  if (
-    childState === null &&
-    (statusType === "busy" || statusType === "retry")
-  ) {
+  if (childState === null && (statusType === "busy" || statusType === "retry")) {
     // Unknown lineage may be child work, so keep exact provisional ownership
     // only until matching Idle/disposal; other blockers still take priority.
     clearAttentionForSession(sessionID, factoryID);
@@ -822,15 +752,10 @@ async function handleLifecycleEvent(client, event, factoryID) {
     // Why: attention must share the lifecycle FIFO and retry target so a
     // delayed Busy post cannot overwrite a newer human blocker.
     const hookEventName =
-      event.type === "permission.asked"
-        ? "PermissionRequest"
-        : "AskUserQuestion";
+      event.type === "permission.asked" ? "PermissionRequest" : "AskUserQuestion";
     // Why: show the blocker on the root turn while retaining its real child
     // owner for exact reply, tool-completion, and disposal cleanup.
-    const properties = {
-      ...(event.properties || {}),
-      sessionID: rootSessionID || sessionID,
-    };
+    const properties = { ...(event.properties || {}), sessionID: rootSessionID || sessionID };
     const requestID = properties.id || sessionID || "";
     const key = attentionKey(factoryID, hookEventName, requestID, sessionID);
     // Why: unresolved blockers are live UI authority and cannot be evicted;
@@ -854,8 +779,7 @@ async function handleLifecycleEvent(client, event, factoryID) {
       desiredStatusKey === idleKey &&
       statusDeliveryDirty &&
       statusRetryTimer
-    )
-      return;
+    ) return;
     // Why: flush the coalesced final reply snapshot before the idle
     // transition so the done-state preview shows the completed message.
     await flushPendingAssistantPart(true);
@@ -877,51 +801,17 @@ async function handleLifecycleEvent(client, event, factoryID) {
   }
 }
 
+
 function normalizeNextLifecycleEvent(event) {
   if (!event || typeof event.type !== "string") return event;
   const properties = event.properties || {};
-  if (event.type === "permission.v2.asked")
-    return {
-      ...event,
-      type: "permission.asked",
-      properties: {
-        ...properties,
-        id: properties.id,
-        permission: properties.action,
-        patterns: properties.resources,
-      },
-    };
-  if (event.type === "permission.v2.replied")
-    return {
-      ...event,
-      type: "permission.replied",
-      properties: { ...properties },
-    };
-  if (event.type === "question.v2.asked")
-    return { ...event, type: "question.asked", properties: { ...properties } };
-  if (event.type === "question.v2.replied")
-    return {
-      ...event,
-      type: "question.replied",
-      properties: { ...properties },
-    };
-  if (event.type === "question.v2.rejected")
-    return {
-      ...event,
-      type: "question.rejected",
-      properties: { ...properties },
-    };
-  if (
-    event.type === "session.next.step.started" ||
-    event.type === "session.next.tool.called" ||
-    event.type === "session.next.tool.progress" ||
-    event.type === "session.next.retried"
-  ) {
-    return {
-      ...event,
-      type: "session.status",
-      properties: { ...properties, status: { type: "busy" } },
-    };
+  if (event.type === "permission.v2.asked") return { ...event, type: "permission.asked", properties: { ...properties, id: properties.id, permission: properties.action, patterns: properties.resources } };
+  if (event.type === "permission.v2.replied") return { ...event, type: "permission.replied", properties: { ...properties } };
+  if (event.type === "question.v2.asked") return { ...event, type: "question.asked", properties: { ...properties } };
+  if (event.type === "question.v2.replied") return { ...event, type: "question.replied", properties: { ...properties } };
+  if (event.type === "question.v2.rejected") return { ...event, type: "question.rejected", properties: { ...properties } };
+  if (event.type === "session.next.step.started" || event.type === "session.next.tool.called" || event.type === "session.next.tool.progress" || event.type === "session.next.retried") {
+    return { ...event, type: "session.status", properties: { ...properties, status: { type: "busy" } } };
   }
   return event;
 }
@@ -932,334 +822,266 @@ function normalizeNextLifecycleEvent(event) {
 // destructuring form throw synchronously and crash OpenCode with an opaque
 // UnknownError before any event is ever dispatched.
 export const OrcaOpenCodeStatusPlugin = async (_ctx) => {
-  if (
-    process.env.ORCA_OPENCODE_AGENT &&
-    process.env.ORCA_OPENCODE_AGENT !== "opencode"
-  )
-    return {};
+  if (process.env.ORCA_OPENCODE_AGENT && process.env.ORCA_OPENCODE_AGENT !== 'opencode') return {};
   const client = _ctx?.client;
   const factoryID = ++nextFactoryID;
   activeFactoryIDs.add(factoryID);
   let disposed = false;
   const nextTextByMessageID = new Map();
   return {
-    event: async ({ event }) => {
-      if (disposed || !event?.type) return;
-      const authorityRevision = stateArrivalRevision;
-      const statusType = getStatusType(event);
+  event: async ({ event }) => {
+    if (disposed || !event?.type) return;
+    const authorityRevision = stateArrivalRevision;
+    const statusType = getStatusType(event);
 
-      // Why: cache the message role BEFORE the async isChildSession check.
-      // OpenCode fires message.updated (user) and message.part.updated (text)
-      // back-to-back; if we awaited isChildSession first, the part.updated
-      // handler could reach messageRoleById.get(...) while the user message.updated
-      // is still suspended on that await — so the part would see an empty cache
-      // and drop the user prompt. Caching is a cheap Map.set with bounded size,
-      // safe to run even for child sessions (the part POST still filters them).
-      if (event.type === "message.updated") {
-        const info = event.properties && event.properties.info;
-        rememberMessageRole(info && info.id, info && info.role);
-      }
+    // Why: cache the message role BEFORE the async isChildSession check.
+    // OpenCode fires message.updated (user) and message.part.updated (text)
+    // back-to-back; if we awaited isChildSession first, the part.updated
+    // handler could reach messageRoleById.get(...) while the user message.updated
+    // is still suspended on that await — so the part would see an empty cache
+    // and drop the user prompt. Caching is a cheap Map.set with bounded size,
+    // safe to run even for child sessions (the part POST still filters them).
+    if (event.type === "message.updated") {
+      const info = event.properties && event.properties.info;
+      rememberMessageRole(info && info.id, info && info.role);
+    }
 
-      const sessionID = event.properties?.sessionID;
-      const updatedPart = event.properties?.part;
+    const sessionID = event.properties?.sessionID;
+    const updatedPart = event.properties?.part;
 
-      // OpenCode 2 publishes the next-generation event family through the
-      // same plugin event hook. Convert those events into the existing
-      // bounded Orca lifecycle and preview posts.
-      if (event.type === "session.next.prompt.admitted") {
-        if (!sessionID) return;
-        if ((await isChildSession(client, sessionID)) !== false) return;
-        if (
-          disposed ||
-          authorityRevision !== stateArrivalRevision ||
-          desiredStatus === "waiting"
-        )
-          return;
-        const prompt = event.properties?.prompt?.text;
-        if (typeof prompt !== "string" || !prompt) return;
-        await postMessagePart(
-          {
-            role: "user",
-            text: capMessagePartText(prompt),
-            messageID: event.properties?.messageID,
-            sessionID,
-          },
-          factoryID,
-        );
-        return;
+    // OpenCode 2 publishes the next-generation event family through the
+    // same plugin event hook. Convert those events into the existing
+    // bounded Orca lifecycle and preview posts.
+    if (event.type === "session.next.prompt.admitted") {
+      if (!sessionID) return;
+      if ((await isChildSession(client, sessionID)) !== false) return;
+      if (disposed || authorityRevision !== stateArrivalRevision || desiredStatus === "waiting") return;
+      const prompt = event.properties?.prompt?.text;
+      if (typeof prompt !== "string" || !prompt) return;
+      await postMessagePart({
+        role: "user",
+        text: capMessagePartText(prompt),
+        messageID: event.properties?.messageID,
+        sessionID,
+      }, factoryID);
+      return;
+    }
+    if (event.type === "session.next.text.started") {
+      if (event.properties?.assistantMessageID) {
+        if (nextTextByMessageID.size >= 128) nextTextByMessageID.delete(nextTextByMessageID.keys().next().value);
+        nextTextByMessageID.set(event.properties.assistantMessageID, "");
       }
-      if (event.type === "session.next.text.started") {
-        if (event.properties?.assistantMessageID) {
-          if (nextTextByMessageID.size >= 128)
-            nextTextByMessageID.delete(nextTextByMessageID.keys().next().value);
-          nextTextByMessageID.set(event.properties.assistantMessageID, "");
-        }
-        return;
-      }
-      if (event.type === "session.next.text.delta") {
-        const messageID = event.properties?.assistantMessageID;
-        const delta = event.properties?.delta;
-        if (typeof messageID !== "string" || typeof delta !== "string") return;
-        nextTextByMessageID.set(
-          messageID,
-          capMessagePartText(
-            (nextTextByMessageID.get(messageID) || "") + delta,
-          ),
-        );
-        if (nextTextByMessageID.size > 128)
-          nextTextByMessageID.delete(nextTextByMessageID.keys().next().value);
-        return;
-      }
-      if (event.type === "session.next.text.ended") {
-        if (!sessionID) return;
-        if ((await isChildSession(client, sessionID)) !== false) return;
-        const messageID = event.properties?.assistantMessageID;
-        const text =
-          typeof event.properties?.text === "string"
-            ? event.properties.text
-            : typeof messageID === "string"
-              ? nextTextByMessageID.get(messageID)
-              : "";
-        if (typeof messageID !== "string" || !text) return;
-        nextTextByMessageID.delete(messageID);
-        queueAssistantPart({
-          role: "assistant",
-          text,
-          messageID,
-          sessionID,
-          authorityRevision,
-          factoryID,
-        });
-        return;
-      }
-      if (event.type === "session.created") {
-        const info = event.properties?.info;
-        if (!info?.id || info.parentID) return;
-        rememberSessionRoot(info.id, info.id);
-        await enqueueLifecycle(() =>
-          disposed ? undefined : post("SessionStart", { sessionID: info.id }),
-        );
-        return;
-      }
+      return;
+    }
+    if (event.type === "session.next.text.delta") {
+      const messageID = event.properties?.assistantMessageID;
+      const delta = event.properties?.delta;
+      if (typeof messageID !== "string" || typeof delta !== "string") return;
+      nextTextByMessageID.set(messageID, capMessagePartText((nextTextByMessageID.get(messageID) || "") + delta));
+      if (nextTextByMessageID.size > 128) nextTextByMessageID.delete(nextTextByMessageID.keys().next().value);
+      return;
+    }
+    if (event.type === "session.next.text.ended") {
+      if (!sessionID) return;
+      if ((await isChildSession(client, sessionID)) !== false) return;
+      const messageID = event.properties?.assistantMessageID;
+      const text = typeof event.properties?.text === "string"
+        ? event.properties.text
+        : (typeof messageID === "string" ? nextTextByMessageID.get(messageID) : "");
+      if (typeof messageID !== "string" || !text) return;
+      nextTextByMessageID.delete(messageID);
+      queueAssistantPart({ role: "assistant", text, messageID, sessionID, authorityRevision, factoryID });
+      return;
+    }
+    if (event.type === "session.created") {
+      const info = event.properties?.info;
+      if (!info?.id || info.parentID) return;
+      rememberSessionRoot(info.id, info.id);
+      await enqueueLifecycle(() =>
+        disposed ? undefined : post("SessionStart", { sessionID: info.id })
+      );
+      return;
+    }
 
-      if (
-        event.type === "message.part.updated" &&
-        updatedPart?.type === "tool" &&
-        updatedPart.tool === "question" &&
-        (updatedPart.state?.status === "completed" ||
-          updatedPart.state?.status === "error")
-      ) {
-        await enqueueLifecycle(async () => {
-          if (disposed) return;
-          // Why: stored ownership clears child questions without waiting on
-          // ancestry lookup even though ordinary child message parts stay hidden.
-          const rootSessionID = clearQuestionForToolPart(
-            updatedPart,
-            sessionID,
-            factoryID,
-          );
-          if (!rootSessionID) return;
-          await publishOwnershipChange(factoryID, rootSessionID);
-        });
-        return;
-      }
-
-      if (
-        event.type === "session.status" ||
-        event.type === "session.idle" ||
-        event.type === "session.error" ||
-        event.type === "permission.asked" ||
-        event.type === "question.asked" ||
-        event.type === "permission.replied" ||
-        event.type === "question.replied" ||
-        event.type === "question.rejected" ||
-        event.type === "permission.v2.asked" ||
-        event.type === "permission.v2.replied" ||
-        event.type === "question.v2.asked" ||
-        event.type === "question.v2.replied" ||
-        event.type === "question.v2.rejected" ||
-        event.type === "session.next.step.started" ||
-        event.type === "session.next.tool.called" ||
-        event.type === "session.next.tool.progress" ||
-        event.type === "session.next.retried"
-      ) {
-        await enqueueLifecycle(() =>
-          disposed
-            ? undefined
-            : handleLifecycleEvent(
-                client,
-                normalizeNextLifecycleEvent(event),
-                factoryID,
-              ),
-        );
-        return;
-      }
-
-      if (event.type === "message.part.delta") {
-        const properties = event.properties || {};
-        if (
-          properties.field === "text" &&
-          typeof properties.delta === "string" &&
-          properties.delta.length > 0
-        ) {
-          await recoverBusyFromDelta(client, sessionID, factoryID);
-        }
-        return;
-      }
-
-      if (sessionID && (await isChildSession(client, sessionID)) !== false) {
-        return;
-      }
-      if (disposed) return;
-      if (authorityRevision !== stateArrivalRevision) return;
-      if (desiredStatus === "waiting") return;
-
-      if (event.type === "message.updated") {
-        // Why: role is already cached above the isChildSession await so the
-        // back-to-back message.part.updated for the same messageID is not
-        // racing against this handler. Nothing more to do here — return to
-        // avoid falling through to the part/session handlers below.
-        return;
-      }
-
-      if (event.type === "message.part.updated") {
-        // Why: a TextPart carries the actual user prompt or assistant reply
-        // text. Skip non-text parts (tool, reasoning, file, …) so we only
-        // forward what the dashboard renders. Role came from the earlier
-        // message.updated event; if we never saw one (e.g. plugin loaded
-        // mid-turn) the role is unknown, and mislabeling the part — a user
-        // prompt displayed as the assistant reply, or vice versa — is worse
-        // than silently dropping a single in-flight text chunk. The next
-        // message.updated event will re-seed the role cache, so subsequent
-        // parts in the same session flow normally.
-        const part = event.properties && event.properties.part;
-        if (!part || part.type !== "text" || !part.text) return;
-        // Why: OpenCode injects a finished background task back into the
-        // parent turn as a synthetic `<task id=…>` text part. It is machinery,
-        // not what the human typed or the agent replied — OpenCode hides it
-        // from its own prompt too — so it must not replace the pane preview.
-        if (part.synthetic === true) return;
-        const role = messageRoleById.get(part.messageID);
-        if (!role) return;
-        if (role === "user") {
-          // Why: user prompts arrive as a single event, not a stream — post
-          // immediately (still capped) so the throttle slot stays free for
-          // the assistant reply that follows within the same window.
-          await postMessagePart(
-            {
-              role,
-              text: capMessagePartText(part.text),
-              messageID: part.messageID,
-              sessionID,
-            },
-            factoryID,
-          );
-          return;
-        }
-        queueAssistantPart({
-          role,
-          text: part.text,
-          messageID: part.messageID,
-          sessionID,
-          authorityRevision,
-          factoryID,
-        });
-        return;
-      }
-    },
-    dispose: async () => {
-      if (disposed) return;
-      disposed = true;
-      nextTextByMessageID.clear();
-      disposingFactoryIDs.add(factoryID);
+    if (
+      event.type === "message.part.updated" &&
+      updatedPart?.type === "tool" &&
+      updatedPart.tool === "question" &&
+      (updatedPart.state?.status === "completed" || updatedPart.state?.status === "error")
+    ) {
       await enqueueLifecycle(async () => {
-        // An older MessagePart must settle before disposal publishes the
-        // replacement state, or its late Working update could win.
-        while (messagePartPostInFlight) await messagePartPostInFlight;
-        for (const [sessionID, ownerID] of busyRootOwnerBySessionID) {
-          if (ownerID === factoryID) busyRootOwnerBySessionID.delete(sessionID);
-        }
-        for (const [key, provisional] of provisionalBusyByKey) {
-          if (provisional.factoryID === factoryID)
-            provisionalBusyByKey.delete(key);
-        }
-        for (const [key, busyChild] of busyChildRootByKey) {
-          if (busyChild.factoryID === factoryID) busyChildRootByKey.delete(key);
-        }
-        for (const [key, attention] of pendingAttentionByKey) {
-          if (attention.factoryID === factoryID)
-            pendingAttentionByKey.delete(key);
-        }
-        if (pendingAssistantPart?.factoryID === factoryID) {
-          if (assistantPartFlushTimer) clearTimeout(assistantPartFlushTimer);
-          assistantPartFlushTimer = null;
-          pendingAssistantPart = null;
-        }
-        const ownsDeliveredMessagePart =
-          deliveredMessagePartFactoryID === factoryID;
-        if (desiredFactoryID === factoryID || ownsDeliveredMessagePart) {
-          clearStatusRetry();
-          statusRevision += 1;
-          // A MessagePart may have changed the listener to Working after the
-          // same lifecycle key was delivered; force that key to be reasserted.
-          statusDeliveryDirty = ownsDeliveredMessagePart;
-          busyRecoveryUsed = false;
-          busyRecoveryEndpointKey = "";
-          const fallbackFactoryID = Array.from(activeFactoryIDs).find(
-            (id) => id !== factoryID,
-          );
-          if (fallbackFactoryID !== undefined) {
-            await publishAggregateStatus(
-              fallbackFactoryID,
-              desiredStatusProperties?.sessionID,
-            );
-          } else {
-            // Why: Instance disposal can happen while the PTY stays alive;
-            // publish a final idle so Orca does not retain a dead owner.
-            if (
-              !deliveredStatusKey.startsWith("idle:") ||
-              ownsDeliveredMessagePart
-            ) {
-              await setStatus(
-                "idle",
-                { sessionID: desiredStatusProperties?.sessionID },
-                factoryID,
-              );
-            }
-            clearStatusRetry();
-            desiredStatus = "idle";
-            desiredHookEventName = "SessionIdle";
-            desiredStatusKey = "idle:";
-            desiredStatusProperties = {};
-            desiredFactoryID = null;
-          }
-        }
-        activeFactoryIDs.delete(factoryID);
-        disposingFactoryIDs.delete(factoryID);
+        if (disposed) return;
+        // Why: stored ownership clears child questions without waiting on
+        // ancestry lookup even though ordinary child message parts stay hidden.
+        const rootSessionID = clearQuestionForToolPart(updatedPart, sessionID, factoryID);
+        if (!rootSessionID) return;
+        await publishOwnershipChange(factoryID, rootSessionID);
       });
-    },
+      return;
+    }
+
+    if (
+      event.type === "session.status" ||
+      event.type === "session.idle" ||
+      event.type === "session.error" ||
+      event.type === "permission.asked" ||
+      event.type === "question.asked" ||
+      event.type === "permission.replied" ||
+      event.type === "question.replied" ||
+      event.type === "question.rejected" || event.type === "permission.v2.asked" || event.type === "permission.v2.replied" || event.type === "question.v2.asked" || event.type === "question.v2.replied" || event.type === "question.v2.rejected" || event.type === "session.next.step.started" || event.type === "session.next.tool.called" || event.type === "session.next.tool.progress" || event.type === "session.next.retried"
+    ) {
+      await enqueueLifecycle(() =>
+        disposed ? undefined : handleLifecycleEvent(client, normalizeNextLifecycleEvent(event), factoryID)
+      );
+      return;
+    }
+
+    if (event.type === "message.part.delta") {
+      const properties = event.properties || {};
+      if (
+        properties.field === "text" &&
+        typeof properties.delta === "string" &&
+        properties.delta.length > 0
+      ) {
+        await recoverBusyFromDelta(client, sessionID, factoryID);
+      }
+      return;
+    }
+
+    if (sessionID && (await isChildSession(client, sessionID)) !== false) {
+      return;
+    }
+    if (disposed) return;
+    if (authorityRevision !== stateArrivalRevision) return;
+    if (desiredStatus === "waiting") return;
+
+    if (event.type === "message.updated") {
+      // Why: role is already cached above the isChildSession await so the
+      // back-to-back message.part.updated for the same messageID is not
+      // racing against this handler. Nothing more to do here — return to
+      // avoid falling through to the part/session handlers below.
+      return;
+    }
+
+    if (event.type === "message.part.updated") {
+      // Why: a TextPart carries the actual user prompt or assistant reply
+      // text. Skip non-text parts (tool, reasoning, file, …) so we only
+      // forward what the dashboard renders. Role came from the earlier
+      // message.updated event; if we never saw one (e.g. plugin loaded
+      // mid-turn) the role is unknown, and mislabeling the part — a user
+      // prompt displayed as the assistant reply, or vice versa — is worse
+      // than silently dropping a single in-flight text chunk. The next
+      // message.updated event will re-seed the role cache, so subsequent
+      // parts in the same session flow normally.
+      const part = event.properties && event.properties.part;
+      if (!part || part.type !== "text" || !part.text) return;
+      // Why: OpenCode injects a finished background task back into the
+      // parent turn as a synthetic `<task id=…>` text part. It is machinery,
+      // not what the human typed or the agent replied — OpenCode hides it
+      // from its own prompt too — so it must not replace the pane preview.
+      if (part.synthetic === true) return;
+      const role = messageRoleById.get(part.messageID);
+      if (!role) return;
+      if (role === "user") {
+        // Why: user prompts arrive as a single event, not a stream — post
+        // immediately (still capped) so the throttle slot stays free for
+        // the assistant reply that follows within the same window.
+        await postMessagePart(
+          { role, text: capMessagePartText(part.text), messageID: part.messageID, sessionID },
+          factoryID
+        );
+        return;
+      }
+      queueAssistantPart({
+        role,
+        text: part.text,
+        messageID: part.messageID,
+        sessionID,
+        authorityRevision,
+        factoryID,
+      });
+      return;
+    }
+
+  },
+  dispose: async () => {
+    if (disposed) return;
+    disposed = true;
+    nextTextByMessageID.clear();
+    disposingFactoryIDs.add(factoryID);
+    await enqueueLifecycle(async () => {
+      // An older MessagePart must settle before disposal publishes the
+      // replacement state, or its late Working update could win.
+      while (messagePartPostInFlight) await messagePartPostInFlight;
+      for (const [sessionID, ownerID] of busyRootOwnerBySessionID) {
+        if (ownerID === factoryID) busyRootOwnerBySessionID.delete(sessionID);
+      }
+      for (const [key, provisional] of provisionalBusyByKey) {
+        if (provisional.factoryID === factoryID) provisionalBusyByKey.delete(key);
+      }
+      for (const [key, busyChild] of busyChildRootByKey) {
+        if (busyChild.factoryID === factoryID) busyChildRootByKey.delete(key);
+      }
+      for (const [key, attention] of pendingAttentionByKey) {
+        if (attention.factoryID === factoryID) pendingAttentionByKey.delete(key);
+      }
+      if (pendingAssistantPart?.factoryID === factoryID) {
+        if (assistantPartFlushTimer) clearTimeout(assistantPartFlushTimer);
+        assistantPartFlushTimer = null;
+        pendingAssistantPart = null;
+      }
+      const ownsDeliveredMessagePart = deliveredMessagePartFactoryID === factoryID;
+      if (desiredFactoryID === factoryID || ownsDeliveredMessagePart) {
+        clearStatusRetry();
+        statusRevision += 1;
+        // A MessagePart may have changed the listener to Working after the
+        // same lifecycle key was delivered; force that key to be reasserted.
+        statusDeliveryDirty = ownsDeliveredMessagePart;
+        busyRecoveryUsed = false;
+        busyRecoveryEndpointKey = "";
+        const fallbackFactoryID = Array.from(activeFactoryIDs).find(
+          (id) => id !== factoryID
+        );
+        if (fallbackFactoryID !== undefined) {
+          await publishAggregateStatus(
+            fallbackFactoryID,
+            desiredStatusProperties?.sessionID
+          );
+        } else {
+          // Why: Instance disposal can happen while the PTY stays alive;
+          // publish a final idle so Orca does not retain a dead owner.
+          if (!deliveredStatusKey.startsWith("idle:") || ownsDeliveredMessagePart) {
+            await setStatus(
+              "idle",
+              { sessionID: desiredStatusProperties?.sessionID },
+              factoryID
+            );
+          }
+          clearStatusRetry();
+          desiredStatus = "idle";
+          desiredHookEventName = "SessionIdle";
+          desiredStatusKey = "idle:";
+          desiredStatusProperties = {};
+          desiredFactoryID = null;
+        }
+      }
+      activeFactoryIDs.delete(factoryID);
+      disposingFactoryIDs.delete(factoryID);
+    });
+  },
   };
 };
 
 async function setupOpenCode2Status(ctx) {
   const controller = new AbortController();
-  const client = {
-    session: { get: (input, options) => ctx.session.get(input, options) },
-  };
+  const client = { session: { get: (input, options) => ctx.session.get(input, options) } };
   const hooks = await OrcaOpenCodeStatusPlugin({ client });
   if (!hooks.event) return async () => {};
-  const promptRegistration = await ctx.session.hook(
-    "prompt",
-    async (properties) => {
-      await hooks.event({
-        event: { type: "session.next.prompt.admitted", properties },
-      });
-    },
-  );
+  const promptRegistration = await ctx.session.hook("prompt", async (properties) => {
+    await hooks.event({ event: { type: "session.next.prompt.admitted", properties } });
+  });
   const consume = async () => {
-    for await (const input of ctx.event.subscribe({
-      signal: controller.signal,
-    })) {
+    for await (const input of ctx.event.subscribe({ signal: controller.signal })) {
       if (controller.signal.aborted) break;
       let type = input.type;
       let properties = input.data;
@@ -1268,19 +1090,11 @@ async function setupOpenCode2Status(ctx) {
       } else if (type === "session.execution.started") {
         type = "session.status";
         properties = { ...properties, status: { type: "busy" } };
-      } else if (
-        type === "session.execution.succeeded" ||
-        type === "session.execution.failed" ||
-        type === "session.execution.interrupted"
-      ) {
+      } else if (type === "session.execution.succeeded" || type === "session.execution.failed" || type === "session.execution.interrupted") {
         type = "session.status";
         properties = { ...properties, status: { type: "idle" } };
       } else if (type === "permission.asked") {
-        properties = {
-          ...properties,
-          permission: properties.action,
-          patterns: properties.resources,
-        };
+        properties = { ...properties, permission: properties.action, patterns: properties.resources };
       } else if (type === "form.created") {
         type = "question.asked";
         const form = properties.form;
@@ -1289,30 +1103,21 @@ async function setupOpenCode2Status(ctx) {
           questions: form.fields.map((field) => ({
             header: field.title || form.title,
             question: field.description || field.title || form.title,
-            options: (field.options || []).map((option) => ({
-              label: option.label || option.value,
-              description: option.description || "",
-            })),
+            options: (field.options || []).map((option) => ({ label: option.label || option.value, description: option.description || "" })),
             multiple: field.type === "multiselect",
           })),
         };
       } else if (type === "form.replied" || type === "form.cancelled") {
-        type =
-          type === "form.replied" ? "question.replied" : "question.rejected";
+        type = type === "form.replied" ? "question.replied" : "question.rejected";
         properties = { ...properties, requestID: properties.id };
-      } else if (
-        type === "session.text.started" ||
-        type === "session.text.delta" ||
-        type === "session.text.ended"
-      ) {
+      } else if (type === "session.text.started" || type === "session.text.delta" || type === "session.text.ended") {
         type = type.replace("session.", "session.next.");
       }
       await hooks.event({ event: { type, properties } });
     }
   };
   const consuming = consume().catch((error) => {
-    if (!controller.signal.aborted)
-      console.warn("[orca-hook] event subscription failed:", error.message);
+    if (!controller.signal.aborted) console.warn("[orca-hook] event subscription failed:", error.message);
   });
   return async () => {
     controller.abort();
@@ -1321,6 +1126,7 @@ async function setupOpenCode2Status(ctx) {
     await hooks.dispose();
   };
 }
+
 
 // Why: OpenCode also resolves plugins through the module default export, and that
 // loader rejects the module unless the default exposes `server()` ("must default
