@@ -8,16 +8,16 @@ Lets users copy the latest final assistant response from the active OpenCode ses
 
 ### Requirement: Global command copies the latest final assistant response
 
-The system SHALL expose `/copy-last` in the OpenCode CLI TUI for globally configured users. Invoking the command SHALL copy the latest completed, user-visible assistant response from the active session without submitting a prompt to the model.
+The system SHALL expose `/last` in the OpenCode CLI TUI for globally configured users. Invoking the command SHALL copy the latest completed, user-visible assistant response from the active session without submitting a prompt to the model.
 
 #### Scenario: Copy the latest answer in the active session
 
-- **WHEN** the user invokes `/copy-last` in an OpenCode session that contains a completed assistant response
+- **WHEN** the user invokes `/last` in an OpenCode session that contains a completed assistant response
 - **THEN** the latest final user-visible assistant response from that session is sent to the terminal clipboard
 
 #### Scenario: Command runs outside an active session
 
-- **WHEN** the user invokes `/copy-last` while the TUI is not showing a session
+- **WHEN** the user invokes `/last` while the TUI is not showing a session
 - **THEN** the system leaves the clipboard unchanged and reports that there is no active session
 
 ### Requirement: Internal and intermediate assistant content is excluded
@@ -27,7 +27,7 @@ The system SHALL exclude reasoning, tool calls and results, intermediate assista
 #### Scenario: A tool-using turn has an intermediate message and a final answer
 
 - **WHEN** an assistant turn contains text before a tool call and a completed final response after the tool activity
-- **THEN** `/copy-last` copies the completed final response and excludes the intermediate text and tool content
+- **THEN** `/last` copies the completed final response and excludes the intermediate text and tool content
 
 #### Scenario: The current session has no completed final response
 
@@ -49,10 +49,10 @@ The system SHALL show a brief success notification when the terminal clipboard a
 
 #### Scenario: Terminal clipboard accepts the response
 
-- **WHEN** `/copy-last` finds a final response and the terminal clipboard accepts it
+- **WHEN** `/last` finds a final response and the terminal clipboard accepts it
 - **THEN** the system shows a success notification
 
 #### Scenario: Terminal clipboard is unsupported
 
-- **WHEN** `/copy-last` finds a final response but the terminal does not support clipboard output
+- **WHEN** `/last` finds a final response but the terminal does not support clipboard output
 - **THEN** the system leaves the clipboard unchanged and shows an error notification

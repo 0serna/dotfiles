@@ -13,7 +13,7 @@ export default Plugin.define({
             {
               id: "copy-last.copy",
               title: "Copy last assistant response",
-              slash: { name: "copy-last" },
+              slash: { name: "last" },
               run: () => runCopyLast(context),
             },
           ],
