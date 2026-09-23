@@ -22,6 +22,11 @@
       "action": "*",
       "resource": "*",
       "effect": "allow"
+    },
+    {
+      "action": "browser",
+      "resource": "*",
+      "effect": "deny"
     }
   ]
 }
