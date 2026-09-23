@@ -7,7 +7,6 @@
 
 - Mantén el código modular y las responsabilidades claramente separadas.
 - Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitar aprobación cuando lo requieras.
-- Usa conventional commits como estandar para generar commits.
 
 ## OpenSpec
 
