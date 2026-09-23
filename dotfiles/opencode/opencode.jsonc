@@ -4,6 +4,19 @@
   "websearch": {
     "provider": "random"
   },
+  "mcp": {
+    "servers": {
+      "playwright": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@playwright/mcp@latest",
+          "--cdp-endpoint=chrome"
+        ]
+      }
+    }
+  },
   "permissions": [
     {
       "action": "*",
