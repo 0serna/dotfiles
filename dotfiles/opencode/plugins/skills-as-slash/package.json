@@ -1,0 +1,8 @@
+{
+  "name": "local-skills-as-slash",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}
