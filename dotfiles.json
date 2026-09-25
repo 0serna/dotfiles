@@ -12,8 +12,12 @@
     "target": "~/.config/opencode/cli.json"
   },
   {
-    "source": "dotfiles/opencode/plugins",
-    "target": "~/.config/opencode/plugins"
+    "source": "dotfiles/opencode/plugins/copy-last",
+    "target": "~/.config/opencode/plugins/copy-last"
+  },
+  {
+    "source": "dotfiles/opencode/plugins/skills-as-slash",
+    "target": "~/.config/opencode/plugins/skills-as-slash"
   },
   {
     "source": "dotfiles/AGENTS.md",

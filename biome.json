@@ -10,8 +10,7 @@
       "**",
       "!dotfiles/agents/.skill-lock.json",
       "!.agents/skills",
-      "!dotfiles/agents/skills",
-      "!dotfiles/opencode/plugins/orca-*.js"
+      "!dotfiles/agents/skills"
     ]
   },
   "formatter": {
