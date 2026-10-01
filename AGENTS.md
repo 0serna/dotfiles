@@ -5,15 +5,16 @@
 ├── src/                  # TypeScript source and tests
 │   ├── agent-sudo/       # Tests for the agent-sudo helper
 │   ├── installer/        # Dotfile installer and link logic
+│   ├── opencode/         # Tests for OpenCode plugins
 │   └── skills/           # Skill metadata updater
 ├── dotfiles/             # Files linked into user config locations
 │   ├── agents/           # Shared agent skills
 │   ├── bin/              # Local command-line helpers
 │   ├── opencode/         # Global opencode.jsonc + cli.json
+│   ├── pi/               # Global settings and personal extension location
 │   └── systemd/          # User-level systemd configuration
-├── docs/                 # Architecture decision records
-│   └── adr/
-└── scripts/              # Local automation
+└── docs/                 # Architecture decision records
+    └── adr/
 ```
 
 ## Repository Commands

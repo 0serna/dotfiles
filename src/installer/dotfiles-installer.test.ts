@@ -63,6 +63,19 @@ async function createRepo(files: Record<string, string>, manifest: unknown) {
   return { repoDir, homeDir };
 }
 
+async function createPiRepo() {
+  const manifest = (await readManifest(process.cwd())).filter(
+    (entry) =>
+      entry.source === "dotfiles/AGENTS.md" ||
+      entry.source === "dotfiles/pi/settings.json",
+  );
+  const files: Record<string, string> = {};
+  for (const entry of manifest) {
+    files[entry.source] = await fs.readFile(entry.source, "utf-8");
+  }
+  return { ...(await createRepo(files, manifest)), manifest, files };
+}
+
 describe("DotfilesInstaller", () => {
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "test-"));
@@ -427,6 +440,133 @@ describe("DotfilesInstaller", () => {
           entry.source.startsWith("dotfiles/legacy-config/"),
       ),
     ).toBe(false);
+  });
+
+  it("manages only Pi settings and shared instructions in the default manifest", async () => {
+    const manifest = await readManifest(process.cwd());
+    const piEntries = manifest.filter(
+      (entry) => entry.target === "~/.pi" || entry.target.startsWith("~/.pi/"),
+    );
+
+    expect(piEntries).toEqual([
+      {
+        source: "dotfiles/pi/settings.json",
+        target: "~/.pi/agent/settings.json",
+      },
+      {
+        source: "dotfiles/AGENTS.md",
+        target: "~/.pi/agent/AGENTS.md",
+      },
+    ]);
+    expect(
+      manifest.filter((entry) => entry.source.startsWith("dotfiles/pi")),
+    ).toEqual([piEntries[0]]);
+    expect(manifest).toContainEqual({
+      source: "dotfiles/agents",
+      target: "~/.agents",
+    });
+    expect(await fs.readdir("dotfiles/pi")).toEqual([
+      "extensions",
+      "settings.json",
+    ]);
+    expect(await fs.readdir("dotfiles/pi/extensions")).toEqual([".gitkeep"]);
+    expect(
+      JSON.parse(await fs.readFile("dotfiles/pi/settings.json", "utf-8")),
+    ).not.toHaveProperty("skills");
+  });
+
+  it.each([false, true])(
+    "links and relinks Pi settings and shared instructions with existing files: %s",
+    async (existingFiles) => {
+      const { repoDir, homeDir, manifest, files } = await createPiRepo();
+      if (existingFiles) {
+        for (const entry of manifest) {
+          const target = path.join(homeDir, entry.target.slice(2));
+          await fs.mkdir(path.dirname(target), { recursive: true });
+          await fs.writeFile(target, "old content");
+        }
+      }
+
+      for (let run = 0; run < 2; run++) {
+        expect(await install(repoDir, homeDir)).toBe(true);
+        for (const entry of manifest) {
+          const target = path.join(homeDir, entry.target.slice(2));
+          await expectSymlink(target);
+          expect(await fs.realpath(target)).toBe(
+            path.join(repoDir, entry.source),
+          );
+          expect(await fs.readFile(target, "utf-8")).toBe(files[entry.source]);
+        }
+        await expectDirectory(path.join(homeDir, ".pi", "agent"));
+      }
+    },
+  );
+
+  it("preserves Pi runtime data and all Orca extensions through repeated installation", async () => {
+    const { repoDir, homeDir } = await createPiRepo();
+    const agentDir = path.join(homeDir, ".pi", "agent");
+    const unmanagedPaths = [
+      "auth.json",
+      "models-store.json",
+      "trust.json",
+      "sessions/project/session.jsonl",
+      "bin/pi",
+      "install/managed-install.json",
+      "extensions/orca-agent-status.ts",
+      "extensions/orca-prefill.ts",
+      "extensions/orca-titlebar-spinner.ts",
+    ];
+    for (const relativePath of unmanagedPaths) {
+      const target = path.join(agentDir, relativePath);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, `unmanaged ${relativePath}`);
+    }
+
+    for (let run = 0; run < 2; run++) {
+      expect(await install(repoDir, homeDir)).toBe(true);
+      await expectDirectory(agentDir);
+      await expectDirectory(path.join(agentDir, "extensions"));
+      for (const relativePath of unmanagedPaths) {
+        const target = path.join(agentDir, relativePath);
+        expect((await fs.lstat(target)).isFile()).toBe(true);
+        expect(await fs.readFile(target, "utf-8")).toBe(
+          `unmanaged ${relativePath}`,
+        );
+      }
+      expect(
+        (await fs.readdir(path.join(agentDir, "extensions"))).sort(),
+      ).toEqual(
+        unmanagedPaths
+          .filter((p) => p.startsWith("extensions/"))
+          .map((p) => path.basename(p))
+          .sort(),
+      );
+    }
+  });
+
+  it("links a personal Pi extension file without replacing Orca extensions", async () => {
+    const source = "dotfiles/pi/extensions/personal.ts";
+    const { repoDir, homeDir } = await createRepo(
+      { [source]: "export default function personal() {}\n" },
+      [{ source, target: "~/.pi/agent/extensions/personal.ts" }],
+    );
+    const extensionsDir = path.join(homeDir, ".pi", "agent", "extensions");
+    const orcaPath = path.join(extensionsDir, "orca-prefill.ts");
+    const personalPath = path.join(extensionsDir, "personal.ts");
+    await fs.mkdir(extensionsDir, { recursive: true });
+    await fs.writeFile(orcaPath, "Orca-managed content");
+
+    for (let run = 0; run < 2; run++) {
+      expect(await install(repoDir, homeDir)).toBe(true);
+      await expectDirectory(extensionsDir);
+      await expectSymlink(personalPath);
+      expect(await fs.realpath(personalPath)).toBe(path.join(repoDir, source));
+      expect(await fs.readFile(personalPath, "utf-8")).toBe(
+        "export default function personal() {}\n",
+      );
+      expect((await fs.lstat(orcaPath)).isFile()).toBe(true);
+      expect(await fs.readFile(orcaPath, "utf-8")).toBe("Orca-managed content");
+    }
   });
 
   it("links agent-sudo into ~/.local/bin", async () => {
