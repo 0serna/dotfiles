@@ -12,7 +12,7 @@ Shared agent skills and local system configuration. A TypeScript linker reads `d
 | OpenCode      | `dotfiles/opencode/`      | Global `opencode.jsonc` + `cli.json` → `~/.config/opencode/`     |
 | Pi            | `dotfiles/pi/`            | Global settings and future personal extensions for `~/.pi/agent/` |
 | Systemd       | `dotfiles/systemd/`       | User-level systemd configuration                                 |
-| Domain docs   | `CONTEXT.md`, `docs/adr/` | Project vocabulary and architecture decisions                    |
+| Domain docs   | `GLOSSARY.md`, `docs/adr/` | Project vocabulary and architecture decisions                    |
 
 The TypeScript code implements the dotfile linker; shared agent skills are linked through the same manifest.
 
@@ -28,7 +28,7 @@ dotfiles/
   systemd/        # → ~/.config/systemd/user
 src/              # TypeScript linker
 docs/adr/         # architecture decisions
-CONTEXT.md        # domain vocabulary
+GLOSSARY.md        # domain vocabulary
 ```
 
 ## Setup

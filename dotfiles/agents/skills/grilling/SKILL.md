@@ -13,4 +13,4 @@ Finding _facts_ is your job, never the user's. When a frontier question needs a 
 
 The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
 
-As decisions and terms crystallize, update the relevant `CONTEXT.md` glossary inline and record an ADR only for decisions that are hard to reverse, surprising without context, and the result of a real trade-off. Follow `domain-modeling` for the glossary and ADR formats.
+As decisions and terms crystallize, update the relevant `GLOSSARY.md` glossary inline and record an ADR only for decisions that are hard to reverse, surprising without context, and the result of a real trade-off. Follow `domain-modeling` for the glossary and ADR formats.
