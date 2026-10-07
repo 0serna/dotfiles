@@ -12,5 +12,6 @@
 
 ## OpenSpec
 
+- Si es necesario inicializar OpenSpec en algún proyecto, debes usar `openspec init --tools none`.
 - Antes de proceder con un `propose`, crea los ADR o actualiza el glosario si es necesario.
 - Al proceder con `archive`, sincroniza siempre sus deltas sin preguntar; solo detente si la sincronización falla o existe un bloqueo real.
