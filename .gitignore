@@ -17,7 +17,5 @@ bun.lock
 .DS_Store
 Thumbs.db
 
-.playwright-mcp/
-
 # Orca-managed Pi extensions
 /dotfiles/pi/extensions/orca-*

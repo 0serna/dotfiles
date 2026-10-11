@@ -1,17 +1,21 @@
-## Comunicación y formato
+## Communication and format
 
-- Usa español neutro en todos los mensajes dirigidos al usuario.
-- Usa inglés para código, archivos, PRs y demás, excepto cuando el idioma forme parte del comportamiento o de las traducciones.
-- Comunicate usando ASD-STE100: frases cortas, una idea por frase, vocabulario simple.
-- Prefiere un diagrama a un texto largo para flujos, estructuras o relaciones.
+- Use neutral Spanish in all messages to the user.
+- Use English for code, files, PRs, and similar, except when language is part of the behavior or translations.
+- Communicate with ASD-STE100: short sentences, one idea per sentence, simple vocabulary.
+- Prefer a diagram over long text for flows, structures, or relations.
 
-## Código y herramientas
+## Code and tools
 
-- Mantén el código modular y las responsabilidades claramente separadas.
-- Usa el comando `agent-sudo "motivo breve" <comando>` en lugar de `sudo` para solicitar aprobación cuando necesites privilegios elevados.
+- Keep code modular and responsibilities clearly separated.
+- Use `agent-sudo "brief reason" <command>` instead of `sudo` to request approval when you need elevated privileges.
+
+## Browser
+
+- When you need to use the browser, use `playwriter`.
 
 ## OpenSpec
 
-- Si es necesario inicializar OpenSpec en algún proyecto, debes usar `openspec init --tools none`.
-- Antes de proceder con un `propose`, crea los ADR o actualiza el glosario si es necesario.
-- Al proceder con `archive`, sincroniza siempre sus deltas sin preguntar; solo detente si la sincronización falla o existe un bloqueo real.
+- If you need to initialize OpenSpec in a project, use `openspec init --tools none`.
+- Before a `propose`, create ADRs or update the glossary if needed.
+- For an `archive`, always sync its deltas without asking. Stop only if the sync fails or a real blocker exists.

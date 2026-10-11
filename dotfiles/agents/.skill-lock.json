@@ -74,6 +74,16 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-06T15:11:22.630Z",
       "updatedAt": "2026-10-06T15:11:22.630Z"
+    },
+    "playwriter": {
+      "source": "playwriter.dev",
+      "sourceType": "well-known",
+      "sourceUrl": "https://playwriter.dev/.well-known/agent-skills/playwriter/SKILL.md",
+      "skillFolderHash": "",
+      "sourceBaseUrl": "https://playwriter.dev",
+      "wellKnownDigest": "sha256:f873d60c1dcf987ad5e9c4bfbfc5a4375cffbcf46c102f2b3878aa9fd214fdd3",
+      "installedAt": "2026-10-11T14:38:02.645Z",
+      "updatedAt": "2026-10-11T14:38:02.645Z"
     }
   },
   "dismissed": {
@@ -90,6 +100,7 @@
     "kilo",
     "kimi-code-cli",
     "opencode",
+    "pi",
     "warp",
     "zed"
   ]
