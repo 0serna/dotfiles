@@ -15,5 +15,6 @@
       "resource": "*",
       "effect": "deny"
     }
-  ]
+  ],
+  "plugins": ["@dietrichgebert/ponytail"]
 }
