@@ -94,6 +94,16 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-12T01:07:40.824Z",
       "updatedAt": "2026-10-12T01:07:40.824Z"
+    },
+    "grill-with-docs": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
+      "skillFolderHash": "eedaf2562c83155115e9c649fa3ecaac2e10e81d",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-10-12T01:11:26.511Z",
+      "updatedAt": "2026-10-12T01:11:26.511Z"
     }
   },
   "dismissed": {
