@@ -104,6 +104,15 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-12T01:11:26.511Z",
       "updatedAt": "2026-10-12T01:11:26.511Z"
+    },
+    "setup-pre-commit": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/misc/setup-pre-commit/SKILL.md",
+      "skillFolderHash": "5b63f9f665bacc9be04cae51982e9ef1469d6699",
+      "installedAt": "2026-10-12T01:18:54.179Z",
+      "updatedAt": "2026-10-12T01:18:54.179Z"
     }
   },
   "dismissed": {
