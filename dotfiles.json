@@ -38,5 +38,13 @@
   {
     "source": "dotfiles/bin/agent-sudo",
     "target": "~/.local/bin/agent-sudo"
+  },
+  {
+    "source": "dotfiles/bin/t3-code-launch",
+    "target": "~/.local/bin/t3-code-launch"
+  },
+  {
+    "source": "dotfiles/bin/openwhispr-launch",
+    "target": "~/.local/bin/openwhispr-launch"
   }
 ]

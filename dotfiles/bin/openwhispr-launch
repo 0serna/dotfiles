@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Launch the newest OpenWhispr AppImage in ~/Applications.
+# Usage: openwhispr-launch [args...]
+dir="${APPIMAGE_DIR:-$HOME/Applications}"
+mapfile -t files < <(printf '%s\n' "$dir"/OpenWhispr-*.AppImage 2>/dev/null | sort -V)
+if (( ${#files[@]} == 0 )); then
+  echo "openwhispr-launch: no OpenWhispr-*.AppImage in $dir" >&2
+  exit 1
+fi
+exec "${files[-1]}" "$@"
