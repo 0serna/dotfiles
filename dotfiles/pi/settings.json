@@ -1,13 +1,16 @@
 {
-  "lastChangelogVersion": "1.0.0",
-  "defaultProvider": "opencode-go",
-  "defaultModel": "muse-spark-1.3-contributor",
+  "lastChangelogVersion": "1.3.0",
+  "defaultProvider": "deepseek",
+  "defaultModel": "deepseek-flash",
   "defaultProjectTrust": "always",
   "deviceId": "b3b21fb7-fea1-445f-912a-79717859d2b8",
   "hideThinkingBlock": true,
   "showCacheMissNotices": true,
   "collapseChangelog": true,
-  "enabledModels": ["opencode-go/muse-spark-1.3-contributor"],
+  "enabledModels": [
+    "opencode-go/muse-spark-1.3-contributor",
+    "deepseek/deepseek-flash"
+  ],
   "modelThinkingLevels": {
     "opencode-go/muse-spark-1.3-contributor": "xhigh"
   }

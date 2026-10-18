@@ -46,9 +46,5 @@
   {
     "source": "dotfiles/bin/openwhispr-launch",
     "target": "~/.local/bin/openwhispr-launch"
-  },
-  {
-    "source": "dotfiles/bin/paseo-launch",
-    "target": "~/.local/bin/paseo-launch"
   }
 ]
