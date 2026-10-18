@@ -13,5 +13,6 @@
   ],
   "modelThinkingLevels": {
     "opencode-go/muse-spark-1.3-contributor": "xhigh"
-  }
+  },
+  "packages": ["npm:@dietrichgebert/ponytail"]
 }
