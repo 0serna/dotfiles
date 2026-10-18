@@ -10,7 +10,7 @@ Shared agent skills and local system configuration. A TypeScript linker reads `d
 | Shared skills | `dotfiles/agents/`        | Skills linked to `~/.agents`                                     |
 | Local helpers | `dotfiles/bin/`           | Locally linked command-line helpers                              |
 | OpenCode      | `dotfiles/opencode/`      | Global `opencode.jsonc` + `cli.json` → `~/.config/opencode/`     |
-| Pi            | `dotfiles/pi/`            | Global settings and future personal extensions for `~/.pi/agent/` |
+| Pi            | `dotfiles/pi/`            | Global settings, MCP servers, and future personal extensions for `~/.pi/agent/` |
 | Domain docs   | `GLOSSARY.md`, `docs/adr/` | Project vocabulary and architecture decisions                    |
 
 The TypeScript code implements the dotfile linker; shared agent skills are linked through the same manifest.

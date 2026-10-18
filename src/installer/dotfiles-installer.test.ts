@@ -442,7 +442,7 @@ describe("DotfilesInstaller", () => {
     ).toBe(false);
   });
 
-  it("manages only Pi settings and shared instructions in the default manifest", async () => {
+  it("manages Pi settings, MCP servers and shared instructions in the default manifest", async () => {
     const manifest = await readManifest(process.cwd());
     const piEntries = manifest.filter(
       (entry) => entry.target === "~/.pi" || entry.target.startsWith("~/.pi/"),
@@ -454,19 +454,24 @@ describe("DotfilesInstaller", () => {
         target: "~/.pi/agent/settings.json",
       },
       {
+        source: "dotfiles/pi/mcp.json",
+        target: "~/.pi/agent/mcp.json",
+      },
+      {
         source: "dotfiles/AGENTS.md",
         target: "~/.pi/agent/AGENTS.md",
       },
     ]);
     expect(
       manifest.filter((entry) => entry.source.startsWith("dotfiles/pi")),
-    ).toEqual([piEntries[0]]);
+    ).toEqual([piEntries[0], piEntries[1]]);
     expect(manifest).toContainEqual({
       source: "dotfiles/agents",
       target: "~/.agents",
     });
     expect(await fs.readdir("dotfiles/pi")).toEqual([
       "extensions",
+      "mcp.json",
       "settings.json",
     ]);
     expect(await fs.readdir("dotfiles/pi/extensions")).toEqual([".gitkeep"]);
