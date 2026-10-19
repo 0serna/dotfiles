@@ -458,13 +458,17 @@ describe("DotfilesInstaller", () => {
         target: "~/.pi/agent/mcp.json",
       },
       {
+        source: "dotfiles/pi/extensions/context-report.ts",
+        target: "~/.pi/agent/extensions/context-report.ts",
+      },
+      {
         source: "dotfiles/AGENTS.md",
         target: "~/.pi/agent/AGENTS.md",
       },
     ]);
     expect(
       manifest.filter((entry) => entry.source.startsWith("dotfiles/pi")),
-    ).toEqual([piEntries[0], piEntries[1]]);
+    ).toEqual([piEntries[0], piEntries[1], piEntries[2]]);
     expect(manifest).toContainEqual({
       source: "dotfiles/agents",
       target: "~/.agents",
@@ -474,7 +478,9 @@ describe("DotfilesInstaller", () => {
       "mcp.json",
       "settings.json",
     ]);
-    expect(await fs.readdir("dotfiles/pi/extensions")).toEqual([".gitkeep"]);
+    expect(await fs.readdir("dotfiles/pi/extensions")).toEqual([
+      "context-report.ts",
+    ]);
     expect(
       JSON.parse(await fs.readFile("dotfiles/pi/settings.json", "utf-8")),
     ).not.toHaveProperty("skills");

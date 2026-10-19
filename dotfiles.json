@@ -20,6 +20,10 @@
     "target": "~/.config/opencode/plugins/skills-as-slash"
   },
   {
+    "source": "dotfiles/opencode/plugins/context-report",
+    "target": "~/.config/opencode/plugins/context-report"
+  },
+  {
     "source": "dotfiles/AGENTS.md",
     "target": "~/.codex/AGENTS.md"
   },
@@ -30,6 +34,10 @@
   {
     "source": "dotfiles/pi/mcp.json",
     "target": "~/.pi/agent/mcp.json"
+  },
+  {
+    "source": "dotfiles/pi/extensions/context-report.ts",
+    "target": "~/.pi/agent/extensions/context-report.ts"
   },
   {
     "source": "dotfiles/AGENTS.md",
