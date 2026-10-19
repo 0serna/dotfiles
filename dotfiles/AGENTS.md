@@ -13,6 +13,8 @@
 ## Browser
 
 - When you need to use the browser, use `playwriter`.
+- Assert page state with `preview_evaluate` returning a small object; reach for `preview_snapshot` only when you need to see the page, since its accessibility tree is large.
+- A preview tab that stops answering stays stuck: open a new tab and continue there instead of retrying on the same one.
 
 ## OpenSpec
 
