@@ -16,10 +16,6 @@
     "target": "~/.config/opencode/plugins/copy-last"
   },
   {
-    "source": "dotfiles/opencode/plugins/skills-as-slash",
-    "target": "~/.config/opencode/plugins/skills-as-slash"
-  },
-  {
     "source": "dotfiles/opencode/plugins/context-report",
     "target": "~/.config/opencode/plugins/context-report"
   },
