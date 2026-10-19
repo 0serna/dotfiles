@@ -21,6 +21,19 @@
 - Before a `propose`, create ADRs or update the glossary if needed.
 - For an `archive`, always sync its deltas without asking. Stop only if the sync fails or a real blocker exists.
 
+## Subagents
+
+- Use only the models in this table for delegated tasks. Do not substitute another model.
+
+| Need | Model | Reasoning |
+|---|---|---|
+| Reasoning and hard tasks | MiMo-V2.6-Pro | high or unset |
+| Lowest cost per coding task | Muse Spark 1.3 Contributor | xhigh |
+| Speed and long context | DeepSeek V4.1 Flash | max |
+| Verify its own visual output | GLM-5.3-Flash | max |
+| Computer use and security | MiniMax M3.1 Flash | max |
+| High volume, small tasks | GPT 6 Luna | max |
+
 ## Context usage
 
 - When a request ends with a `status: <tokens>` note, end the final answer of the turn with one line: `context: <n>k`, where `n` is tokens divided by 1000 and rounded to the nearest integer.
