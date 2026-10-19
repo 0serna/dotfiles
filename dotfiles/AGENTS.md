@@ -2,7 +2,7 @@
 
 - Use neutral Spanish in all messages to the user.
 - Use English for code, files, PRs, and similar, except when language is part of the behavior or translations.
-- Communicate with ASD-STE100: short sentences, one idea per sentence, simple vocabulary.
+- Communicate using ASD-STE100: short sentences, one idea per sentence, simple vocabulary.
 - Prefer a diagram over long text for flows, structures, or relations.
 
 ## Code and tools
@@ -10,15 +10,10 @@
 - Keep code modular and responsibilities clearly separated.
 - Use `agent-sudo "brief reason" <command>` instead of `sudo` to request approval when you need elevated privileges.
 
-## Coding tasks
-
-- Apply ponytail level `full`
-
 ## Browser
 
-- When you need to use the browser, use `playwriter`.
-- Assert page state with `preview_evaluate` returning a small object; reach for `preview_snapshot` only when you need to see the page, since its accessibility tree is large.
-- A preview tab that stops answering stays stuck: open a new tab and continue there instead of retrying on the same one.
+- Use `playwriter` in headless mode by default. Use an extension session when the user points to their own tabs or needs their saved logins.
+- Use `playwriter` instead of other browsers/tools unless the user specifies otherwise.
 
 ## OpenSpec
 
@@ -29,4 +24,4 @@
 ## Context usage
 
 - When a request ends with a `status: <tokens>` note, end the final answer of the turn with one line: `context: <n>k`, where `n` is tokens divided by 1000 and rounded to the nearest integer.
-- Write the line only in the final answer: not in intermediate messages, not when the turn ends with a tool call, and not when the turn fails.
+- Write the line in bold, on the last line and only in the final answer: not in intermediate messages, not when the turn ends with a tool call, and not when the turn fails.
