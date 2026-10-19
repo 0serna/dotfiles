@@ -119,17 +119,20 @@ export async function syncSkillDirectories(
   return generated.length;
 }
 
-export async function syncOpenSpecSkills(skillsDir: string): Promise<number> {
-  const install = spawnSync(
-    "npm",
-    ["install", "-g", "@fission-ai/openspec@latest"],
-    { stdio: "inherit" },
-  );
+// Both tools feed their skills: OpenSpec generates them, Playwriter serves their docs.
+const managedTools = ["@fission-ai/openspec@latest", "playwriter@latest"];
+
+function updateManagedTools(): void {
+  const install = spawnSync("npm", ["install", "-g", ...managedTools], {
+    stdio: "inherit",
+  });
   if (install.error) throw install.error;
   if (install.status !== 0) {
-    throw new Error(`OpenSpec install failed with status ${install.status}.`);
+    throw new Error(`Tool update failed with status ${install.status}.`);
   }
+}
 
+export async function syncOpenSpecSkills(skillsDir: string): Promise<number> {
   const temporaryDir = await fs.mkdtemp(
     path.join(os.tmpdir(), "openspec-skills-"),
   );
@@ -137,9 +140,10 @@ export async function syncOpenSpecSkills(skillsDir: string): Promise<number> {
 
   try {
     await fs.mkdir(projectDir);
+    // "agents" writes the shared .agents/skills tree; "opencode" writes .opencode/skills.
     const result = spawnSync(
       "openspec",
-      ["init", projectDir, "--tools", "codex"],
+      ["init", projectDir, "--tools", "agents"],
       {
         stdio: "inherit",
         env: {
@@ -172,6 +176,8 @@ async function main(): Promise<void> {
     stdio: "inherit",
   });
   if (update.status !== 0) process.exit(update.status ?? 1);
+
+  updateManagedTools();
 
   const skillsDir = path.resolve("dotfiles/agents/skills");
   const synced = await syncOpenSpecSkills(skillsDir);

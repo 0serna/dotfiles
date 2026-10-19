@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "link": "tsx src/installer/dotfiles-installer.ts",
-    "skills:update": "tsx src/skills/skills-update.ts",
+    "agents:update": "tsx src/skills/agents-update.ts",
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",

@@ -6,7 +6,7 @@
 │   ├── agent-sudo/       # Tests for the agent-sudo helper
 │   ├── installer/        # Dotfile installer and link logic
 │   ├── opencode/         # Tests for OpenCode plugins
-│   └── skills/           # Skill metadata updater
+│   └── skills/           # Skill and tool updater
 ├── dotfiles/             # Files linked into user config locations
 │   ├── agents/           # Shared agent skills
 │   ├── bin/              # Local command-line helpers
@@ -20,7 +20,8 @@
 ## Repository Commands
 
 - `npm run link`: link configured dotfiles from `dotfiles.json`.
-- `npm run skills:update`: update globally managed skills and align their OpenAI metadata.
+- `npm run agents:update`: update globally managed skills and their CLIs, then align OpenAI/OpenCode metadata.
+- Do not hand-edit derived OpenAI/OpenCode skill flags; `npm run agents:update` regenerates them.
 - `npm run test`: run Vitest tests.
 - `npm run check`: format, lint, and organize imports with Biome.
 - `npm run check:fix`: apply Biome fixes and formatting.

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Garantizar que una skill marcada solo-humana se oculte del modelo en todos los proveedores soportados, con `disable-model-invocation: true` como única decisión manual y derivados por proveedor generados por `npm run skills:update`.
+Garantizar que una skill marcada solo-humana se oculte del modelo en todos los proveedores soportados, con `disable-model-invocation: true` como única decisión manual y derivados por proveedor generados por `npm run agents:update`.
 
 ## Requirements
 
@@ -12,7 +12,7 @@ The system SHALL ensure every `SKILL.md` under `dotfiles/agents/skills/` whose f
 
 #### Scenario: Skill marcada sin bloque metadata recibe el derivado
 
-- **WHEN** `npm run skills:update` processes a flagged `SKILL.md` with no `metadata` block
+- **WHEN** `npm run agents:update` processes a flagged `SKILL.md` with no `metadata` block
 - **THEN** its frontmatter gains `metadata:` with `opencode/autoinvoke: false` and all prior keys keep their values and order
 
 #### Scenario: Metadata existente con claves ajenas se preserva
@@ -41,7 +41,7 @@ The system SHALL continue to ensure every flagged skill has `agents/openai.yaml`
 
 #### Scenario: Derivado OpenAI intacto tras el cambio
 
-- **WHEN** `npm run skills:update` runs over a flagged skill
+- **WHEN** `npm run agents:update` runs over a flagged skill
 - **THEN** its `agents/openai.yaml` contains `policy:` with `allow_implicit_invocation: false` and pre-existing keys such as `interface.display_name` are preserved
 
 ### Requirement: Descripción y visibilidad slash se preservan

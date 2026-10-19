@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { normalizeSkills, syncSkillDirectories } from "./skills-update.ts";
+import { normalizeSkills, syncSkillDirectories } from "./agents-update.ts";
 
 let tmpDir: string;
 
