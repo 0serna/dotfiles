@@ -13,13 +13,15 @@
 │   ├── opencode/         # Global opencode.jsonc + cli.json
 │   ├── pi/               # Global settings and personal extension location
 │   └── systemd/          # User-level systemd configuration
+├── scripts/              # Repository helper scripts
 └── docs/                 # Architecture decision records
     └── adr/
 ```
 
 ## Repository Commands
 
-- `npm run link`: link configured dotfiles from `dotfiles.json`.
+- `npm run link`: link configured dotfiles in the current checkout.
+- `npm run link:main`: run the installer from the main worktree.
 - `npm run agents:update`: update globally managed skills and their CLIs, then align OpenAI/OpenCode metadata.
 - Do not hand-edit derived OpenAI/OpenCode skill flags; `npm run agents:update` regenerates them.
 - `npm run test`: run Vitest tests.
