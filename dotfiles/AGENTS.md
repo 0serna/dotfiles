@@ -27,11 +27,9 @@
 
 | Need | Model | Reasoning |
 |---|---|---|
-| Reasoning and hard tasks | MiMo-V2.6-Pro | high or unset |
 | Long-horizon agentic coding | Muse Spark 1.3 Contributor | xhigh |
 | Speed and long context | DeepSeek V4.1 Flash | max |
 | Verify its own visual output | GLM-5.3-Flash | max |
-| Computer use and security | MiniMax M3.1 Flash | max |
 | Summarization and structured extraction | GPT-6 Luna | max |
 
 ## Context usage
