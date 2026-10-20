@@ -6,6 +6,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const scriptPath = path.resolve("scripts/link-main.sh");
 
+// Git hooks export these variables. They would redirect the test's git calls
+// to the repository that runs the tests.
+const gitEnv = { ...process.env };
+delete gitEnv.GIT_DIR;
+delete gitEnv.GIT_WORK_TREE;
+delete gitEnv.GIT_INDEX_FILE;
+delete gitEnv.GIT_COMMON_DIR;
+
 let tmpDir: string;
 
 describe("link-main.sh", () => {
@@ -34,8 +42,8 @@ describe("link-main.sh", () => {
       { mode: 0o755 },
     );
 
-    execFileSync("git", ["init", "-q"], { cwd: repoDir });
-    execFileSync("git", ["add", "."], { cwd: repoDir });
+    execFileSync("git", ["init", "-q"], { cwd: repoDir, env: gitEnv });
+    execFileSync("git", ["add", "."], { cwd: repoDir, env: gitEnv });
     execFileSync(
       "git",
       [
@@ -50,16 +58,17 @@ describe("link-main.sh", () => {
         "-m",
         "init",
       ],
-      { cwd: repoDir },
+      { cwd: repoDir, env: gitEnv },
     );
     execFileSync("git", ["worktree", "add", "-q", worktreeDir], {
       cwd: repoDir,
+      env: gitEnv,
     });
 
     const output = execFileSync(
       "sh",
       [path.join(worktreeDir, "scripts", "link-main.sh")],
-      { encoding: "utf-8" },
+      { encoding: "utf-8", env: gitEnv },
     );
 
     expect(output.trim()).toBe(
@@ -75,12 +84,12 @@ describe("link-main.sh", () => {
       scriptPath,
       path.join(repoDir, "scripts", "link-main.sh"),
     );
-    execFileSync("git", ["init", "-q"], { cwd: repoDir });
+    execFileSync("git", ["init", "-q"], { cwd: repoDir, env: gitEnv });
 
     const result = spawnSync(
       "sh",
       [path.join(repoDir, "scripts", "link-main.sh")],
-      { encoding: "utf-8" },
+      { encoding: "utf-8", env: gitEnv },
     );
 
     expect(result.status).toBe(1);
