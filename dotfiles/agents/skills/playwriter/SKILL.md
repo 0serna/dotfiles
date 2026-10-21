@@ -21,7 +21,7 @@ This outputs the complete documentation including:
 
 **Do NOT skip this step.** The examples below will fail without understanding timeouts, selector rules, and pitfalls from the full docs. You only need to do this once per session; subsequent playwriter commands in the same session do not require re-reading.
 
-**Read the ENTIRE output.** Do NOT pipe through `head`, `tail`, or any truncation command. Critical rules are spread throughout the document, not just at the top.
+**Read the ENTIRE output.** Do NOT pipe through `head`, `tail`, or any truncation command. Critical rules are spread throughout the document, not just at the top. If the shell truncates the output, read the saved output file from the start; do not skip the first part.
 
 ## Minimal Example (after reading full docs)
 

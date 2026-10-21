@@ -20,11 +20,11 @@
 - Use only the models in this table for delegated tasks. Do not substitute another model.
 - Run every model at its highest available reasoning level.
 
-| Need | Model |
-| --- | --- |
-| General agentic work | DeepSeek V4.1 Flash |
-| Code implementation | Claude Haiku 5.5 |
-| Visual design work | Muse Spark 1.3 Contributor |
+| Need                 | Model                      |
+| -------------------- | -------------------------- |
+| General agentic work | DeepSeek V4.1 Flash        |
+| Code implementation  | Claude Haiku 5.5           |
+| Visual design work   | Muse Spark 1.3 Contributor |
 
 ## Context usage
 
