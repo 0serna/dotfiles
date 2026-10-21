@@ -1,5 +1,5 @@
 interface:
   display_name: "Land PR"
-  short_description: "Merge a green PR and sync the primary clone"
+  short_description: "Merge a green PR and report its URL"
 policy:
   allow_implicit_invocation: false
