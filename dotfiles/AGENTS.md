@@ -24,13 +24,13 @@
 ## Subagents
 
 - Use only the models in this table for delegated tasks. Do not substitute another model.
+- Run every model at its highest available reasoning level.
 
-| Need | Model | Reasoning |
-|---|---|---|
-| Long-horizon agentic coding | Muse Spark 1.3 Contributor | xhigh |
-| Speed and long context | DeepSeek V4.1 Flash | max |
-| Verify its own visual output | GLM-5.3-Flash | max |
-| Summarization and structured extraction | GPT-6 Luna | max |
+| Need | Model |
+| --- | --- |
+| General agentic work | DeepSeek V4.1 Flash |
+| Code implementation | Claude Haiku 5.5 |
+| Visual design work | Muse Spark 1.3 Contributor |
 
 ## Context usage
 
