@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { normalizeSkills, syncSkillDirectories } from "./agents-update.ts";
+import { normalizeSkills } from "./agents-update.ts";
 
 let tmpDir: string;
 
@@ -76,13 +76,13 @@ describe("normalizeSkills", () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
     await addSkillWithFrontmatter(
       "generated",
-      'name: generated\ndescription: Test\ndisable-model-invocation: true\nmetadata:\n  author: openspec\n  version: "1.0"\n  generatedBy: "1.13.1"',
+      'name: generated\ndescription: Test\ndisable-model-invocation: true\nmetadata:\n  author: test\n  version: "1.0"\n  generatedBy: "1.13.1"',
     );
 
     expect(await normalizeSkills(tmpDir)).toBe(1);
 
     expect(await readSkill("generated")).toBe(
-      '---\nname: generated\ndescription: Test\ndisable-model-invocation: true\nmetadata:\n  opencode/autoinvoke: false\n  author: openspec\n  version: "1.0"\n  generatedBy: "1.13.1"\n---\n',
+      '---\nname: generated\ndescription: Test\ndisable-model-invocation: true\nmetadata:\n  opencode/autoinvoke: false\n  author: test\n  version: "1.0"\n  generatedBy: "1.13.1"\n---\n',
     );
   });
 
@@ -106,7 +106,7 @@ describe("normalizeSkills", () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
     await addSkillWithFrontmatter(
       "model-invoked",
-      "name: model-invoked\ndescription: Test\nmetadata:\n  author: openspec",
+      "name: model-invoked\ndescription: Test\nmetadata:\n  author: test",
     );
     const before = await readSkill("model-invoked");
 
@@ -122,7 +122,7 @@ describe("normalizeSkills", () => {
     await addSkill("plain");
     await addSkillWithFrontmatter(
       "generated",
-      'name: generated\ndescription: Test\ndisable-model-invocation: true\nmetadata:\n  author: openspec\n  version: "1.0"',
+      'name: generated\ndescription: Test\ndisable-model-invocation: true\nmetadata:\n  author: test\n  version: "1.0"',
     );
 
     expect(await normalizeSkills(tmpDir)).toBe(2);
@@ -132,39 +132,5 @@ describe("normalizeSkills", () => {
     expect(await normalizeSkills(tmpDir)).toBe(0);
     expect(await readSkill("plain")).toBe(plainAfterFirst);
     expect(await readSkill("generated")).toBe(generatedAfterFirst);
-  });
-});
-
-describe("syncSkillDirectories", () => {
-  afterEach(async () => fs.rm(tmpDir, { recursive: true, force: true }));
-
-  it("replaces OpenSpec skills and preserves unrelated skills", async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
-    const generated = path.join(tmpDir, "generated");
-    const installed = path.join(tmpDir, "installed");
-
-    await fs.mkdir(path.join(generated, "openspec-propose"), {
-      recursive: true,
-    });
-    await fs.writeFile(
-      path.join(generated, "openspec-propose", "SKILL.md"),
-      "new",
-    );
-    await fs.mkdir(path.join(installed, "openspec-old"), { recursive: true });
-    await fs.mkdir(path.join(installed, "custom"), { recursive: true });
-
-    expect(await syncSkillDirectories(generated, installed)).toBe(1);
-    expect(
-      await fs.readFile(
-        path.join(installed, "openspec-propose", "SKILL.md"),
-        "utf8",
-      ),
-    ).toBe("new");
-    await expect(
-      fs.access(path.join(installed, "custom")),
-    ).resolves.toBeUndefined();
-    await expect(
-      fs.access(path.join(installed, "openspec-old")),
-    ).rejects.toThrow();
   });
 });

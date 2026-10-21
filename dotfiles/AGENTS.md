@@ -15,12 +15,6 @@
 - Use `playwriter` in headless mode by default. Use an extension session when the user points to their own tabs or needs their saved logins.
 - Use `playwriter` instead of other browsers/tools unless the user specifies otherwise.
 
-## OpenSpec
-
-- If you need to initialize OpenSpec in a project, use `openspec init --tools none`.
-- Before a `propose`, create ADRs or update the glossary if needed.
-- For an `archive`, always sync its deltas without asking. Stop only if the sync fails or a real blocker exists.
-
 ## Subagents
 
 - Use only the models in this table for delegated tasks. Do not substitute another model.
