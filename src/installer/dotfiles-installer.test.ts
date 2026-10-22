@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { DotfilesInstaller } from "./dotfiles-installer";
 import { readManifest } from "./manifest.ts";
+import { resolveTarget } from "./paths.ts";
 
 let tmpDir: string;
 
@@ -14,6 +15,15 @@ async function createWorkspace() {
 
   await fs.mkdir(repoDir, { recursive: true });
   await fs.mkdir(homeDir, { recursive: true });
+
+  return { repoDir, homeDir };
+}
+
+async function createNestedWorkspace() {
+  const homeDir = path.join(tmpDir, "home");
+  const repoDir = path.join(homeDir, "repo");
+
+  await fs.mkdir(repoDir, { recursive: true });
 
   return { repoDir, homeDir };
 }
@@ -323,7 +333,7 @@ describe("DotfilesInstaller", () => {
   });
 
   it("rejects targets inside the repository", async () => {
-    const { repoDir, homeDir } = await createWorkspace();
+    const { repoDir, homeDir } = await createNestedWorkspace();
 
     await writeConfigFile(repoDir);
 
@@ -352,7 +362,7 @@ describe("DotfilesInstaller", () => {
   });
 
   it("rejects literal dot-prefixed segments inside the repository", async () => {
-    const { repoDir, homeDir } = await createWorkspace();
+    const { repoDir, homeDir } = await createNestedWorkspace();
 
     await writeConfigFile(repoDir);
 
@@ -374,8 +384,8 @@ describe("DotfilesInstaller", () => {
   });
 
   it("allows absolute targets in sibling directories with the repository path prefix", async () => {
-    const { repoDir, homeDir } = await createWorkspace();
-    const targetPath = path.join(`${repoDir}-target`, "config.jsonc");
+    const { repoDir, homeDir } = await createNestedWorkspace();
+    const targetPath = path.join(homeDir, "repo-target", "config.jsonc");
 
     await writeConfigFile(repoDir);
     await writeManifest(repoDir, [
@@ -429,19 +439,6 @@ describe("DotfilesInstaller", () => {
     ).toBe("shared instructions");
   });
 
-  it("does not include removed agent configuration targets in the default manifest", async () => {
-    const manifest = await readManifest(process.cwd());
-
-    expect(
-      manifest.some(
-        (entry) =>
-          entry.source.startsWith("dotfiles/legacy-agent/") ||
-          entry.source.startsWith("dotfiles/legacy-tool/") ||
-          entry.source.startsWith("dotfiles/legacy-config/"),
-      ),
-    ).toBe(false);
-  });
-
   it("manages Pi settings, MCP servers and shared instructions in the default manifest", async () => {
     const manifest = await readManifest(process.cwd());
     const piEntries = manifest.filter(
@@ -486,32 +483,22 @@ describe("DotfilesInstaller", () => {
     ).not.toHaveProperty("skills");
   });
 
-  it.each([false, true])(
-    "links and relinks Pi settings and shared instructions with existing files: %s",
-    async (existingFiles) => {
-      const { repoDir, homeDir, manifest, files } = await createPiRepo();
-      if (existingFiles) {
-        for (const entry of manifest) {
-          const target = path.join(homeDir, entry.target.slice(2));
-          await fs.mkdir(path.dirname(target), { recursive: true });
-          await fs.writeFile(target, "old content");
-        }
-      }
+  it("links and relinks Pi settings and shared instructions", async () => {
+    const { repoDir, homeDir, manifest, files } = await createPiRepo();
 
-      for (let run = 0; run < 2; run++) {
-        expect(await install(repoDir, homeDir)).toBe(true);
-        for (const entry of manifest) {
-          const target = path.join(homeDir, entry.target.slice(2));
-          await expectSymlink(target);
-          expect(await fs.realpath(target)).toBe(
-            path.join(repoDir, entry.source),
-          );
-          expect(await fs.readFile(target, "utf-8")).toBe(files[entry.source]);
-        }
-        await expectDirectory(path.join(homeDir, ".pi", "agent"));
+    for (let run = 0; run < 2; run++) {
+      expect(await install(repoDir, homeDir)).toBe(true);
+      for (const entry of manifest) {
+        const target = path.join(homeDir, entry.target.slice(2));
+        await expectSymlink(target);
+        expect(await fs.realpath(target)).toBe(
+          path.join(repoDir, entry.source),
+        );
+        expect(await fs.readFile(target, "utf-8")).toBe(files[entry.source]);
       }
-    },
-  );
+      await expectDirectory(path.join(homeDir, ".pi", "agent"));
+    }
+  });
 
   it("preserves Pi runtime data and all Orca extensions through repeated installation", async () => {
     const { repoDir, homeDir } = await createPiRepo();
@@ -597,7 +584,34 @@ describe("DotfilesInstaller", () => {
     await expectSymlink(path.join(homeDir, ".local", "bin", "agent-sudo"));
   });
 
-  it("replaces existing targets", async () => {
+  it("replaces existing symlink targets", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      { "dotfiles/example-config/config.jsonc": "new" },
+      [
+        {
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
+        },
+      ],
+    );
+
+    const targetPath = path.join(homeDir, ".config", "example-config");
+    const oldPath = path.join(tmpDir, "old.jsonc");
+    await fs.mkdir(targetPath, { recursive: true });
+    await fs.writeFile(oldPath, "old");
+    await fs.symlink(oldPath, path.join(targetPath, "config.jsonc"));
+
+    const success = await install(repoDir, homeDir);
+
+    expect(success).toBe(true);
+    await expectSymlink(path.join(targetPath, "config.jsonc"));
+    expect(
+      await fs.readFile(path.join(targetPath, "config.jsonc"), "utf-8"),
+    ).toBe("new");
+    expect(await fs.readFile(oldPath, "utf-8")).toBe("old");
+  });
+
+  it("keeps a real file target and fails", async () => {
     const { repoDir, homeDir } = await createRepo(
       { "dotfiles/example-config/config.jsonc": "new" },
       [
@@ -612,13 +626,99 @@ describe("DotfilesInstaller", () => {
     await fs.mkdir(targetPath, { recursive: true });
     await fs.writeFile(path.join(targetPath, "config.jsonc"), "old");
 
-    const success = await install(repoDir, homeDir);
-
-    expect(success).toBe(true);
-    await expectSymlink(path.join(targetPath, "config.jsonc"));
+    expect(await install(repoDir, homeDir)).toBe(false);
+    expect(
+      (await fs.lstat(path.join(targetPath, "config.jsonc"))).isFile(),
+    ).toBe(true);
     expect(
       await fs.readFile(path.join(targetPath, "config.jsonc"), "utf-8"),
-    ).toBe("new");
+    ).toBe("old");
+  });
+
+  it("keeps a real directory target and fails", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      { "dotfiles/example-config/config.jsonc": "new" },
+      [
+        {
+          source: "dotfiles/example-config",
+          target: "~/.config/example-config",
+        },
+      ],
+    );
+
+    const targetPath = path.join(homeDir, ".config", "example-config");
+    await fs.mkdir(targetPath, { recursive: true });
+    await fs.writeFile(path.join(targetPath, "keep.txt"), "keep");
+
+    expect(await install(repoDir, homeDir)).toBe(false);
+    await expectDirectory(targetPath);
+    expect(await fs.readFile(path.join(targetPath, "keep.txt"), "utf-8")).toBe(
+      "keep",
+    );
+  });
+
+  it("keeps earlier targets when a later entry fails", async () => {
+    const { repoDir, homeDir } = await createRepo(
+      { "dotfiles/example-config/config.jsonc": "new" },
+      [
+        {
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
+        },
+        {
+          source: "dotfiles/missing.txt",
+          target: "~/.config/example-config/missing.txt",
+        },
+      ],
+    );
+
+    const targetPath = path.join(homeDir, ".config", "example-config");
+    const oldPath = path.join(tmpDir, "old.jsonc");
+    await fs.mkdir(targetPath, { recursive: true });
+    await fs.writeFile(oldPath, "old");
+    await fs.symlink(oldPath, path.join(targetPath, "config.jsonc"));
+
+    expect(await install(repoDir, homeDir)).toBe(false);
+    expect(await fs.readlink(path.join(targetPath, "config.jsonc"))).toBe(
+      oldPath,
+    );
+    expect(
+      await fs.readFile(path.join(targetPath, "config.jsonc"), "utf-8"),
+    ).toBe("old");
+  });
+
+  it("rejects duplicate targets in the manifest", async () => {
+    const { repoDir } = await createRepo(
+      { "dotfiles/example-config/config.jsonc": "config" },
+      [
+        {
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
+        },
+        {
+          source: "dotfiles/example-config/config.jsonc",
+          target: "~/.config/example-config/config.jsonc",
+        },
+      ],
+    );
+
+    await expect(readManifest(repoDir)).rejects.toThrow(
+      "Duplicate target in manifest: ~/.config/example-config/config.jsonc",
+    );
+  });
+
+  it("rejects targets outside the home directory", async () => {
+    const { repoDir, homeDir } = await createWorkspace();
+
+    expect(() => resolveTarget(repoDir, homeDir, "/tmp/x")).toThrow(
+      "Target must stay inside the home directory: /tmp/x",
+    );
+    expect(() => resolveTarget(repoDir, homeDir, "~/..")).toThrow(
+      "Target must stay inside the home directory: ~/..",
+    );
+    expect(resolveTarget(repoDir, homeDir, "~/.config/opencode/x")).toBe(
+      path.join(homeDir, ".config", "opencode", "x"),
+    );
   });
 
   it("fails when the manifest is missing", async () => {

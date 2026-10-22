@@ -11,8 +11,7 @@
 │   ├── agents/           # Shared agent skills
 │   ├── bin/              # Local command-line helpers
 │   ├── opencode/         # Global opencode.jsonc + cli.json
-│   ├── pi/               # Global settings and personal extension location
-│   └── systemd/          # User-level systemd configuration
+│   └── pi/               # Global settings and personal extension location
 ├── scripts/              # Repository helper scripts
 └── docs/                 # Architecture decision records
     └── adr/

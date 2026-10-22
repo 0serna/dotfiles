@@ -45,6 +45,10 @@ export function resolveTarget(
     throw new Error(`Target resolves to the home directory root: ${target}`);
   }
 
+  if (!isPathInsideDirectory(normalizedHome, normalizedTarget)) {
+    throw new Error(`Target must stay inside the home directory: ${target}`);
+  }
+
   const normalizedRepo = path.resolve(repoDir);
   if (isPathInsideDirectory(normalizedRepo, normalizedTarget)) {
     throw new Error(`Target resolves inside the repository: ${target}`);
