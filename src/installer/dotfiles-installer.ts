@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { linkEntry } from "./linker.ts";
+import { applyEntry, planEntry } from "./linker.ts";
 import { readManifest } from "./manifest.ts";
 
 export class DotfilesInstaller {
@@ -14,8 +14,12 @@ export class DotfilesInstaller {
   async install(): Promise<boolean> {
     try {
       const entries = await readManifest(this.repoDir);
+      const plans = [];
       for (const entry of entries) {
-        await linkEntry(this.repoDir, this.homeDir, entry);
+        plans.push(await planEntry(this.repoDir, this.homeDir, entry));
+      }
+      for (const plan of plans) {
+        await applyEntry(plan);
       }
       return true;
     } catch (error) {

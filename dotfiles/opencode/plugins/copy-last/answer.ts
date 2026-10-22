@@ -29,7 +29,9 @@ export async function latestSessionAnswer(
     });
     const answer = latestAnswer(page.data);
     if (answer) return answer;
-    cursor = page.cursor.next ?? undefined;
+    const next = page.cursor.next ?? undefined;
+    if (next === cursor) return;
+    cursor = next;
   } while (cursor);
 }
 

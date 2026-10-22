@@ -46,7 +46,8 @@ export async function normalizeSkills(skillsDir: string): Promise<number> {
 
     const skillDir = path.join(skillsDir, entry.name);
     const skillPath = path.join(skillDir, "SKILL.md");
-    const skill = await fs.readFile(skillPath, "utf8");
+    const skill = await fs.readFile(skillPath, "utf8").catch(() => undefined);
+    if (skill === undefined) continue;
     const match = skill.match(/^---\n([\s\S]*?)\n---/);
     const frontmatter = match?.[1] ?? "";
     if (!explicitOnly.test(frontmatter)) continue;
@@ -77,7 +78,6 @@ export async function normalizeSkills(skillsDir: string): Promise<number> {
   return changed;
 }
 
-// Playwriter serves its skill docs.
 const managedTools = ["playwriter@latest"];
 
 function updateManagedTools(): void {
@@ -94,6 +94,7 @@ async function main(): Promise<void> {
   const update = spawnSync("npx", ["-y", "skills", "update", "-g", "-y"], {
     stdio: "inherit",
   });
+  if (update.error) throw update.error;
   if (update.status !== 0) process.exit(update.status ?? 1);
 
   updateManagedTools();
