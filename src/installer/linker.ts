@@ -8,52 +8,66 @@ import {
   resolveTarget,
 } from "./paths.ts";
 
-export async function linkEntry(
+export type EntryPlan = {
+  entry: DotfileEntry;
+  sourcePath: string;
+  targetPath: string;
+  isDirectory: boolean;
+};
+
+export async function planEntry(
   repoDir: string,
   homeDir: string,
   entry: DotfileEntry,
-): Promise<void> {
+): Promise<EntryPlan> {
   const sourcePath = resolveSource(repoDir, entry.source);
   const targetPath = resolveTarget(repoDir, homeDir, entry.target);
   const sourceStat = await fs.lstat(sourcePath).catch(() => {
     throw new Error(`Source not found: ${entry.source}`);
   });
-  const isDirectory = sourceStat.isDirectory();
-  const isFile = sourceStat.isFile();
 
-  await prepareTargetParent(repoDir, path.dirname(targetPath));
+  const parentPath = path.dirname(targetPath);
+  const parentStat = await fs.lstat(parentPath).catch(() => undefined);
+  if (parentStat?.isSymbolicLink()) {
+    if (!(await isRepoBackedSymlink(repoDir, parentPath))) {
+      throw new Error(
+        `Parent symlink is not managed by this repository: ${parentPath}`,
+      );
+    }
+  } else {
+    const targetStat = await fs.lstat(targetPath).catch(() => undefined);
+    if (targetStat && !targetStat.isSymbolicLink()) {
+      throw new Error(
+        `Target exists and is not a symlink: ${entry.target}. Move it away and run again.`,
+      );
+    }
+  }
+
+  return {
+    entry,
+    sourcePath,
+    targetPath,
+    isDirectory: sourceStat.isDirectory(),
+  };
+}
+
+export async function applyEntry(plan: EntryPlan): Promise<void> {
+  const { entry, sourcePath, targetPath, isDirectory } = plan;
+
+  await prepareTargetParent(path.dirname(targetPath));
   await fs.rm(targetPath, { recursive: true, force: true });
   await fs.symlink(sourcePath, targetPath, isDirectory ? "dir" : "file");
 
-  let entryType = "entry";
-  if (isDirectory) {
-    entryType = "dir";
-  } else if (isFile) {
-    entryType = "file";
-  }
-
+  const entryType = isDirectory ? "dir" : "file";
   console.log(`Linked ${entryType}: ${entry.source} -> ${entry.target}`);
 }
 
-async function prepareTargetParent(
-  repoDir: string,
-  parentPath: string,
-): Promise<void> {
-  await fs.mkdir(path.dirname(parentPath), { recursive: true });
-
+async function prepareTargetParent(parentPath: string): Promise<void> {
   const parentStat = await fs.lstat(parentPath).catch(() => undefined);
-  if (!parentStat?.isSymbolicLink()) {
-    await fs.mkdir(parentPath, { recursive: true });
-    return;
+  if (parentStat?.isSymbolicLink()) {
+    await fs.rm(parentPath, { recursive: true, force: true });
   }
 
-  if (!(await isRepoBackedSymlink(repoDir, parentPath))) {
-    throw new Error(
-      `Parent symlink is not managed by this repository: ${parentPath}`,
-    );
-  }
-
-  await fs.rm(parentPath, { recursive: true, force: true });
   await fs.mkdir(parentPath, { recursive: true });
 }
 

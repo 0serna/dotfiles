@@ -3,18 +3,21 @@
 - Use neutral Spanish in all messages to the user.
 - Use English for code, files, PRs, and similar, except when language is part of the behavior or translations.
 - Communicate using ASD-STE100: short sentences, one idea per sentence, simple vocabulary.
-- Prefer a diagram over long text for flows, structures, or relations.
+- Prefer a diagram or artifact over long text for flows, structures, or relations.
 
-## Code and tools
+## Tools
+
+- Use `agent-sudo "<description>" <command>` instead of `sudo` to request elevated privileges.
+
+## Code
 
 - In a code repository, load the `domain-modeling` skill.
 - Keep code modular and responsibilities clearly separated.
-- Use `agent-sudo "brief reason" <command>` instead of `sudo` to request approval when you need elevated privileges.
 
 ## Browser
 
-- Use `playwriter` in headless mode by default. Use an extension session when the user points to their own tabs or needs their saved logins.
 - Use `playwriter` instead of other browsers/tools unless the user specifies otherwise.
+- Use `playwriter` in headless mode by default. Use an extension session when the user points to their own tabs or needs their saved logins.
 
 ## Subagents
 

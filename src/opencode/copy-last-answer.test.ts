@@ -87,4 +87,15 @@ describe("latestSessionAnswer", () => {
       cursor: "older",
     });
   });
+
+  it("stops when the server repeats the same cursor", async () => {
+    const list = vi.fn().mockResolvedValue({
+      data: [assistant(4, "tool-calls", [{ type: "text", text: "Working" }])],
+      cursor: { next: "same" },
+    });
+    expect(await latestSessionAnswer({ message: { list } }, "current")).toBe(
+      undefined,
+    );
+    expect(list).toHaveBeenCalledTimes(2);
+  });
 });

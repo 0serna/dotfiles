@@ -102,6 +102,14 @@ describe("normalizeSkills", () => {
     expect(await readSkill("quoted")).toContain("  opencode/autoinvoke: false");
   });
 
+  it("skips directories without SKILL.md", async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
+    await addSkill("plain");
+    await fs.mkdir(path.join(tmpDir, "empty"));
+
+    expect(await normalizeSkills(tmpDir)).toBe(1);
+  });
+
   it("leaves skills without the flag untouched", async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "skills-"));
     await addSkillWithFrontmatter(

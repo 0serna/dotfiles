@@ -20,6 +20,11 @@ describe("plainText", () => {
     ).toBe("  const value = `hi`;\n    return value;\n\necho hello");
   });
 
+  it("keeps underscores inside words and strips word-boundary emphasis", () => {
+    expect(plainText("some_variable_name")).toBe("some_variable_name");
+    expect(plainText("_italic_ and **bold**")).toBe("italic and bold");
+  });
+
   it("preserves Markdown-looking characters inside inline code", () => {
     expect(
       plainText(

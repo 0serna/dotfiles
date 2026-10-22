@@ -29,7 +29,16 @@ export async function readManifest(repoDir: string): Promise<DotfileEntry[]> {
     throw new Error("dotfiles.json must contain an array of entries");
   }
 
-  return parsed.map((entry, index) => parseEntry(entry, index + 1));
+  const entries = parsed.map((entry, index) => parseEntry(entry, index + 1));
+  const targets = new Set<string>();
+  for (const { target } of entries) {
+    if (targets.has(target)) {
+      throw new Error(`Duplicate target in manifest: ${target}`);
+    }
+    targets.add(target);
+  }
+
+  return entries;
 }
 
 function parseEntry(entry: unknown, index: number): DotfileEntry {
