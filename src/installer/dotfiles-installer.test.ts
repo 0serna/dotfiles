@@ -455,28 +455,20 @@ describe("DotfilesInstaller", () => {
         target: "~/.pi/agent/mcp.json",
       },
       {
-        source: "dotfiles/pi/extensions/context-report.ts",
-        target: "~/.pi/agent/extensions/context-report.ts",
-      },
-      {
         source: "dotfiles/AGENTS.md",
         target: "~/.pi/agent/AGENTS.md",
       },
     ]);
     expect(
       manifest.filter((entry) => entry.source.startsWith("dotfiles/pi")),
-    ).toEqual([piEntries[0], piEntries[1], piEntries[2]]);
+    ).toEqual([piEntries[0], piEntries[1]]);
     expect(manifest).toContainEqual({
       source: "dotfiles/agents",
       target: "~/.agents",
     });
-    expect(await fs.readdir("dotfiles/pi")).toEqual([
-      "extensions",
+    expect((await fs.readdir("dotfiles/pi")).sort()).toEqual([
       "mcp.json",
       "settings.json",
-    ]);
-    expect(await fs.readdir("dotfiles/pi/extensions")).toEqual([
-      "context-report.ts",
     ]);
     expect(
       JSON.parse(await fs.readFile("dotfiles/pi/settings.json", "utf-8")),
@@ -500,7 +492,7 @@ describe("DotfilesInstaller", () => {
     }
   });
 
-  it("preserves Pi runtime data and all Orca extensions through repeated installation", async () => {
+  it("preserves Pi runtime data and unmanaged extensions through repeated installation", async () => {
     const { repoDir, homeDir } = await createPiRepo();
     const agentDir = path.join(homeDir, ".pi", "agent");
     const unmanagedPaths = [
@@ -510,9 +502,9 @@ describe("DotfilesInstaller", () => {
       "sessions/project/session.jsonl",
       "bin/pi",
       "install/managed-install.json",
-      "extensions/orca-agent-status.ts",
-      "extensions/orca-prefill.ts",
-      "extensions/orca-titlebar-spinner.ts",
+      "extensions/unmanaged-agent-status.ts",
+      "extensions/unmanaged-prefill.ts",
+      "extensions/unmanaged-titlebar-spinner.ts",
     ];
     for (const relativePath of unmanagedPaths) {
       const target = path.join(agentDir, relativePath);
@@ -542,17 +534,17 @@ describe("DotfilesInstaller", () => {
     }
   });
 
-  it("links a personal Pi extension file without replacing Orca extensions", async () => {
+  it("links a personal Pi extension file without replacing unmanaged extensions", async () => {
     const source = "dotfiles/pi/extensions/personal.ts";
     const { repoDir, homeDir } = await createRepo(
       { [source]: "export default function personal() {}\n" },
       [{ source, target: "~/.pi/agent/extensions/personal.ts" }],
     );
     const extensionsDir = path.join(homeDir, ".pi", "agent", "extensions");
-    const orcaPath = path.join(extensionsDir, "orca-prefill.ts");
+    const unmanagedPath = path.join(extensionsDir, "unmanaged-prefill.ts");
     const personalPath = path.join(extensionsDir, "personal.ts");
     await fs.mkdir(extensionsDir, { recursive: true });
-    await fs.writeFile(orcaPath, "Orca-managed content");
+    await fs.writeFile(unmanagedPath, "unmanaged content");
 
     for (let run = 0; run < 2; run++) {
       expect(await install(repoDir, homeDir)).toBe(true);
@@ -562,8 +554,10 @@ describe("DotfilesInstaller", () => {
       expect(await fs.readFile(personalPath, "utf-8")).toBe(
         "export default function personal() {}\n",
       );
-      expect((await fs.lstat(orcaPath)).isFile()).toBe(true);
-      expect(await fs.readFile(orcaPath, "utf-8")).toBe("Orca-managed content");
+      expect((await fs.lstat(unmanagedPath)).isFile()).toBe(true);
+      expect(await fs.readFile(unmanagedPath, "utf-8")).toBe(
+        "unmanaged content",
+      );
     }
   });
 
