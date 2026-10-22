@@ -7,6 +7,7 @@
 
 ## Code and tools
 
+- In a code repository, load the `domain-modeling` skill.
 - Keep code modular and responsibilities clearly separated.
 - Use `agent-sudo "brief reason" <command>` instead of `sudo` to request approval when you need elevated privileges.
 
@@ -23,7 +24,7 @@
 | Need                 | Model                      |
 | -------------------- | -------------------------- |
 | General agentic work | DeepSeek V4.1 Flash        |
-| Code implementation  | Claude Haiku 5.5           |
+| Code implementation  | DeepSeek V4.1 Flash        |
 | Visual design work   | Muse Spark 1.3 Contributor |
 
 ## Context usage
