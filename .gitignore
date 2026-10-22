@@ -16,6 +16,3 @@ bun.lock
 # OS
 .DS_Store
 Thumbs.db
-
-# Orca-managed Pi extensions
-/dotfiles/pi/extensions/orca-*

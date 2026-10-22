@@ -29,8 +29,3 @@
 | General agentic work | DeepSeek V4.1 Flash        |
 | Code implementation  | DeepSeek V4.1 Flash        |
 | Visual design work   | Muse Spark 1.3 Contributor |
-
-## Context usage
-
-- When a request ends with a `status: <tokens>` note, end the final answer of the turn with one line: `context: <n>k`, where `n` is tokens divided by 1000 and rounded to the nearest integer.
-- Write the line in bold, on the last line and only in the final answer: not in intermediate messages, not when the turn ends with a tool call, and not when the turn fails.
