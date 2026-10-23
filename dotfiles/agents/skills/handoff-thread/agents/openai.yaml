@@ -1,0 +1,5 @@
+interface:
+  display_name: "Handoff thread"
+  short_description: "Continue work or analysis in a fresh thread"
+policy:
+  allow_implicit_invocation: false
