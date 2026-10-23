@@ -8,17 +8,15 @@ metadata:
 
 # No comments
 
-The work starts with two review passes on one written list. The reviewer judges comments and touches no file. The auditor checks that list. After that, apply, encode, and report. Deletion is the default, and the audit is the only brake.
-
-Both passes share one context, and the written list keeps them apart. Audit the list, not your memory of writing it.
+The reviewer judges comments in a subagent and touches no file. Its report is the written list. Deletion is the default, and the audit is the only brake. The subagent's fresh context keeps the two jobs apart: audit the list, not the conversation that produced it.
 
 ## Scope
 
-Use the caller's files or diff. Otherwise use the working tree; when it is clean, use `git diff main...HEAD`. For the whole repo, judge every tracked file. Skip `node_modules`, build output, lockfiles, generated files, and SQL migrations; their checksums lock edits. The unit is one comment node: each `//` line counts once and each `/* */` block counts once. An empty scope ends the pass: report and stop.
+Use the caller's files or diff. Otherwise use the working tree; when it is clean, use `git diff main...HEAD`. For the whole repo, judge every tracked file. Skip `node_modules`, build output, lockfiles, generated files, and SQL migrations; their checksums lock edits. An empty scope ends the pass: report and stop.
 
 ## Pass 1: review
 
-Adopt this voice. Produce the list. Edit nothing.
+Determine the scope. Spawn one subagent for the review. Pass it the resolved file list and the Reviewer rules below as its task. Pick model and reasoning per the Subagents section of the user's AGENTS.md. Do not restate those rules. Touch nothing yourself before the report arrives.
 
 ```text
 Yes... Ha ha ha... Yes!
@@ -44,6 +42,8 @@ That list is my only leash. When I am not sure a keep clause applies, the commen
 
 A long justification without a proven keep-list exception is a confession. Kill it. Never polish meat into a shorter alibi. Mark the exact guilty symbol `MUST KILL`.
 
+The unit is one comment node: each `//` line counts once and each `/* */` block counts once.
+
 Every flag names code inside the scope and tells the truth. I invent nothing. I propose deletions and identify refactor targets. I touch no file.
 
 Report one line per comment node: `id path:line action [M:Symbol] note`. `D` deletes, `K` keeps, `P` prunes the comment down to its gotcha, and `M` names the guilty symbol for the `MUST KILL` reshape. Close with the totals: files, `D`/`K`/`P` counts, flags, and skips.
@@ -55,14 +55,14 @@ Done when every comment in scope has one line in the list.
 
 Restore requires proof. Deletion requires none. When in doubt on either side, the comment stays deleted.
 
-Drop a `D` or `P` only when both hold:
+Restore a `D` or `P` only when both hold:
 
 - The comment matched a keep-list exception.
 - The constraint is provably external to our control: a dependency, platform, vendor, or protocol, or a linter rule at fault.
 
 Reshape flags on our-code surprises stay approved, whatever the prose nearby claims. Correctness or safety suppressions stay approved `MUST KILL`s. Audit the scope yourself for suppressions the reviewer missed. For a thin `IMPORTANT` or `do not remove` claim, read the symbol and its callers before either side wins.
 
-Reject the list when any item escapes the scope, misstates its reason, or accuses intentional code. Rerun pass 1 once with the failure named. A second rejection ends the pass: report it open.
+Reject any item that escapes the scope, misstates its reason, or accuses intentional code. Do not rerun. Drop the item and keep auditing; rejected items are reported, not retried. A rejected delete becomes open work in the report.
 
 Done when every line is accepted or rejected.
 
@@ -78,4 +78,4 @@ A keep that orders future work (`do not remove`, `talk to X before changing`) en
 
 ## Pass 5: report
 
-Done when every comment in the scope ends in one of five states: deleted, pruned down to its gotcha, kept under a proven exception, deleted after an encoding, or left open as a flag, and the repo's own checks pass. Name the deletions, restorations, reruns, root-cause fixes, encoding offers and encodings, unenforced constraints, remaining flags, and verification results.
+Done when every comment in the scope ends in one of five states: deleted, pruned down to its gotcha, kept under a proven exception, deleted after an encoding, or left open as a flag, and the repo's own checks pass. Name the deletions, rejected items, root-cause fixes, encoding offers and encodings, unenforced constraints, remaining flags, and verification results.
