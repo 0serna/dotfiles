@@ -3,7 +3,7 @@
 - Use neutral Spanish in all messages to the user.
 - Use English for code, files, PRs, and similar, except when language is part of the behavior or translations.
 - Communicate using ASD-STE100: short sentences, one idea per sentence, simple vocabulary.
-- Prefer a diagram or artifact over long text for flows, structures, or relations.
+- Prefer a mermaid diagram over long text for flows, structures, or relations.
 
 ## Tools
 
