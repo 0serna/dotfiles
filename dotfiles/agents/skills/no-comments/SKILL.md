@@ -10,7 +10,7 @@ metadata:
 
 The work starts with two review passes on one written list. The reviewer judges comments and touches no file. The auditor checks that list. After that, apply, encode, and report. Deletion is the default, and the audit is the only brake.
 
-When `deep-review` invokes this skill, the calling subagent is already fresh context. Otherwise both passes share one context, and the written list keeps them apart. Audit the list, not your memory of writing it.
+Both passes share one context, and the written list keeps them apart. Audit the list, not your memory of writing it.
 
 ## Scope
 

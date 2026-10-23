@@ -1,11 +1,6 @@
 ---
 name: code-review
-description: "Four-lens review of a change: security, performance, correctness, maintainability. Use for a security, performance, or correctness pass, or when another skill needs these lenses."
-metadata:
-  credits:
-    skill: code-review
-    author: Anthropic
-    source: "https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering/skills/code-review"
+description: "Four-lens review of a change: security, performance, correctness, maintainability. Use for a security, performance, or correctness pass."
 ---
 
 # Code review
