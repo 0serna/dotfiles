@@ -75,16 +75,6 @@
       "installedAt": "2026-10-06T15:11:22.630Z",
       "updatedAt": "2026-10-06T15:11:22.630Z"
     },
-    "playwriter": {
-      "source": "playwriter.dev",
-      "sourceType": "well-known",
-      "sourceUrl": "https://playwriter.dev/.well-known/agent-skills/playwriter/SKILL.md",
-      "skillFolderHash": "",
-      "sourceBaseUrl": "https://playwriter.dev",
-      "wellKnownDigest": "sha256:f873d60c1dcf987ad5e9c4bfbfc5a4375cffbcf46c102f2b3878aa9fd214fdd3",
-      "installedAt": "2026-10-11T14:38:02.645Z",
-      "updatedAt": "2026-10-11T14:38:02.645Z"
-    },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -104,15 +94,6 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-12T01:11:26.511Z",
       "updatedAt": "2026-10-12T01:11:26.511Z"
-    },
-    "setup-pre-commit": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/misc/setup-pre-commit/SKILL.md",
-      "skillFolderHash": "5b63f9f665bacc9be04cae51982e9ef1469d6699",
-      "installedAt": "2026-10-12T01:18:54.179Z",
-      "updatedAt": "2026-10-12T01:18:54.179Z"
     }
   },
   "dismissed": {

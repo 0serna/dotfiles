@@ -16,7 +16,7 @@
 
 ## Browser
 
-- Use `playwriter` instead of other browsers/tools unless the user specifies otherwise.
+- Run `playwriter skill` instead of other browsers unless the user specifies otherwise.
 - Use `playwriter` in headless mode by default. Use an extension session when the user points to their own tabs or needs their saved logins.
 
 ## Subagents
